@@ -1,0 +1,22 @@
+{
+  "dependencies": [
+    "cpptrace",
+    "entt",
+    "fastgltf",
+    "glfw3",
+    "glm",
+    "magic-enum",
+    "nlohmann-json",
+    "spdlog",
+    "stb",
+    "tinyobjloader",
+    "volk",
+    "vulkan-memory-allocator",
+    "yaml-cpp",
+    "vulkan",
+    "assimp",
+    "efsw",
+    "jsoncpp",
+    "meshoptimizer"
+  ]
+}

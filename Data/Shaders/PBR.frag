@@ -1,0 +1,225 @@
+#version 450
+
+// Physically Based shading model: Lambetrtian diffuse BRDF + Cook-Torrance microfacet specular BRDF + IBL for ambient.
+
+// This implementation is based on "Real Shading in Unreal Engine 4" SIGGRAPH 2013 course notes by Epic Games.
+// See: http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf
+
+const float PI = 3.141592;
+const float Epsilon = 0.00001;
+
+
+#define MAX_REFLECTION_LOD 10.0
+
+
+// ================================================================================================
+
+struct PointLight 
+{
+    vec4 Position; // ignore w
+    vec4 Color;    // w is intensity
+};
+
+// struct DirectionalLight
+// {
+// 	vec4 Direction;
+// 	vec4 Color;
+// };
+
+// ================================================================================================
+// Uniforms
+
+layout(set = 0, binding = 0) uniform GlobalUBO 
+{
+    mat4       Projection;
+    mat4       View;
+    mat4       InverseView;
+    vec4       AmbientLightColor; // w is intensity
+    PointLight PointLights[10];
+    int        NumPointLights;
+
+} uUbo;
+
+
+layout(push_constant) uniform Push 
+{
+    mat4 ModelMatrix; // Projection * View
+    mat4 NormalMatrix;
+
+} uPush;
+
+
+layout(set=0, binding=1) uniform samplerCube uSkybox;
+layout(set=0, binding=2) uniform samplerCube uIrradiance;
+layout(set=0, binding=3) uniform sampler2D uBrdfLut;
+
+layout(set=1, binding=0) uniform MaterialParams
+{
+	vec4  Albedo;
+	vec4  Emission;
+	vec2  UVScale;
+	float Roughness;
+	float Metallic;
+
+} uMaterialParams;
+
+layout(set=1, binding=1) uniform sampler2D uAlbedoTexture;
+layout(set=1, binding=2) uniform sampler2D uARMTexture;
+layout(set=1, binding=3) uniform sampler2D uNormalTexture;
+
+// ================================================================================================
+
+// Input
+layout(location = 0) in vec3 fragPositionWorld;
+layout(location = 1) in vec3 fragColor;
+layout(location = 2) in vec2 fragUV;
+layout(location = 3) in mat3 fragTBN; // Tangent basis
+
+// Output
+layout(location = 0) out vec4 outColor;
+
+// ================================================================================================
+
+
+// GGX/Trowbridge-Reitz Normal distribution function
+// alpha = roughness ^ 2;
+float D(float alpha, vec3 N, vec3 H)
+{
+	float nDotH = dot(N, H);
+	float alpha2 = alpha * alpha;
+	
+	float temp = 1 + nDotH * nDotH * (alpha2 - 1);
+	float denom = PI * temp * temp;
+	denom = max(denom, 0.00001);
+
+	return alpha2 / denom;
+}
+
+// Schlick-Beckmann Geometry shadowing function
+float G1(float k, vec3 N, vec3 X)
+{
+	float nDotX = max(dot(N, X), 0.0);
+	float denom = nDotX * (1-k) + k;
+	denom = max(denom, 0.00001);
+
+	return nDotX / denom;
+}
+
+// Smith model
+float G_ibl(float roughness, vec3 N, vec3 L, vec3 V)
+{
+	float k = roughness * roughness / 2.0;
+	return G1(k, N, L) * G1(k, N, V);
+}
+float G_direct(float roughness, vec3 N, vec3 L, vec3 V)
+{
+	float k = (roughness + 1) * (roughness + 1) / 8.0;
+	return G1(k, N, L) * G1(k, N, V);
+}
+
+// Fresnel-Schlick Function
+// F0 = base reflectivity
+vec3 fresnelSchlick(vec3 F0, vec3 V, vec3 H)
+{
+	float vDotH = max(dot(V, H), 0.0);
+	return F0 + (vec3(1.0) - F0) * pow(1-vDotH, 5);
+}
+
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
+{
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}   
+
+
+void main()
+{
+	vec3 cameraPosWorld = uUbo.InverseView[3].xyz;
+
+	vec2  scaledUV      = fragUV * uMaterialParams.UVScale;
+	vec3  albedo        = uMaterialParams.Albedo.rgb * texture(uAlbedoTexture, scaledUV).rgb;
+	float ao            = texture(uARMTexture, scaledUV).r;
+	float roughness     = uMaterialParams.Roughness  * texture(uARMTexture,    scaledUV).g;
+	float metallic      = uMaterialParams.Metallic   * texture(uARMTexture,    scaledUV).b;
+	vec3  normalTexture = texture(uNormalTexture, scaledUV).xyz * 2.0 - 1.0;
+
+	vec3 N = normalize(fragTBN * normalTexture);
+	vec3 V = normalize(cameraPosWorld - fragPositionWorld);
+	float nDotV = max(dot(N,V), 0.0);
+	vec3 R = reflect(-V, N);
+	
+	vec3 F0 = mix(vec3(0.04), albedo, metallic);
+
+	vec3 F = fresnelSchlickRoughness(nDotV, F0, roughness);
+	vec3 ks = F;
+	vec3 kd = (vec3(1.0) - ks) * (1.0 - metallic); 
+
+	vec3 diffuseAmbient = texture(uIrradiance, N).rgb * albedo;
+
+	vec3 prefilterColor  = textureLod(uSkybox, R, roughness * MAX_REFLECTION_LOD).rgb;
+	vec2 envBRDF         = texture(uBrdfLut, vec2(nDotV, roughness)).rg;
+	vec3 specularAmbient = prefilterColor * (F * envBRDF.r + envBRDF.g);
+
+	vec3 outLight = (kd * diffuseAmbient + specularAmbient) * ao;
+
+	//for each point light
+	for(int i = 0; i < uUbo.NumPointLights; i++)
+	{
+		PointLight light = uUbo.PointLights[i];
+		vec3 lightColor = light.Color.xyz * light.Color.w;
+
+		vec3 L = light.Position.xyz - fragPositionWorld;
+		float attenuation = 1.0 / dot(L,L);
+		L = normalize(L);
+		vec3 H = normalize(V + L);
+
+		// PBR
+		vec3 ks = fresnelSchlick(F0, V, H);
+		vec3 kd = (vec3(1.0) - ks) * (1.0 - metallic);
+
+		vec3 lambert = albedo / PI;
+		float alpha = roughness * roughness;
+
+		vec3 cookTorranceNom = D(alpha, N, H) * G_direct(roughness, N, L, V) * ks;
+		float cookTorranceDenom = 4.0 * max(dot(V, N), 0.0) * max(dot(L, N), 0.0);
+		cookTorranceDenom = max(cookTorranceDenom, 0.00001);
+		vec3 cookTorrance = cookTorranceNom / cookTorranceDenom;
+
+		vec3 BRDF = kd * lambert + cookTorrance;
+		outLight += BRDF * lightColor * attenuation * max(dot(L, N), 0);
+	}
+
+	// //for each directional light
+	// for(int i = 0; i < uUbo.NumDirectionalLights; i++)
+	// {
+	// 	DirectionalLight light = uUbo.DirectionalLights[i];
+	// 	vec3 lightColor = light.Color.xyz * light.Color.w;
+
+	// 	vec3 L = light.Direction.xyz;
+	// 	float attenuation = 1.0;
+	// 	L = normalize(L);
+	// 	vec3 H = normalize(V + L);
+
+	// 	// PBR
+	// 	vec3 ks = fresnelSchlick(F0, V, H);
+	// 	vec3 kd = (vec3(1.0) - ks) * (1.0 - metallic);
+
+	// 	vec3 lambert = albedo / PI;
+	// 	float alpha = roughness * 6;
+
+	// 	vec3 cookTorranceNom = D(alpha, N, H) * G_direct(roughness, N, L, V) * ks;
+	// 	float cookTorranceDenom = 4.0 * max(dot(V, N), 0.0) * max(dot(L, N), 0.0);
+	// 	cookTorranceDenom = max(cookTorranceDenom, 0.00001);
+	// 	vec3 cookTorrance = cookTorranceNom / cookTorranceDenom;
+
+	// 	vec3 BRDF = kd * lambert + cookTorrance;
+	// 	outLight += BRDF * lightColor * attenuation * max(dot(L, N), 0);
+	// }
+	
+	// Emission
+	outLight += uMaterialParams.Emission.xyz + uMaterialParams.Emission.w;
+
+	// HDR Mapping
+	outLight = outLight / (outLight + vec3(1.0));
+
+	outColor = vec4(outLight, 1.0);
+}

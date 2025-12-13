@@ -1,0 +1,16 @@
+
+
+https://learn.microsoft.com/en-us/windows/uwp/graphics-concepts/views
+
+CBV - Constant Buffer View
+VBV - Vertex Buffer View
+IBV - Index Buffer View
+
+SRV - Shader Resource View
+UAV - Unordered Access View
+RTV - Render Target View
+DSV - Depth Stencil View
+
+SOV - Stream Output View
+ROV - Rasterizer Ordered View
+

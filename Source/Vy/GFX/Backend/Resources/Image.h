@@ -212,16 +212,17 @@ namespace Vy
 		VyImage& operator=(const VyImage&) = delete;
 		VyImage& operator=(VyImage&& other) noexcept;
 
-		operator     VkImage()                  const { return m_Image;         }
-		VY_NODISCARD VkImage       handle()     const { return m_Image;         }
-		VY_NODISCARD VkFormat      format()     const { return m_Format;        }
-		VY_NODISCARD VkExtent3D    extent()     const { return m_Extent;        }
-		VY_NODISCARD U32           width()      const { return m_Extent.width;  }
-		VY_NODISCARD U32           height()     const { return m_Extent.height; }
-		VY_NODISCARD U32           depth()      const { return m_Extent.depth;  }
-		VY_NODISCARD U32           mipLevels()  const { return m_MipLevels;     }
-		VY_NODISCARD U32           layerCount() const { return m_LayerCount;    }
-		VY_NODISCARD VkImageLayout layout()     const { return m_Layout;        }
+		operator     VkImage()                           const { return m_Image;         }
+		VY_NODISCARD VkImage               handle()      const { return m_Image;         }
+		VY_NODISCARD VkFormat              format()      const { return m_Format;        }
+		VY_NODISCARD VkExtent3D            extent()      const { return m_Extent;        }
+		VY_NODISCARD U32                   width()       const { return m_Extent.width;  }
+		VY_NODISCARD U32                   height()      const { return m_Extent.height; }
+		VY_NODISCARD U32                   depth()       const { return m_Extent.depth;  }
+		VY_NODISCARD U32                   mipLevels()   const { return m_MipLevels;     }
+		VY_NODISCARD U32                   layerCount()  const { return m_LayerCount;    }
+		VY_NODISCARD VkImageLayout         layout()      const { return m_Layout;        }
+		VY_NODISCARD VkSampleCountFlagBits sampleCount() const { return m_SampleCount;   }
 
 		void create(const VyImageCreateInfo& desc);
 
@@ -240,12 +241,13 @@ namespace Vy
 		VkImage       m_Image      { VK_NULL_HANDLE };
 		VmaAllocation m_Allocation { VK_NULL_HANDLE };
 
-		VkImageCreateInfo m_CreateInfo{};
-		VkFormat          m_Format     = VK_FORMAT_UNDEFINED;
-		VkExtent3D        m_Extent     = { 1, 1, 1 };
-		U32               m_MipLevels  = 1;
-		U32               m_LayerCount = 1;
-		VkImageLayout     m_Layout     = VK_IMAGE_LAYOUT_UNDEFINED;
+		VkImageCreateInfo     m_CreateInfo{};
+		VkFormat              m_Format     = VK_FORMAT_UNDEFINED;
+		VkExtent3D            m_Extent     = { 1, 1, 1 };
+		U32                   m_MipLevels  = 1;
+		U32                   m_LayerCount = 1;
+		VkImageLayout         m_Layout     = VK_IMAGE_LAYOUT_UNDEFINED;
+		VkSampleCountFlagBits m_SampleCount {};
 	};
 }
 

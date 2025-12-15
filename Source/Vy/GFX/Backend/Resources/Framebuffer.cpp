@@ -102,7 +102,7 @@ namespace Vy
             subpass.pDepthStencilAttachment = &depthAttachmentRef;
         }
 
-        std::array<VkSubpassDependency, 2> dependencies;
+        TArray<VkSubpassDependency, 2> dependencies;
         {
             dependencies[0].srcSubpass      = VK_SUBPASS_EXTERNAL;
             dependencies[0].dstSubpass      = 0;
@@ -121,15 +121,16 @@ namespace Vy
             dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
         }
 
-        std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+        TArray<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
 
-        VkRenderPassCreateInfo renderPassInfo{};
+        VkRenderPassCreateInfo renderPassInfo{ VKInit::renderPassCreateInfo() };
         {
-            renderPassInfo.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
             renderPassInfo.attachmentCount = static_cast<U32>(attachments.size());
             renderPassInfo.pAttachments    = attachments.data();
+
             renderPassInfo.subpassCount    = 1;
             renderPassInfo.pSubpasses      = &subpass;
+            
             renderPassInfo.dependencyCount = static_cast<U32>(dependencies.size());
             renderPassInfo.pDependencies   = dependencies.data();
         }
@@ -236,8 +237,8 @@ namespace Vy
                     .arrayLayers(0, 1)
                 .build(m_DepthImages[i]);
 
-                // VY_INFO_TAG("VyFramebuffer2", "Created Depth Mip View: Frame {0}, Mip {1}, Handle");
-                std::cout << "Created Depth Mip View: Frame " << i << ", Mip " << mip << ", Handle " << m_DepthMipImageViews[i][mip] << std::endl;
+                VY_INFO_TAG("VyFramebuffer2", "Created Depth Mip View: Frame {0}, Mip {1}", i, mip);
+                // std::cout << "Created Depth Mip View: Frame " << i << ", Mip " << mip << ", Handle " << m_DepthMipImageViews[i][mip] << std::endl;
             }
         }
 
@@ -275,14 +276,15 @@ namespace Vy
 
         for (size_t i = 0; i < m_FrameCount; i++)
         {
-            std::array<VkImageView, 2> attachments = {m_ColorAttachmentImageViews[i].handle(), m_DepthImageViews[i].handle()};
+            TArray<VkImageView, 2> attachments = { m_ColorAttachmentImageViews[i].handle(), m_DepthImageViews[i].handle() };
 
-            VkFramebufferCreateInfo framebufferInfo{};
+            VkFramebufferCreateInfo framebufferInfo{ VKInit::framebufferCreateInfo() };
             {
-                framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
                 framebufferInfo.renderPass      = m_RenderPass;
+
                 framebufferInfo.attachmentCount = static_cast<U32>(attachments.size());
                 framebufferInfo.pAttachments    = attachments.data();
+                
                 framebufferInfo.width           = m_Extent.width;
                 framebufferInfo.height          = m_Extent.height;
                 framebufferInfo.layers          = 1;
@@ -290,7 +292,7 @@ namespace Vy
 
             if (vkCreateFramebuffer(VyContext::device(), &framebufferInfo, nullptr, &m_Framebuffers[i]) != VK_SUCCESS)
             {
-                throw std::runtime_error("failed to create framebuffer!");
+                throw std::runtime_error("Failed to create framebuffer!");
             }
         }
     }
@@ -299,19 +301,19 @@ namespace Vy
     VkDescriptorImageInfo VyFramebuffer2::descriptorImageInfo(int index) const
     {
         return VkDescriptorImageInfo{
-                .sampler     = m_Sampler.handle(),
-                .imageView   = m_ColorImageViews[index].handle(),
-                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .sampler     = m_Sampler.handle(),
+            .imageView   = m_ColorImageViews[index].handle(),
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         };
     }
 
 
     void VyFramebuffer2::beginRenderPass(VkCommandBuffer cmdBuffer, int frameIndex)
     {
-        std::array<VkClearValue, 2> clearValues{};
+        TArray<VkClearValue, 2> clearValues{};
         {
-            clearValues[0].color        = {{0.01f, 0.01f, 0.01f, 1.0f}};
-            clearValues[1].depthStencil = {1.0f, 0};
+            clearValues[0].color        = {{ 0.01f, 0.01f, 0.01f, 1.0f }};
+            clearValues[1].depthStencil = { 1.0f, 0 };
         }
 
         VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };

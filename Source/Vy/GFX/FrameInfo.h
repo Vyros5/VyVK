@@ -107,6 +107,7 @@ namespace Vy
         float            FrameTime;
         VkCommandBuffer  CommandBuffer;
         VkDescriptorSet  GlobalDescriptorSet;
+        VkDescriptorSet  GlobalTextureSet; // Bindless
         // VkDescriptorSet  LightDescriptorSet;
         Shared<VyScene>& Scene;
         VyCamera&        Camera;

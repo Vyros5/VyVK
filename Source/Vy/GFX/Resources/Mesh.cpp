@@ -244,7 +244,7 @@ namespace Vy
     }
 
 
-    size_t Model::getMemorySize() const
+    size_t Model::memorySize() const
     {
         size_t totalSize = 0;
 

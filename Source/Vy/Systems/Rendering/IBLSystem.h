@@ -60,9 +60,9 @@ namespace Vy
         bool isGenerated() const { return m_Generated; }
 
         // Accessors for descriptor binding
-        VkDescriptorImageInfo getIrradianceDescriptorInfo() const;
-        VkDescriptorImageInfo getPrefilteredDescriptorInfo() const;
-        VkDescriptorImageInfo getBRDFLUTDescriptorInfo() const;
+        VkDescriptorImageInfo irradianceDescriptorImageInfo() const;
+        VkDescriptorImageInfo prefilteredDescriptorImageInfo() const;
+        VkDescriptorImageInfo brdfLUTDescriptorImageInfo() const;
 
     private:
         void     createIrradianceMap();

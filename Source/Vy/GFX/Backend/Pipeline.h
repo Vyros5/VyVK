@@ -79,6 +79,8 @@ namespace Vy
 		public:
 			GraphicsBuilder();
 
+            GraphicsBuilder(VyPipeline::EFlags flag);
+
 			~GraphicsBuilder();
 
 			GraphicsBuilder& addDescriptorSetLayout(VkDescriptorSetLayout descriptorSetLayout);
@@ -92,7 +94,7 @@ namespace Vy
 			// // GraphicsBuilder& addShaderStages(VkShaderStageFlags    stages, const Path& shaderPath);
 
 			GraphicsBuilder& addColorAttachment(VkFormat colorFormat, bool alphaBlending = false);
-			
+
             GraphicsBuilder& setDepthAttachment(VkFormat depthFormat);
 
             GraphicsBuilder& setStencilFormat(VkFormat stencilFormat);
@@ -113,7 +115,7 @@ namespace Vy
             
             GraphicsBuilder& setRenderPass(VkRenderPass renderPass);
 
-            GraphicsBuilder& addFlag(EFlags flag);
+            GraphicsBuilder& addFlag(VyPipeline::EFlags flag);
 
 			Unique<VyPipeline> buildUnique();
 
@@ -221,7 +223,13 @@ namespace Vy
          * @param setIndex      The index of the descriptor set.
          * @param descriptorSet The descriptor set to bind.
          */
-		void bindDescriptorSet(VkCommandBuffer cmdBuffer, SetIndex setIndex, VkDescriptorSet descriptorSet) const;
+		void bindDescriptorSet(
+            VkCommandBuffer cmdBuffer, 
+            SetIndex        setIndex, 
+            VkDescriptorSet descriptorSet,
+            U32             dynamicOffsetCount = 0,
+            const U32*      pDynamicOffsets    = nullptr
+        ) const;
 
 
 

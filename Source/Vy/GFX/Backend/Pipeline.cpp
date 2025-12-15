@@ -16,6 +16,19 @@ namespace Vy
 	}
 
 
+	VyPipeline::GraphicsBuilder::GraphicsBuilder(VyPipeline::EFlags flag)
+	{
+		if (static_cast<U32>(VyPipeline::EFlags::MeshShader) & static_cast<U32>(flag) != 0)
+		{
+			VyPipeline::defaultMeshPipelineConfig(m_GraphicsConfig);
+		}
+		else
+		{
+			VyPipeline::defaultGraphicsPipelineConfig(m_GraphicsConfig);
+		}
+	}
+
+
 	VyPipeline::GraphicsBuilder::~GraphicsBuilder()
 	{
 		for (auto& shaderStage : m_GraphicsConfig.ShaderStages)
@@ -443,10 +456,14 @@ namespace Vy
 	void VyPipeline::bindDescriptorSet(
 		VkCommandBuffer cmdBuffer, 
 		SetIndex        setIndex, 
-		VkDescriptorSet descriptorSet) const
+		VkDescriptorSet descriptorSet,
+		U32             dynamicOffsetCount,
+		const U32*      pDynamicOffsets
+	) const
 	{
-		vkCmdBindDescriptorSets(cmdBuffer, m_BindPoint, m_Layout, setIndex, 1, &descriptorSet, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuffer, m_BindPoint, m_Layout, setIndex, 1, &descriptorSet, dynamicOffsetCount, pDynamicOffsets);
 	}
+
 
 	void VyPipeline::bindDescriptorSets(
 		VkCommandBuffer          cmdBuffer, 
@@ -456,6 +473,7 @@ namespace Vy
 		vkCmdBindDescriptorSets(cmdBuffer, m_BindPoint, m_Layout, setIndex, static_cast<U32>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
 	}
 
+	
 	void VyPipeline::pushConstants(
 		VkCommandBuffer    cmdBuffer, 
 		VkShaderStageFlags stageFlags, 

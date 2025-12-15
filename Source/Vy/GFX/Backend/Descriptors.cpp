@@ -14,10 +14,11 @@ namespace Vy
 	
 	VyDescriptorSetLayout::Builder& 
 	VyDescriptorSetLayout::Builder::addBinding(
-		BindingIndex       binding, 
-		VkDescriptorType   descriptorType,
-		VkShaderStageFlags stageFlags, 
-		U32                count)
+		BindingIndex             binding, 
+		VkDescriptorType         descriptorType,
+		VkShaderStageFlags       stageFlags, 
+		U32                      count,
+		VkDescriptorBindingFlags bindingFlags)
     {
         VY_ASSERT(m_Bindings.count(binding) == 0, 
 			"Binding already in use");
@@ -30,7 +31,8 @@ namespace Vy
 			layoutBinding.stageFlags      = stageFlags;
 		}
 
-		m_Bindings[ binding ] = layoutBinding;
+		m_Bindings    [ binding ] = layoutBinding;
+		m_BindingFlags[ binding ] = bindingFlags;
 
         return *this;
     }

@@ -256,17 +256,24 @@ namespace Vy
 
             VkAttachmentDescription depthAttachment{};
             {
+                // Find and set image format to use for this depth buffer.
                 depthAttachment.format = VyContext::device().findSupportedFormat(
                     { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
-                    VK_IMAGE_TILING_OPTIMAL,
-                    VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+                    VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
                 );
+                // One sample per pixel (more samples used for multisampling).
                 depthAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+                // Tells the depthbuffer attachment to clear each time it is loaded.
                 depthAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                // Contents within the depth buffer render area are not needed after rendering.
                 depthAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                // Previous contents within the stencil don't need to be preserved and will be undefined.
                 depthAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                // Contents within the stencil render area are not needed after rendering.
                 depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                // Inital image contents does not matter since we are clearing them on load.
                 depthAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+                // Set so the layout after rendering allows read and write access as a depth/stencil attachment.
                 depthAttachment.finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             }
 

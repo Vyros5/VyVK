@@ -23,10 +23,10 @@ namespace Vy
         VyShadowMap(const VyShadowMap&)            = delete;
         VyShadowMap& operator=(const VyShadowMap&) = delete;
 
-        VkRenderPass  renderPass()  const { return m_RenderPass; }
-        VkFramebuffer framebuffer() const { return m_Framebuffer; }
-        const VyImageView&  imageView()   { return m_DepthImageView; }
-        const VySampler&    sampler()     { return m_Sampler; }
+        VkRenderPass        renderPass()  const { return m_RenderPass; }
+        VkFramebuffer       framebuffer() const { return m_Framebuffer; }
+        const VyImageView&  imageView()         { return m_DepthImageView; }
+        const VySampler&    sampler()           { return m_Sampler; }
 
         U32 width()  const { return m_Width; }
         U32 height() const { return m_Height; }
@@ -34,21 +34,21 @@ namespace Vy
         VkDescriptorImageInfo descriptorImageInfo() const
         {
             return VkDescriptorImageInfo{
-                    .sampler     = m_Sampler.handle(),
-                    .imageView   = m_DepthImageView.handle(),
-                    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+                .sampler     = m_Sampler.handle(),
+                .imageView   = m_DepthImageView.handle(),
+                .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
             };
         }
 
         /**
          * @brief Begin shadow map render pass
          */
-        void beginRenderPass(VkCommandBuffer commandBuffer);
+        void beginRenderPass(VkCommandBuffer cmdBuffer);
 
         /**
          * @brief End shadow map render pass
          */
-        void endRenderPass(VkCommandBuffer commandBuffer);
+        void endRenderPass(VkCommandBuffer cmdBuffer);
 
     private:
         void createDepthResources();
@@ -126,23 +126,23 @@ namespace Vy
          * @brief Transition all faces to attachment optimal before rendering
          * Call this ONCE before rendering all 6 faces
          */
-        void transitionToAttachmentLayout(VkCommandBuffer commandBuffer);
+        void transitionToAttachmentLayout(VkCommandBuffer cmdBuffer);
 
         /**
          * @brief Transition all faces to shader read layout after rendering
          * Call this ONCE after rendering all 6 faces
          */
-        void transitionToShaderReadLayout(VkCommandBuffer commandBuffer);
+        void transitionToShaderReadLayout(VkCommandBuffer cmdBuffer);
 
         /**
          * @brief Begin render pass for a specific cube face
          */
-        void beginRenderPass(VkCommandBuffer commandBuffer, int face);
+        void beginRenderPass(VkCommandBuffer cmdBuffer, int face);
 
         /**
          * @brief End render pass
          */
-        void endRenderPass(VkCommandBuffer commandBuffer);
+        void endRenderPass(VkCommandBuffer cmdBuffer);
 
     private:
         void createDepthResources();

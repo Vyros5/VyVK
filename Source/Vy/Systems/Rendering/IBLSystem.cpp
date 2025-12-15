@@ -66,7 +66,7 @@ namespace Vy
     }
 
 
-    VkDescriptorImageInfo IBLSystem::getIrradianceDescriptorInfo() const
+    VkDescriptorImageInfo IBLSystem::irradianceDescriptorImageInfo() const
     {
         return VkDescriptorImageInfo{
                 .sampler     = m_IrradianceSampler  .handle(),
@@ -76,7 +76,7 @@ namespace Vy
     }
 
 
-    VkDescriptorImageInfo IBLSystem::getPrefilteredDescriptorInfo() const
+    VkDescriptorImageInfo IBLSystem::prefilteredDescriptorImageInfo() const
     {
         return VkDescriptorImageInfo{
                 .sampler     = m_PrefilteredSampler  .handle(),
@@ -86,7 +86,7 @@ namespace Vy
     }
 
 
-    VkDescriptorImageInfo IBLSystem::getBRDFLUTDescriptorInfo() const
+    VkDescriptorImageInfo IBLSystem::brdfLUTDescriptorImageInfo() const
     {
         return VkDescriptorImageInfo{
                 .sampler     = m_BrdfLUTSampler  .handle(),

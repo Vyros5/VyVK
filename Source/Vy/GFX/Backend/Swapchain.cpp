@@ -3,7 +3,7 @@
 #include <Vy/GFX/Context.h>
 
 #include <Vy/GFX/Backend/VK/vk_enum_str.h>
-
+#include <Vy/GFX/Backend/Resources/RenderPass.h>
 #include <iostream>
 
 #define USE_IMMEDIATE_PRESENT_MODE 0
@@ -394,6 +394,49 @@ namespace Vy
 
     void VySwapchain::createRenderPass() 
     {
+        // RenderPass::Builder rpBuilder;
+
+        // auto swapchainFormat = swapchainImageFormat();
+        // auto depthFormat     = findDepthFormat();
+
+        // RenderPass rp = rpBuilder
+        //     // 0
+        //     .beginAttachment(VY_ATTACHMENT_COLOR)
+        //         .setFormat(swapchainFormat)
+        //         .setSamples(VK_SAMPLE_COUNT_1_BIT)
+        //         .setLoadOpClear()
+        //         .setStoreOpStore()
+        //         .setStencilLoadOpDontCare()
+        //         .setStencilStoreOpDontCare()
+        //         .setInitialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
+        //         .setFinalLayoutPresentSrc()
+        //     .endAttachment()
+        //     // 1
+        //     .beginAttachment(VY_ATTACHMENT_DEPTH)
+        //         .setFormat(depthFormat)
+        //         .setSamples(VK_SAMPLE_COUNT_1_BIT)
+        //         .setLoadOpClear()
+        //         .setStoreOpDontCare()
+        //         .setStencilLoadOpDontCare()
+        //         .setStencilStoreOpDontCare()
+        //         .setInitialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
+        //         .setFinalLayoutDepthStencilAttachment()
+        //     .endAttachment()
+
+        //     .beginSubpass(VK_PIPELINE_BIND_POINT_GRAPHICS)
+        //         .addColorAttachment       ( 0 )
+        //         .setDepthStencilAttachment( 1 )
+        //     .endSubpass()
+
+        //     .beginDependency(VK_SUBPASS_EXTERNAL, 0)
+        //         .setSrcAccessMask(0)
+        //         .setDstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+        //         .setSrcStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
+        //         .setDstStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
+        //     .endDependency()
+
+        // .build();
+
         // [ Depth Attachment ]
         VkAttachmentDescription depthAttachment{};
         {

@@ -37,37 +37,37 @@ namespace Vy
         /**
          * @brief Get the shadow map at specified index for sampling
          */
-        VyShadowMap& getShadowMap(int index = 0) { return *m_ShadowMaps[index]; }
+        VyShadowMap& shadowMap(int index = 0) { return *m_ShadowMaps[index]; }
 
         /**
          * @brief Get the cube shadow map at specified index for point lights
          */
-        VyCubeShadowMap& getCubeShadowMap(int index = 0) { return *m_CubeShadowMaps[index]; }
+        VyCubeShadowMap& cubeShadowMap(int index = 0) { return *m_CubeShadowMaps[index]; }
 
         /**
          * @brief Get the light space matrix at specified index
          */
-        const Mat4& getLightSpaceMatrix(int index = 0) const { return m_LightSpaceMatrices[index]; }
+        const Mat4& lightSpaceMatrix(int index = 0) const { return m_LightSpaceMatrices[index]; }
 
         /**
          * @brief Get number of active shadow-casting directional/spot lights
          */
-        int getShadowLightCount() const { return m_ShadowLightCount; }
+        int shadowLightCount() const { return m_ShadowLightCount; }
 
         /**
          * @brief Get number of active shadow-casting point lights
          */
-        int getCubeShadowLightCount() const { return m_CubeShadowLightCount; }
+        int cubeShadowLightCount() const { return m_CubeShadowLightCount; }
 
         /**
          * @brief Get point light position for shadow calculation in shader
          */
-        const Vec3& getPointLightPosition(int index = 0) const { return m_PointLightPositions[index]; }
+        const Vec3& pointLightPosition(int index = 0) const { return m_PointLightPositions[index]; }
 
         /**
          * @brief Get point light range (far plane) for shadow calculation
          */
-        float getPointLightRange(int index = 0) const { return m_PointLightRanges[index]; }
+        float pointLightRange(int index = 0) const { return m_PointLightRanges[index]; }
 
         /**
          * @brief Get descriptor info for shadow map sampling

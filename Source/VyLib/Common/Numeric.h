@@ -118,6 +118,8 @@ namespace Vy
     constexpr USize kMinPtrSize = std::numeric_limits<USize>::min();
     static_assert(sizeof(USize) == sizeof(void*), "Wrong size for size_t");
 
+    using UPtr = std::uintptr_t;
+
     // -------------------------------------------------------------------
 
     // Floating point - 32-bits (float)

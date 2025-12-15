@@ -52,10 +52,11 @@ namespace Vy
              * @note Throws an assertion failure if the binding is already in use.
              */
 			Builder& addBinding(
-				BindingIndex       binding, 
-				VkDescriptorType   descriptorType, 
-				VkShaderStageFlags stageFlags,
-				U32                count = 1
+				BindingIndex             binding, 
+				VkDescriptorType         descriptorType, 
+				VkShaderStageFlags       stageFlags,
+				U32                      count        = 1,
+                VkDescriptorBindingFlags bindingFlags = 0
 			);
 
 

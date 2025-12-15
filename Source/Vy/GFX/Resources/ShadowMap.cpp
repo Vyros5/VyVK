@@ -20,6 +20,7 @@ namespace Vy
         {
             vkDestroyFramebuffer(VyContext::device(), m_Framebuffer, nullptr);
         }
+
         if (m_RenderPass != VK_NULL_HANDLE)
         {
             vkDestroyRenderPass(VyContext::device(), m_RenderPass, nullptr);
@@ -53,7 +54,7 @@ namespace Vy
         .build(m_DepthImage);
 
         // Transition to READ_ONLY_OPTIMAL initially so it's valid for binding
-        VkCommandBuffer commandBuffer = VyContext::device().beginSingleTimeCommands();
+        VkCommandBuffer cmdBuffer = VyContext::device().beginSingleTimeCommands();
         {
             VkImageMemoryBarrier barrier{ VKInit::imageMemoryBarrier() };
             {
@@ -73,9 +74,15 @@ namespace Vy
                 barrier.dstAccessMask                   = VK_ACCESS_SHADER_READ_BIT;
             }
             
-            vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+            vkCmdPipelineBarrier(cmdBuffer, 
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 
+                0, nullptr, 
+                0, nullptr, 
+                1, &barrier
+            );
         }
-        VyContext::device().endSingleTimeCommands(commandBuffer);
+        VyContext::device().endSingleTimeCommands(cmdBuffer);
     }
 
 
@@ -181,7 +188,7 @@ namespace Vy
     }
 
 
-    void VyShadowMap::beginRenderPass(VkCommandBuffer commandBuffer)
+    void VyShadowMap::beginRenderPass(VkCommandBuffer cmdBuffer)
     {
         VkClearValue clearValue{};
         {
@@ -200,7 +207,7 @@ namespace Vy
             renderPassInfo.pClearValues      = &clearValue;
         }
 
-        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
         VkViewport viewport{};
         {
@@ -218,14 +225,14 @@ namespace Vy
             scissor.extent = {m_Width, m_Height};
         }
         
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-        vkCmdSetScissor (commandBuffer, 0, 1, &scissor );
+        vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
+        vkCmdSetScissor (cmdBuffer, 0, 1, &scissor );
     }
 
 
-    void VyShadowMap::endRenderPass(VkCommandBuffer commandBuffer)
+    void VyShadowMap::endRenderPass(VkCommandBuffer cmdBuffer)
     {
-        vkCmdEndRenderPass(commandBuffer);
+        vkCmdEndRenderPass(cmdBuffer);
     }
 }
 
@@ -294,7 +301,7 @@ namespace Vy
         }
 
         // Transition to READ_ONLY_OPTIMAL initially so it's valid for binding
-        VkCommandBuffer commandBuffer = VyContext::device().beginSingleTimeCommands();
+        VkCommandBuffer cmdBuffer = VyContext::device().beginSingleTimeCommands();
         {
             VkImageMemoryBarrier barrier{ VKInit::imageMemoryBarrier() };
             {
@@ -314,9 +321,9 @@ namespace Vy
                 barrier.dstAccessMask                   = VK_ACCESS_SHADER_READ_BIT;
             }
             
-            vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+            vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
         }
-        VyContext::device().endSingleTimeCommands(commandBuffer);
+        VyContext::device().endSingleTimeCommands(cmdBuffer);
     }
 
 
@@ -462,7 +469,7 @@ namespace Vy
     }
 
 
-    void VyCubeShadowMap::beginRenderPass(VkCommandBuffer commandBuffer, int face)
+    void VyCubeShadowMap::beginRenderPass(VkCommandBuffer cmdBuffer, int face)
     {
         VkClearValue clearValue{};
         {
@@ -481,7 +488,7 @@ namespace Vy
             renderPassInfo.pClearValues      = &clearValue;
         }
 
-        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
         VkViewport viewport{};
         {
@@ -499,18 +506,18 @@ namespace Vy
             scissor.extent = {m_Size, m_Size};
         }
         
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-        vkCmdSetScissor (commandBuffer, 0, 1, &scissor );
+        vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
+        vkCmdSetScissor (cmdBuffer, 0, 1, &scissor );
     }
 
 
-    void VyCubeShadowMap::endRenderPass(VkCommandBuffer commandBuffer)
+    void VyCubeShadowMap::endRenderPass(VkCommandBuffer cmdBuffer)
     {
-        vkCmdEndRenderPass(commandBuffer);
+        vkCmdEndRenderPass(cmdBuffer);
     }
 
 
-    void VyCubeShadowMap::transitionToAttachmentLayout(VkCommandBuffer commandBuffer)
+    void VyCubeShadowMap::transitionToAttachmentLayout(VkCommandBuffer cmdBuffer)
     {
         // Transition ALL 6 layers from shader read (or undefined) to attachment optimal
         VkImageMemoryBarrier barrier{ VKInit::imageMemoryBarrier() };
@@ -531,7 +538,7 @@ namespace Vy
             barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
         }
 
-        vkCmdPipelineBarrier(commandBuffer,
+        vkCmdPipelineBarrier(cmdBuffer,
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
             VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
             0,
@@ -545,7 +552,7 @@ namespace Vy
     }
 
 
-    void VyCubeShadowMap::transitionToShaderReadLayout(VkCommandBuffer commandBuffer)
+    void VyCubeShadowMap::transitionToShaderReadLayout(VkCommandBuffer cmdBuffer)
     {
         // Transition ALL 6 layers from attachment optimal to shader read
         VkImageMemoryBarrier barrier{ VKInit::imageMemoryBarrier() };
@@ -566,7 +573,7 @@ namespace Vy
             barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
         }
 
-        vkCmdPipelineBarrier(commandBuffer,
+        vkCmdPipelineBarrier(cmdBuffer,
             VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
             0,

@@ -182,32 +182,32 @@ namespace Vy
         void drawSubMesh(VkCommandBuffer commandBuffer, size_t subMeshIndex) const;
 
         // Get materials loaded from MTL file
-        const TVector<MaterialInfo>& getMaterials() const { return m_Materials; }
-        TVector<MaterialInfo>&       getMaterials() { return m_Materials; }
+        const TVector<MaterialInfo>& materials() const { return m_Materials; }
+        TVector<MaterialInfo>&       materials() { return m_Materials; }
 
         // Get sub-meshes
-        const TVector<SubMesh>& getSubMeshes() const { return m_SubMeshes; }
+        const TVector<SubMesh>& subMeshes() const { return m_SubMeshes; }
 
         // Check if model has multiple materials
         bool hasMultipleMaterials() const { return m_SubMeshes.size() > 1; }
 
         // Animation support
         bool                      hasAnimations() const { return !m_Animations.empty(); }
-        const TVector<Animation>& getAnimations() const { return m_Animations; }
-        const TVector<Node>&      getNodes() const { return m_Nodes; }
-        TVector<Node>&            getNodes() { return m_Nodes; }
+        const TVector<Animation>& animations()    const { return m_Animations; }
+        const TVector<Node>&      nodes()         const { return m_Nodes; }
+        TVector<Node>&            nodes()               { return m_Nodes; }
 
         // Morph target support
-        bool                               hasMorphTargets() const { return !m_MorphTargetSets.empty(); }
-        const TVector<MorphTargetSet>& getMorphTargetSets() const { return m_MorphTargetSets; }
-        TVector<MorphTargetSet>&       getMorphTargetSets() { return m_MorphTargetSets; }
+        bool                           hasMorphTargets() const { return !m_MorphTargetSets.empty(); }
+        const TVector<MorphTargetSet>& morphTargetSets() const { return m_MorphTargetSets; }
+        TVector<MorphTargetSet>&       morphTargetSets()       { return m_MorphTargetSets; }
 
         // Buffer access for compute operations
-        VkBuffer getVertexBuffer() const { return m_VertexBuffer->handle(); }
-        VkBuffer getIndexBuffer() const { return m_IndexBuffer ? m_IndexBuffer->handle() : VK_NULL_HANDLE; }
+        VkBuffer vertexBuffer() const { return m_VertexBuffer->handle(); }
+        VkBuffer indexBuffer()  const { return m_IndexBuffer ? m_IndexBuffer->handle() : VK_NULL_HANDLE; }
 
-        U64 getVertexBufferAddress() const { return m_VertexBuffer->deviceAddress(); }
-        U64 getIndexBufferAddress() const { return m_IndexBuffer ? m_IndexBuffer->deviceAddress() : 0; }
+        U64 vertexBufferAddress() const { return m_VertexBuffer->deviceAddress(); }
+        U64 indexBufferAddress()  const { return m_IndexBuffer ? m_IndexBuffer->deviceAddress() : 0; }
 
         void bindAlternateVertexBuffer(VkCommandBuffer commandBuffer, VkBuffer vertexBuffer) const;
 
@@ -215,19 +215,19 @@ namespace Vy
          * @brief Get approximate memory size of this model
          * @return Memory size in bytes (vertex + index buffers)
          */
-        size_t getMemorySize() const;
+        size_t memorySize() const;
 
-        const String& getFilePath() const { return m_FilePath; }
+        const String& filePath() const { return m_FilePath; }
 
         void setMeshId(U32 id) { m_MeshId = id; }
-        U32 getMeshId() const { return m_MeshId; }
+        U32  meshId() const { return m_MeshId; }
 
         // Meshlet support
-        const TVector<Meshlet>& getMeshlets() const { return m_Meshlets; }
-        U64 getMeshletBufferAddress()    const { return m_MeshletBuffer          ? m_MeshletBuffer->deviceAddress()          : 0; }
-        U64 getMeshletVerticesAddress()  const { return m_MeshletVerticesBuffer  ? m_MeshletVerticesBuffer->deviceAddress()  : 0; }
-        U64 getMeshletTrianglesAddress() const { return m_MeshletTrianglesBuffer ? m_MeshletTrianglesBuffer->deviceAddress() : 0; }
-        U32 getMeshletCount() const { return static_cast<U32>(m_Meshlets.size()); }
+        const TVector<Meshlet>& meshlets() const { return m_Meshlets; }
+        U64 meshletBufferAddress()         const { return m_MeshletBuffer          ? m_MeshletBuffer->deviceAddress()          : 0; }
+        U64 meshletVerticesAddress()       const { return m_MeshletVerticesBuffer  ? m_MeshletVerticesBuffer->deviceAddress()  : 0; }
+        U64 meshletTrianglesAddress()      const { return m_MeshletTrianglesBuffer ? m_MeshletTrianglesBuffer->deviceAddress() : 0; }
+        U32 meshletCount()                 const { return static_cast<U32>(m_Meshlets.size()); }
 
     private:
         String m_FilePath;

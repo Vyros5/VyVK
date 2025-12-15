@@ -38,6 +38,14 @@ namespace Vy
     template <typename T, size_t SizeType>
     using TArray = std::array<T, SizeType>;
 
+    template <typename T> using TArray2   = TArray<T,   2>;
+    template <typename T> using TArray4   = TArray<T,   4>;
+    template <typename T> using TArray8   = TArray<T,   8>;
+    template <typename T> using TArray16  = TArray<T,  16>;
+    template <typename T> using TArray32  = TArray<T,  32>;
+    template <typename T> using TArray64  = TArray<T,  64>;
+    template <typename T> using TArray128 = TArray<T, 128>;
+
     // --------------------------------------------------------------------------------------------
 
     /**

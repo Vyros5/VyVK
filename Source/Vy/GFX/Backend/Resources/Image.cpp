@@ -6,10 +6,11 @@
 namespace Vy
 {
     VyImage::VyImage(const VyImageCreateInfo& desc) :
-		m_Extent    { desc.Extent      },
-		m_Format    { desc.Format      },
-		m_MipLevels { desc.MipLevels   },
-		m_LayerCount{ desc.ArrayLayers }
+		m_Extent     { desc.Extent      },
+		m_Format     { desc.Format      },
+		m_MipLevels  { desc.MipLevels   },
+		m_LayerCount { desc.ArrayLayers },
+		m_SampleCount{ desc.Samples     }
     {
         create(desc);
     }
@@ -17,14 +18,15 @@ namespace Vy
 
 	VyImage::VyImage(VyImage&& other) noexcept
 	{
-		m_Image      = other.m_Image;
-		m_Allocation = other.m_Allocation;
+		m_Image       = other.m_Image;
+		m_Allocation  = other.m_Allocation;
 
-		m_Format     = other.m_Format;
-		m_Extent     = other.m_Extent;
-		m_MipLevels  = other.m_MipLevels;
-		m_LayerCount = other.m_LayerCount;
-		m_Layout     = other.m_Layout;
+		m_Format      = other.m_Format;
+		m_Extent      = other.m_Extent;
+		m_MipLevels   = other.m_MipLevels;
+		m_LayerCount  = other.m_LayerCount;
+		m_Layout      = other.m_Layout;
+		m_SampleCount = other.m_SampleCount;
 
 		other.m_Image      = VK_NULL_HANDLE;
 		other.m_Allocation = VK_NULL_HANDLE;
@@ -43,14 +45,15 @@ namespace Vy
 		{
 			destroy();
 
-			m_Image      = other.m_Image;
-			m_Allocation = other.m_Allocation;
+			m_Image       = other.m_Image;
+			m_Allocation  = other.m_Allocation;
 
-			m_Format     = other.m_Format;
-			m_Extent     = other.m_Extent;
-			m_MipLevels  = other.m_MipLevels;
-			m_LayerCount = other.m_LayerCount;
-			m_Layout     = other.m_Layout;
+			m_Format      = other.m_Format;
+			m_Extent      = other.m_Extent;
+			m_MipLevels   = other.m_MipLevels;
+			m_LayerCount  = other.m_LayerCount;
+			m_Layout      = other.m_Layout;
+			m_SampleCount = other.m_SampleCount;
 
 			other.m_Image      = VK_NULL_HANDLE;
 			other.m_Allocation = VK_NULL_HANDLE;
@@ -62,11 +65,12 @@ namespace Vy
 
 	void VyImage::create(const VyImageCreateInfo& desc)
 	{
-		m_Format     = desc.Format;
-		m_Extent     = desc.Extent;
-		m_MipLevels  = desc.MipLevels;
-		m_LayerCount = desc.ArrayLayers;
-		m_Layout     = VK_IMAGE_LAYOUT_UNDEFINED;
+		m_Format      = desc.Format;
+		m_Extent      = desc.Extent;
+		m_MipLevels   = desc.MipLevels;
+		m_LayerCount  = desc.ArrayLayers;
+		m_Layout      = VK_IMAGE_LAYOUT_UNDEFINED;
+		m_SampleCount = desc.Samples;
 
 		m_CreateInfo = VKInit::imageCreateInfo();
 		{

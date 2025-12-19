@@ -83,44 +83,45 @@ namespace Vy
 
 			~GraphicsBuilder();
 
+            // Layout
 			GraphicsBuilder& addDescriptorSetLayout(VkDescriptorSetLayout descriptorSetLayout);
-
             GraphicsBuilder& addDescriptorSetLayouts(TVector<VkDescriptorSetLayout> descriptorSetLayouts);
-			
             GraphicsBuilder& addPushConstantRange(VkShaderStageFlags stageFlags, U32 size, U32 offset = 0);
-
 			GraphicsBuilder& addShaderStage(VkShaderStageFlagBits stage, const String& shaderPath);
 
-			// // GraphicsBuilder& addShaderStages(VkShaderStageFlags    stages, const Path& shaderPath);
-
-			GraphicsBuilder& addColorAttachment(VkFormat colorFormat, bool alphaBlending = false);
-
-            GraphicsBuilder& setDepthAttachment(VkFormat depthFormat);
-
+            // Rendering
             GraphicsBuilder& setStencilFormat(VkFormat stencilFormat);
 			
-            GraphicsBuilder& setDepthBias(float constantFactor, float clamp, float slopeFactor);
-
-            GraphicsBuilder& setDepthTest(bool enableDepthTest, bool writeDepth, VkCompareOp compareOp = VK_COMPARE_OP_LESS);
-			
-            GraphicsBuilder& setCullMode(VkCullModeFlags cullMode);
-
+            // Input Assembly
             GraphicsBuilder& setTopology(VkPrimitiveTopology topology);
 
+            // Rasterization
+            GraphicsBuilder& setDepthClampEnable(bool depthClampEnable);
+            GraphicsBuilder& setPolygonMode(VkPolygonMode polygonMode);
+            GraphicsBuilder& setCullMode(VkCullModeFlags cullMode);
             GraphicsBuilder& setFrontFace(VkFrontFace frontFace);
-			
-            GraphicsBuilder& setVertexBindingDescriptions(const TVector<VkVertexInputBindingDescription>& bindingDescriptions);
-			
-            GraphicsBuilder& setVertexAttributeDescriptions(const TVector<VkVertexInputAttributeDescription>& attributeDescriptions);
-            
-            GraphicsBuilder& setRenderPass(VkRenderPass renderPass);
+            GraphicsBuilder& setDepthBias(float constantFactor, float clamp, float slopeFactor);
+            GraphicsBuilder& setLineWidth(float lineWidth);
 
+            // Color Blending
+			GraphicsBuilder& addColorAttachment(VkFormat colorFormat, bool alphaBlending = false);
+
+            // Depth Stencil
+            GraphicsBuilder& setDepthAttachment(VkFormat depthFormat);
+            GraphicsBuilder& setDepthTest(bool enableDepthTest, bool writeDepth, VkCompareOp compareOp = VK_COMPARE_OP_LESS);
+			
+            // Vertex 
+            GraphicsBuilder& setVertexBindingDescriptions(const TVector<VkVertexInputBindingDescription>& bindingDescriptions);
+            GraphicsBuilder& setVertexAttributeDescriptions(const TVector<VkVertexInputAttributeDescription>& attributeDescriptions);
+            GraphicsBuilder& clearVertexDescriptions();
+
+            // Other
+            GraphicsBuilder& setRenderPass(VkRenderPass renderPass);
             GraphicsBuilder& addFlag(VyPipeline::EFlags flag);
 
+            // Build
 			Unique<VyPipeline> buildUnique();
-
             Unique<VyPipeline> buildUnique(VkPipelineLayout layout);
-
 			VyPipeline build();
 
 		private:
@@ -233,7 +234,13 @@ namespace Vy
 
 
 
-	    void bindDescriptorSets(VkCommandBuffer cmdBuffer, SetIndex setIndex, TVector<VkDescriptorSet> descriptorSets) const;
+	    void bindDescriptorSets(
+            VkCommandBuffer          cmdBuffer, 
+            SetIndex                 setIndex, 
+            TVector<VkDescriptorSet> descriptorSets,
+            U32                      dynamicOffsetCount = 0,
+            const U32*               pDynamicOffsets    = nullptr
+        ) const;
 
         /** 
          * @brief Pushes constants to the pipeline.

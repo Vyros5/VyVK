@@ -1,7 +1,54 @@
-// #include <Vy/Systems/Logic/CameraSystem.h>
+#include <Vy/Systems/Logic/CameraSystem.h>
 
-// #include <Vy/Math/Math.h>
+#include <Vy/Math/Math.h>
 // #include <Vy/Engine.h>
+
+namespace Vy
+{
+    void VyCameraSystem::update(const VyFrameInfo& frameInfo, float aspectRatio) const
+    {
+        auto& registry = frameInfo.Scene->registry();
+
+        if (VyEntity mainCameraEntity = frameInfo.Scene->mainCamera())
+        {
+            // Check if the entity has the required components.
+            if (registry.valid(mainCameraEntity) && registry.all_of<CameraComponent, TransformComponent>(mainCameraEntity))
+            {
+                auto&       cameraComp = mainCameraEntity.get<CameraComponent>();
+                const auto& transform  = mainCameraEntity.get<TransformComponent>();
+
+                updateCamera(cameraComp, transform, aspectRatio);
+
+                // Sync the frameInfo camera with the component camera
+                // This ensures the renderer uses the updated camera matrices
+                frameInfo.Camera = cameraComp.Camera;
+            }
+        }
+    }
+
+
+    void VyCameraSystem::updateCamera(CameraComponent& cameraComp, const TransformComponent& transform, float aspectRatio) const
+    {
+        // Update projection
+        if (cameraComp.Camera.isPerspective())
+        {
+            cameraComp.Camera.setPerspective(aspectRatio);
+        }
+        else
+        {
+            cameraComp.Camera.setOrthographic();
+        }
+
+        // Update view
+        cameraComp.Camera.setView(transform.Translation, transform.Rotation);
+
+        // Update frustum
+        cameraComp.Camera.updateFrustum();
+    }
+}
+
+
+
 
 // namespace Vy
 // {

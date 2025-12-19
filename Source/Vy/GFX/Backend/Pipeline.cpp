@@ -191,6 +191,33 @@ namespace Vy
 
 
 	VyPipeline::GraphicsBuilder& 
+	VyPipeline::GraphicsBuilder::setDepthClampEnable(bool depthClampEnable)
+	{
+		m_GraphicsConfig.RasterizationInfo.depthClampEnable = depthClampEnable;
+
+		return *this;
+	}
+
+
+	VyPipeline::GraphicsBuilder&
+	VyPipeline::GraphicsBuilder::setPolygonMode(VkPolygonMode polygonMode)
+	{
+		m_GraphicsConfig.RasterizationInfo.polygonMode = polygonMode;
+
+		return *this;
+	}
+
+
+	VyPipeline::GraphicsBuilder& 
+	VyPipeline::GraphicsBuilder::setLineWidth(float lineWidth)
+	{
+		m_GraphicsConfig.RasterizationInfo.lineWidth = lineWidth;
+
+		return *this;
+	}
+
+
+	VyPipeline::GraphicsBuilder& 
 	VyPipeline::GraphicsBuilder::setCullMode(VkCullModeFlags cullMode)
 	{
 		m_GraphicsConfig.RasterizationInfo.cullMode = cullMode;
@@ -232,6 +259,16 @@ namespace Vy
 		const TVector<VkVertexInputAttributeDescription>& attributeDescriptions)
 	{
 		m_GraphicsConfig.AttributeDescriptions = attributeDescriptions;
+
+		return *this;
+	}
+
+
+	VyPipeline::GraphicsBuilder& 
+	VyPipeline::GraphicsBuilder::clearVertexDescriptions()
+	{
+		m_GraphicsConfig.BindingDescriptions   = {};
+		m_GraphicsConfig.AttributeDescriptions = {};
 
 		return *this;
 	}
@@ -461,16 +498,35 @@ namespace Vy
 		const U32*      pDynamicOffsets
 	) const
 	{
-		vkCmdBindDescriptorSets(cmdBuffer, m_BindPoint, m_Layout, setIndex, 1, &descriptorSet, dynamicOffsetCount, pDynamicOffsets);
+		vkCmdBindDescriptorSets(cmdBuffer, 
+			m_BindPoint, 
+			m_Layout, 
+			setIndex, 
+			1, 
+			&descriptorSet, 
+			dynamicOffsetCount, 
+			pDynamicOffsets
+		);
 	}
 
 
 	void VyPipeline::bindDescriptorSets(
 		VkCommandBuffer          cmdBuffer, 
 		SetIndex                 setIndex, 
-		TVector<VkDescriptorSet> descriptorSets) const
+		TVector<VkDescriptorSet> descriptorSets,
+		U32                      dynamicOffsetCount,
+		const U32*               pDynamicOffsets
+	) const
 	{
-		vkCmdBindDescriptorSets(cmdBuffer, m_BindPoint, m_Layout, setIndex, static_cast<U32>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuffer, 
+			m_BindPoint, 
+			m_Layout, 
+			setIndex, 
+			static_cast<U32>(descriptorSets.size()), 
+			descriptorSets.data(), 
+			dynamicOffsetCount, 
+			pDynamicOffsets
+		);
 	}
 
 	
@@ -530,7 +586,7 @@ namespace Vy
 			pipelineInfo.pVertexInputState   = &vertexInputInfo;
 			pipelineInfo.pInputAssemblyState = &config.InputAssemblyInfo;
 			pipelineInfo.pTessellationState  = nullptr;
-			pipelineInfo.pViewportState      = &config.ViewportInfo     ;
+			pipelineInfo.pViewportState      = &config.ViewportInfo;
 			pipelineInfo.pRasterizationState = &config.RasterizationInfo;
 			pipelineInfo.pMultisampleState   = &config.MultisampleInfo;
 			pipelineInfo.pColorBlendState    = &config.ColorBlendInfo;
@@ -599,6 +655,9 @@ namespace Vy
 		// https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineInputAssemblyStateCreateInfo.html
 		config.InputAssemblyInfo = VKInit::pipelineInputAssemblyStateCreateInfo();
 		{
+			// Triangle list:  (1,2,3), (4,5,6) 
+			// Triangle strip: (1,2,3), (3,4,5)
+
 			config.InputAssemblyInfo.topology                = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 			config.InputAssemblyInfo.primitiveRestartEnable  = VK_FALSE;
 		}
@@ -611,6 +670,7 @@ namespace Vy
 			// Dynamic Rendering is enabled for viewport and scissors so these values are ignored (nullptr).
 			config.ViewportInfo.viewportCount                = 1;
 			config.ViewportInfo.pViewports                   = nullptr;
+			
 			config.ViewportInfo.scissorCount                 = 1;
 			config.ViewportInfo.pScissors                    = nullptr;
 		}
@@ -634,6 +694,7 @@ namespace Vy
 			config.RasterizationInfo.polygonMode             = VK_POLYGON_MODE_FILL;
 			config.RasterizationInfo.cullMode                = VK_CULL_MODE_NONE;
 			config.RasterizationInfo.frontFace               = VK_FRONT_FACE_CLOCKWISE;
+			
 			config.RasterizationInfo.depthBiasEnable         = VK_FALSE;
 			config.RasterizationInfo.depthBiasConstantFactor = 0.0f; // A scalar factor controlling the constant depth value added to each fragment.
 			config.RasterizationInfo.depthBiasClamp          = 0.0f; // The maximum (or minimum) depth bias of a fragment.

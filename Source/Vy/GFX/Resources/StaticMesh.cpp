@@ -2,7 +2,6 @@
 
 #include <Vy/GFX/Context.h>
 #include <Vy/Globals.h>
-// #include <tiny_obj_loader.h>
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>

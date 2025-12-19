@@ -51,8 +51,7 @@ namespace Vy
     //         .setDepthAttachment(VK_FORMAT_D32_SFLOAT)
     //         .setDepthTest(true, false)
     //         .setRenderPass(renderPass)
-	// 		.setVertexBindingDescriptions  ({}) // Clear default vertex binding.
-	// 		.setVertexAttributeDescriptions({}) // Clear default vertex attributes.
+	// 		.clearVertexDescriptions() // Clear default vertex bindings and attributes.
     //     .buildUnique();
     // }
 
@@ -66,6 +65,8 @@ namespace Vy
         auto rotateLight = glm::rotate(Mat4(1.0f), frameInfo.FrameTime * m_RotationSpeed, Vec3(0.0f, -1.0f, 0.0f)); // Axis of rotation
 
         auto& registry = frameInfo.Scene->registry();
+        
+        // ----------------------------------------------------------------------------------------
 
         // [ Process point lights ]
         auto pointView = registry.view<PointLightComponent, TransformComponent>();
@@ -83,8 +84,11 @@ namespace Vy
                 ubo.PointLights[ubo.NumPointLights].Color    = Vec4(pointLight.Color, pointLight.Intensity);
             }
 
+            // Increment Point Lights
             ubo.NumPointLights++;
         }
+        
+        // ----------------------------------------------------------------------------------------
 
         // [ Process directional lights ]
         auto dirView = registry.view<DirectionalLightComponent, TransformComponent>();
@@ -107,8 +111,11 @@ namespace Vy
                 ubo.DirectionalLights[ubo.NumDirectionalLights].Color     = Vec4(dirLight.Color, dirLight.Intensity);
             }
 
+            // Increment Directional Lights
             ubo.NumDirectionalLights++;
         }
+
+        // ----------------------------------------------------------------------------------------
 
         // [ Process spot lights ]
         auto spotView = registry.view<SpotLightComponent, TransformComponent>();
@@ -136,6 +143,7 @@ namespace Vy
                 ubo.SpotLights[ubo.NumSpotLights].QuadraticAtten = spotLight.QuadraticAttenuation;
             }
 
+            // Increment Spot Lights
             ubo.NumSpotLights++;
         }
     }
@@ -178,6 +186,7 @@ namespace Vy
         // Render point lights.
         m_PointPipeline->bind(frameInfo.CommandBuffer);
 
+        // Set: 0 - Global Descriptor Set
         m_PointPipeline->bindDescriptorSet(frameInfo.CommandBuffer, 0, frameInfo.GlobalDescriptorSet);
 
         auto pointView = registry.view<PointLightComponent, TransformComponent>();
@@ -205,13 +214,14 @@ namespace Vy
         // Render directional lights as arrows.
         m_DirectionalPipeline->bind(frameInfo.CommandBuffer);
 
+        // Set: 0 - Global Descriptor Set
         m_DirectionalPipeline->bindDescriptorSet(frameInfo.CommandBuffer, 0, frameInfo.GlobalDescriptorSet);
 
         auto dirView = registry.view<DirectionalLightComponent, TransformComponent>();
 
         for (auto&& [ entity, dirLight, transform ] : dirView.each())
         {
-            // Create a model matrix that orients the arrow in the light direction
+            // Create a model matrix that orients the arrow in the light direction.
             Mat4 modelMatrix = Mat4(1.0f);
             modelMatrix      = glm::translate(modelMatrix, transform.Translation);
 
@@ -237,20 +247,21 @@ namespace Vy
 
         // ----------------------------------------------------------------------------------------
 
-        // Render spot lights as cones
+        // Render spot lights as cones.
         m_SpotPipeline->bind(frameInfo.CommandBuffer);
 
+        // Set: 0 - Global Descriptor Set
         m_SpotPipeline->bindDescriptorSet(frameInfo.CommandBuffer, 0, frameInfo.GlobalDescriptorSet);
 
         auto spotView = registry.view<SpotLightComponent, TransformComponent>();
 
         for (auto&& [ entity, spotLight, transform ] : spotView.each())
         {
-            // Create a model matrix that positions and orients the cone
+            // Create a model matrix that positions and orients the cone.
             Mat4 modelMatrix = Mat4(1.0f);
             modelMatrix      = glm::translate(modelMatrix, transform.Translation);
 
-            // Apply rotation to orient cone
+            // Apply rotation to orient cone.
             modelMatrix = glm::rotate(modelMatrix, transform.Rotation.y, Vec3(0.0f, 1.0f, 0.0f));
             modelMatrix = glm::rotate(modelMatrix, transform.Rotation.x, Vec3(1.0f, 0.0f, 0.0f));
             modelMatrix = glm::rotate(modelMatrix, transform.Rotation.z, Vec3(0.0f, 0.0f, 1.0f));
@@ -286,8 +297,7 @@ namespace Vy
             // .setTopology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST)
             // .setDepthTest(true, false)
             .setRenderPass(renderPass)
-			.setVertexBindingDescriptions  ({}) // Clear default vertex binding.
-			.setVertexAttributeDescriptions({}) // Clear default vertex attributes.
+			.clearVertexDescriptions() // Clear default vertex bindings and attributes.
         .buildUnique();
     }
 
@@ -304,8 +314,7 @@ namespace Vy
             .setTopology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST)
             // .setDepthTest(true, false)
             .setRenderPass(renderPass)
-			.setVertexBindingDescriptions  ({}) // Clear default vertex binding.
-			.setVertexAttributeDescriptions({}) // Clear default vertex attributes.
+			.clearVertexDescriptions() // Clear default vertex bindings and attributes.
         .buildUnique();
     }
 
@@ -322,8 +331,7 @@ namespace Vy
             .setTopology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST)
             // .setDepthTest(true, false)
             .setRenderPass(renderPass)
-			.setVertexBindingDescriptions  ({}) // Clear default vertex binding.
-			.setVertexAttributeDescriptions({}) // Clear default vertex attributes.
+			.clearVertexDescriptions() // Clear default vertex bindings and attributes.
         .buildUnique();
     }
 }

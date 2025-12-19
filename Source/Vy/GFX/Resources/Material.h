@@ -1,9 +1,7 @@
 #pragma once
 
-// #include <Vy/Asset/Asset.h>
-// #include <Vy/GFX/Backend/Pipeline.h>
-#include <Vy/GFX/Backend/Resources/Buffer.h>
-#include <Vy/GFX/Backend/Resources/Image.h>
+#include <Vy/GFX/Backend/Buffer/Buffer.h>
+#include <Vy/GFX/Backend/Image/Image.h>
 #include <Vy/GFX/Resources/Texture.h>
 #include <Vy/GFX/Backend/Descriptors.h>
 
@@ -51,14 +49,18 @@ namespace Vy
         // Getters
         const VyMaterialData& getData() const { return m_Data; }
         
-        VkDescriptorSet getDescriptorSet() const 
+        VkDescriptorSet descriptorSet() const 
         { 
             return m_DescriptorSet; 
         }
         
         bool hasTextures() const 
         { 
-            return m_HasAlbedoTexture || m_HasNormalTexture || m_HasRoughnessTexture || m_HasMetallicTexture; 
+            return 
+                m_HasAlbedoTexture    || 
+                m_HasNormalTexture    || 
+                m_HasRoughnessTexture || 
+                m_HasMetallicTexture; 
         }
 
         // Update descriptor set
@@ -68,38 +70,33 @@ namespace Vy
 
     private:
         void createDefaultTexture();
-        void createTextureImage(const String& filepath, VkImage& image, VmaAllocation& imageMemory);
-        void createTextureImageView(VkImage image, VkImageView& imageView);
-        void createTextureSampler(VkSampler& sampler);
+        void createTextureImage(const String& filepath, VyImage& image);
+        void createTextureImageView(VyImage& image, VyImageView& imageView);
+        void createTextureSampler(VySampler& sampler);
 
         VyMaterialData m_Data;
 
         // Texture resources.
-        VkImage        m_AlbedoTextureImage              = VK_NULL_HANDLE;
-        VmaAllocation  m_AlbedoTextureImageAllocation    = VK_NULL_HANDLE;
-        VkImageView    m_AlbedoTextureImageView          = VK_NULL_HANDLE;
-        VkSampler      m_AlbedoTextureSampler            = VK_NULL_HANDLE;
+        VyImage        m_AlbedoTextureImage          ;
+        VyImageView    m_AlbedoTextureImageView      ;
+        VySampler      m_AlbedoTextureSampler        ;
 
-        VkImage        m_NormalTextureImage              = VK_NULL_HANDLE;
-        VmaAllocation  m_NormalTextureImageAllocation    = VK_NULL_HANDLE;
-        VkImageView    m_NormalTextureImageView          = VK_NULL_HANDLE;
-        VkSampler      m_NormalTextureSampler            = VK_NULL_HANDLE;
+        VyImage        m_NormalTextureImage          ;
+        VyImageView    m_NormalTextureImageView      ;
+        VySampler      m_NormalTextureSampler        ;
 
-        VkImage        m_RoughnessTextureImage           = VK_NULL_HANDLE;
-        VmaAllocation  m_RoughnessTextureImageAllocation = VK_NULL_HANDLE;
-        VkImageView    m_RoughnessTextureImageView       = VK_NULL_HANDLE;
-        VkSampler      m_RoughnessTextureSampler         = VK_NULL_HANDLE;
+        VyImage        m_RoughnessTextureImage       ;
+        VyImageView    m_RoughnessTextureImageView   ;
+        VySampler      m_RoughnessTextureSampler     ;
 
-        VkImage        m_MetallicTextureImage            = VK_NULL_HANDLE;
-        VmaAllocation  m_MetallicTextureImageAllocation  = VK_NULL_HANDLE;
-        VkImageView    m_MetallicTextureImageView        = VK_NULL_HANDLE;
-        VkSampler      m_MetallicTextureSampler          = VK_NULL_HANDLE;
+        VyImage        m_MetallicTextureImage        ;
+        VyImageView    m_MetallicTextureImageView    ;
+        VySampler      m_MetallicTextureSampler      ;
 
         // Default white texture for when no texture is loaded
-        VkImage        m_DefaultTextureImage             = VK_NULL_HANDLE;
-        VmaAllocation  m_DefaultTextureImageAllocation   = VK_NULL_HANDLE;
-        VkImageView    m_DefaultTextureImageView         = VK_NULL_HANDLE;
-        VkSampler      m_DefaultTextureSampler           = VK_NULL_HANDLE;
+        VyImage        m_DefaultTextureImage             ;
+        VyImageView    m_DefaultTextureImageView         ;
+        VySampler      m_DefaultTextureSampler           ;
 
         VkDescriptorSet m_DescriptorSet = VK_NULL_HANDLE;
 
@@ -111,76 +108,3 @@ namespace Vy
         bool m_FailedAlbedo = false;
     };
 }
-
-
-
-// namespace Vy
-// {
-// 	struct MaterialData
-// 	{
-// 		VyAssetHandle AlbedoMap = VyAssetHandle::Invalid();
-// 		VyAssetHandle NormalMap = VyAssetHandle::Invalid();
-
-// 		VyAssetHandle MetallicRoughnessMap = VyAssetHandle::Invalid();
-// 		VyAssetHandle AOMap = VyAssetHandle::Invalid();
-// 		VyAssetHandle EmissiveMap = VyAssetHandle::Invalid();
-
-// 		Vec4 AlbedoColor = Vec4(1.0f);
-// 		float Metallic = 0.0f;
-// 		float Roughness = 0.0f;
-// 		Vec3 EmissiveFactor = Vec3(0.0f);
-
-// 		// Json::Value serialize() const;
-
-// 		// static Optional<MaterialData> deserialize(const Json::Value& root);
-// 	};
-
-
-// 	class Material : public VyAsset
-// 	{
-// 	public:
-// 		class Builder 
-//         {
-// 		public:
-// 			explicit Builder() = default;
-
-// 			Builder& assetHandle(const VyAssetHandle& handle) { m_Handle = handle; return *this; }
-//             Builder& albedoMap(const VyAssetHandle& handle) { m_Data.AlbedoMap = handle; return *this; }
-//             Builder& normalMap(const VyAssetHandle& handle) { m_Data.NormalMap = handle; return *this; }
-//             Builder& metallicRoughnessMap(const VyAssetHandle& handle) { m_Data.MetallicRoughnessMap = handle; return *this; }
-//             Builder& ambientOcclusionMap(const VyAssetHandle& handle) { m_Data.AOMap = handle; return *this; }
-//             Builder& emissiveMap(const VyAssetHandle& handle) { m_Data.EmissiveMap = handle; return *this; }
-
-// 			Builder& albedoColor(const Vec4& color)   { m_Data.AlbedoColor = color; return *this; }
-// 			Builder& metallicFactor(float metallic)   { m_Data.Metallic = metallic; return *this; }
-// 			Builder& roughnessFactor(float roughness) { m_Data.Roughness = roughness; return *this; }
-// 			Builder& emissiveFactor(Vec3 emissive)    { m_Data.EmissiveFactor = emissive; return *this; }
-
-// 			Material build();
-
-// 		private:
-// 			MaterialData  m_Data;
-// 			VyAssetHandle m_Handle = VyAssetHandle::Invalid();
-// 		};
-
-// 	public:
-
-// 		Material(MaterialData materialData, VyAssetHandle assetHandle);
-	
-//         void bind(const VyPipeline& pipeline, VkCommandBuffer commandBuffer) const;
-		
-//         void reload() override;
-		
-//         bool checkForDirtyInDependencies() override;
-
-// 	private:
-
-// 		void createDescriptorSet();
-	
-//         MaterialData m_Data;
-	
-//         // std::unique_ptr<VkDescriptorSet>
-//         VkDescriptorSet           m_DescriptorSet;
-// 		std::unique_ptr<VyBuffer> m_MaterialBuffer;
-// 	};
-// }

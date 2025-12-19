@@ -1,9 +1,10 @@
 #pragma once
 
 #include <Vy/GFX/Backend/Device.h>
-#include <Vy/GFX/Backend/Resources/Image.h>
-#include <Vy/GFX/Backend/Resources/ImageView.h>
-#include <Vy/GFX/Backend/Resources/Sampler.h>
+
+#include <Vy/GFX/Backend/Image/Image.h>
+#include <Vy/GFX/Backend/Image/ImageView.h>
+#include <Vy/GFX/Backend/Image/Sampler.h>
 
 namespace Vy
 {
@@ -23,18 +24,17 @@ namespace Vy
         VyShadowMap(const VyShadowMap&)            = delete;
         VyShadowMap& operator=(const VyShadowMap&) = delete;
 
-        VkRenderPass        renderPass()  const { return m_RenderPass; }
-        VkFramebuffer       framebuffer() const { return m_Framebuffer; }
+        VkRenderPass        renderPass()  const { return m_RenderPass;     }
+        VkFramebuffer       framebuffer() const { return m_Framebuffer;    }
         const VyImageView&  imageView()         { return m_DepthImageView; }
-        const VySampler&    sampler()           { return m_Sampler; }
-
-        U32 width()  const { return m_Width; }
-        U32 height() const { return m_Height; }
+        const VySampler&    sampler()           { return m_Sampler;        }
+        U32                 width()       const { return m_Width;          }
+        U32                 height()      const { return m_Height;         }
 
         VkDescriptorImageInfo descriptorImageInfo() const
         {
             return VkDescriptorImageInfo{
-                .sampler     = m_Sampler.handle(),
+                .sampler     = m_Sampler       .handle(),
                 .imageView   = m_DepthImageView.handle(),
                 .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
             };
@@ -62,6 +62,7 @@ namespace Vy
         VyImage        m_DepthImage;
         VyImageView    m_DepthImageView;
         VySampler      m_Sampler;
+
         VkRenderPass   m_RenderPass  = VK_NULL_HANDLE;
         VkFramebuffer  m_Framebuffer = VK_NULL_HANDLE;
         VkFormat       m_DepthFormat = VK_FORMAT_D32_SFLOAT;
@@ -69,7 +70,6 @@ namespace Vy
 
 
     // ============================================================================================
-
 
     /**
      * @brief Cube shadow map for omnidirectional point light shadows
@@ -87,17 +87,19 @@ namespace Vy
         VyCubeShadowMap(const VyCubeShadowMap&)            = delete;
         VyCubeShadowMap& operator=(const VyCubeShadowMap&) = delete;
 
-        VkRenderPass renderPass()    const { return m_RenderPass; }
-        const VyImageView& cubeImageView()  { return m_CubeImageView; }
-        const VySampler&   sampler()        { return m_Sampler; }
-
-        U32 size() const { return m_Size; }
+        VkRenderPass       renderPass()    const { return m_RenderPass;    }
+        const VyImageView& cubeImageView()       { return m_CubeImageView; }
+        const VySampler&   sampler()             { return m_Sampler;       }
+        U32                size()          const { return m_Size;          }
 
         /**
          * @brief Get framebuffer for a specific cube face
          * @param face Face index (0-5: +X, -X, +Y, -Y, +Z, -Z)
          */
-        VkFramebuffer framebuffer(int face) const { return m_Framebuffers[face]; }
+        VkFramebuffer framebuffer(int face) const 
+        { 
+            return m_Framebuffers[face]; 
+        }
 
         /**
          * @brief Get view matrix for a specific cube face
@@ -116,8 +118,8 @@ namespace Vy
         VkDescriptorImageInfo descriptorImageInfo() const
         {
             return VkDescriptorImageInfo{
-                    .sampler     = m_Sampler,
-                    .imageView   = m_CubeImageView,
+                    .sampler     = m_Sampler      .handle(),
+                    .imageView   = m_CubeImageView.handle(),
                     .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
             };
         }

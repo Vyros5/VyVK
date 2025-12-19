@@ -1,9 +1,10 @@
 #pragma once
 
-#include <Vy/GFX/Backend/Resources/Image.h>
-#include <Vy/GFX/Backend/Resources/ImageView.h>
-#include <Vy/GFX/Backend/Resources/Sampler.h>
-#include <Vy/GFX/Backend/Resources/Buffer.h>
+#include <Vy/GFX/Backend/Buffer/Buffer.h>
+
+#include <Vy/GFX/Backend/Image/Image.h>
+#include <Vy/GFX/Backend/Image/ImageView.h>
+#include <Vy/GFX/Backend/Image/Sampler.h>
 
 namespace Vy
 {
@@ -43,7 +44,7 @@ namespace Vy
         VkImageView imageView() const { return m_ImageView.handle(); }
         VkSampler   sampler()   const { return m_Sampler.handle(); }
 
-        VkDescriptorImageInfo getDescriptorInfo() const
+        VkDescriptorImageInfo descriptorImageInfo() const
         {
             return VkDescriptorImageInfo{
                     .sampler     = m_Sampler  .handle(),
@@ -52,7 +53,7 @@ namespace Vy
             };
         }
 
-        int getSize() const { return m_Size; }
+        int size() const { return m_Size; }
 
     private:
         void createCubemapImage(const TArray<String, 6>& facePaths);
@@ -65,9 +66,9 @@ namespace Vy
         
         // void copyBufferToImage(VkBuffer buffer, U32 faceIndex);
 
-        VyImage        m_Image    ;
+        VyImage        m_Image;
         VyImageView    m_ImageView;
-        VySampler      m_Sampler  ;
+        VySampler      m_Sampler;
 
         int m_Size = 0; // Width/height of each face (assumed square)
     };

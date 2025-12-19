@@ -8,9 +8,6 @@
 
 namespace Vy 
 {
-
-
-
     class VyPostProcessSystem : public IRenderSystem
     {
     public:
@@ -57,17 +54,22 @@ namespace Vy
         
         void cleanup();
 
+        // ---------------------------------------------------------------
+
         VkExtent2D m_Extent;
 
+        // ---------------------------------------------------------------
         // HDR scene render target
         VkRenderPass           m_HDRRenderPass;
         TVector<VkFramebuffer> m_HDRFramebuffers;
 
         TVector<VyImage>       m_HDRImages;
         TVector<VyImageView>   m_HDRImageViews;
+
         TVector<VyImage>       m_HDRDepthImages;
         TVector<VyImageView>   m_HDRDepthImageViews;
 
+        // ---------------------------------------------------------------
         // Bloom ping-pong buffers
         VkRenderPass           m_BloomRenderPass;
         TVector<VkFramebuffer> m_BloomFramebuffers[2];
@@ -75,17 +77,20 @@ namespace Vy
         TVector<VyImage>       m_BloomImages    [2];
         TVector<VyImageView>   m_BloomImageViews[2];
 
+        // ---------------------------------------------------------------
         // Descriptor pools and layouts
         Unique<VyDescriptorPool>      m_DescriptorPool;
         Unique<VyDescriptorSetLayout> m_BrightnessExtractSetLayout;
         Unique<VyDescriptorSetLayout> m_BlurSetLayout;
         Unique<VyDescriptorSetLayout> m_PostProcessSetLayout;
 
+        // ---------------------------------------------------------------
         // Descriptor sets
         TVector<VkDescriptorSet> m_BrightnessExtractDescriptorSets;
         TVector<VkDescriptorSet> m_BlurDescriptorSets[2];
         TVector<VkDescriptorSet> m_PostProcessDescriptorSets;
 
+        // ---------------------------------------------------------------
         // Pipelines
         Unique<VyPipeline> m_BrightnessExtractPipeline;
 
@@ -94,6 +99,7 @@ namespace Vy
         Unique<VyPipeline> m_PostProcessPipeline;
         VkPipelineLayout   m_PostProcessPipelineLayout;
 
+        // ---------------------------------------------------------------
         // Samplers
         VySampler m_HDRSampler;
         VySampler m_BloomSampler;

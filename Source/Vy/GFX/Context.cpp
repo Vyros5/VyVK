@@ -57,8 +57,8 @@ namespace Vy
 		// https://github.com/TNtube/Cardia/blob/6fbde85b58bac3921ed7d12624e896750686b2db/Cardia/include/Cardia/Renderer/Descriptors.hpp
 
 		context.m_GlobalPool = VyDescriptorPool::Builder{}
+			.setMaxSets(MAX_DESCRIPTOR_SETS)
 			.setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT)
-			.setMaxSets (MAX_DESCRIPTOR_SETS)
 			.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1000)
 			.addPoolSize(VK_DESCRIPTOR_TYPE_SAMPLER,                 500)
 			.addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4000)
@@ -71,7 +71,7 @@ namespace Vy
 			.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000)
 			.addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000)
 			.addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,        500)
-			.buildUnique();
+		.buildUnique();
 
 		return context;
 	}
@@ -193,4 +193,9 @@ namespace Vy
 		get().m_GlobalPool.reset();
 	}
 
+
+	void VyContext::waitIdle()
+	{
+		vkDeviceWaitIdle(get().m_Device);
+	}
 }

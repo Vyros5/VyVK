@@ -12,11 +12,6 @@ namespace Vy
             VkDescriptorSetLayout globalSetLayout
         );
 
-        // VyGridSystem(
-        //     VyRenderPass&         renderPass, 
-        //     VkDescriptorSetLayout globalSetLayout
-        // );
-
         VyGridSystem(const VyGridSystem&)            = delete;
         VyGridSystem& operator=(const VyGridSystem&) = delete;
 
@@ -24,9 +19,9 @@ namespace Vy
 
         virtual void render(const VyFrameInfo& frameInfo) override;
 
-        void createPipeline(VkRenderPass& renderPass, TVector<VkDescriptorSetLayout> descSetLayouts);
-
     private:
+
+        void createPipeline(VkRenderPass& renderPass, TVector<VkDescriptorSetLayout> descSetLayouts);
 
         Unique<VyPipeline> m_Pipeline;
     };

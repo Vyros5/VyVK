@@ -58,13 +58,16 @@ layout(push_constant) uniform Push
 {
     mat4 ModelMatrix;
     mat4 NormalMatrix;
+    // mat4 LightSpaceMatrix;
 
     vec3  Albedo;
     float Metallic;
     float Roughness;
     float AO;
+
     vec2  TextureOffset;
     vec2  TextureScale;
+    
     vec3  EmissionColor;
     float EmissionStrength;
 
@@ -84,6 +87,7 @@ layout(location = 0) out vec3 fragPosWorld;
 layout(location = 1) out vec3 fragNormalWorld;
 layout(location = 2) out vec3 fragColor;
 layout(location = 3) out vec2 fragUV;
+// layout(location = 4) out vec4 fragPosLightSpace;
 
 // ================================================================================================
 
@@ -99,5 +103,6 @@ void main()
 
     // Apply texture scaling and offset.
     fragUV          = inUV; //* uPush.TextureScale + uPush.TextureOffset;
-    
+
+    // fragPosLightSpace = uPush.LightSpaceMatrix * positionWorld;
 }

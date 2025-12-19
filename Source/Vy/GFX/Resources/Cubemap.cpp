@@ -149,18 +149,6 @@ namespace Vy
         }
 
         stagingBuffer.unmap();
-        // VkImageSubresourceRange cubemapSubresourceRange{};
-        // cubemapSubresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        // cubemapSubresourceRange.baseMipLevel = 0;
-        // cubemapSubresourceRange.levelCount = 1;
-        // cubemapSubresourceRange.baseArrayLayer = 0;
-        // cubemapSubresourceRange.layerCount = 6;
-
-        // auto cmdBuffer = VyContext::device().beginSingleTimeCommands();
-        // {
-        //     m_Cubemap->copyFrom(cmdBuffer, stagingBuffer);
-        // }
-        // VyContext::device().endSingleTimeCommands(cmdBuffer);
 
         VyContext::device().transitionImageLayout(
             m_Cubemap->image(),
@@ -171,13 +159,6 @@ namespace Vy
             0,
             6
         );
-
-        // m_Cubemap->(
-        //     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        //     VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        //     VK_PIPELINE_STAGE_TRANSFER_BIT,
-        //     cubemapSubresourceRange
-        // );
 
         VyContext::device().copyBufferToImage(
             stagingBuffer.handle(), 
@@ -196,11 +177,5 @@ namespace Vy
             0,
             6
         );
-        // m_Cubemap->transitionImageLayoutSingleTimeCmd(
-        //     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        //     VK_PIPELINE_STAGE_TRANSFER_BIT,
-        //     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-        //     cubemapSubresourceRange
-        // );
 	}
 }

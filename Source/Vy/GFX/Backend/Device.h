@@ -99,6 +99,7 @@ namespace Vy
 		 */
         VkFormat findSupportedFormat(const TVector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const;
 
+		VkFormat findDepthFormat();
 
 		TVector<VkExtensionProperties> queryDeviceExtensionProperties(VkPhysicalDevice device);
 		TVector<VkExtensionProperties> queryInstanceExtensionProperties();

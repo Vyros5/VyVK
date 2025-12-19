@@ -34,6 +34,11 @@ namespace Vy
 			return m_MainCamera; 
 		}
 
+		// VY_NODISCARD VyEntity sunDirectionalLight() const
+		// { 
+		// 	return m_Sun; 
+		// }
+
         /**
          * @brief Called when the scene starts.
          * 
@@ -166,6 +171,8 @@ namespace Vy
 		VyEntity m_MainCamera;
 
 		PostProcessingComponent m_PostProcessingSettings{};
+		// VyEntity m_Sun;
+
 		// VyEntity m_AmbientLight;
 		// VyEntity m_DirectionalLight;
 		// VyEntity m_Skybox;

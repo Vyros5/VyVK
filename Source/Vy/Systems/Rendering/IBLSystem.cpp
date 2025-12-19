@@ -24,44 +24,12 @@ namespace Vy
             vkDestroyRenderPass(VyContext::device(), m_IrradianceRenderPass, nullptr);
             m_IrradianceRenderPass = VK_NULL_HANDLE;
         }
-        if (m_IrradianceDescPool)
-        {
-            vkDestroyDescriptorPool(VyContext::device(), m_IrradianceDescPool, nullptr);
-            m_IrradianceDescPool = VK_NULL_HANDLE;
-        }
-        if (m_IrradianceDescSetLayout)
-        {
-            vkDestroyDescriptorSetLayout(VyContext::device(), m_IrradianceDescSetLayout, nullptr);
-            m_IrradianceDescSetLayout = VK_NULL_HANDLE;
-        }
 
         // Destroy Prefilter Resources
         if (m_PrefilterRenderPass)
         {
             vkDestroyRenderPass(VyContext::device(), m_PrefilterRenderPass, nullptr);
             m_PrefilterRenderPass = VK_NULL_HANDLE;
-        }
-        if (m_PrefilterDescPool)
-        {
-            vkDestroyDescriptorPool(VyContext::device(), m_PrefilterDescPool, nullptr);
-            m_PrefilterDescPool = VK_NULL_HANDLE;
-        }
-        if (m_PrefilterDescSetLayout)
-        {
-            vkDestroyDescriptorSetLayout(VyContext::device(), m_PrefilterDescSetLayout, nullptr);
-            m_PrefilterDescSetLayout = VK_NULL_HANDLE;
-        }
-
-        // Destroy BRDF Resources
-        if (m_BrdfDescPool)
-        {
-            vkDestroyDescriptorPool(VyContext::device(), m_BrdfDescPool, nullptr);
-            m_BrdfDescPool = VK_NULL_HANDLE;
-        }
-        if (m_BrdfDescSetLayout)
-        {
-            vkDestroyDescriptorSetLayout(VyContext::device(), m_BrdfDescSetLayout, nullptr);
-            m_BrdfDescSetLayout = VK_NULL_HANDLE;
         }
     }
 
@@ -115,7 +83,7 @@ namespace Vy
         if (m_RegenerationRequested && m_NextSkybox)
         {
             // Wait for device idle to ensure no resources are in use.
-            vkDeviceWaitIdle(VyContext::device());
+            VyContext::waitIdle();
 
             // Update settings.
             m_Settings = m_NextSettings;
@@ -163,7 +131,7 @@ namespace Vy
         m_Generated = true;
 
         // Wait for everything to finish
-        vkDeviceWaitIdle(VyContext::device());
+        VyContext::waitIdle();
     }
 
 
@@ -176,7 +144,7 @@ namespace Vy
         U32           mipLevels,
         U32           layerCount = 1)
     {
-        VkCommandBuffer commandBuffer = VyContext::device().beginSingleTimeCommands();
+        VkCommandBuffer cmdBuffer = VyContext::device().beginSingleTimeCommands();
         {
             VkPipelineStageFlags sourceStage;
             VkPipelineStageFlags destinationStage;
@@ -254,14 +222,14 @@ namespace Vy
                 }
             }
 
-            vkCmdPipelineBarrier(commandBuffer, 
+            vkCmdPipelineBarrier(cmdBuffer, 
                 sourceStage, destinationStage, 0, 
                 0, nullptr, 
                 0, nullptr, 
                 1, &barrier
             );
         }
-        VyContext::device().endSingleTimeCommands(commandBuffer);
+        VyContext::device().endSingleTimeCommands(cmdBuffer);
     }
 
     // =====================================================================================================================
@@ -399,7 +367,7 @@ namespace Vy
 
     void IBLSystem::createIrradianceResources()
     {
-        // Render Pass
+        // Color attachment
         VkAttachmentDescription attachment{};
         {
             attachment.format         = VK_FORMAT_R32G32B32A32_SFLOAT;
@@ -440,29 +408,13 @@ namespace Vy
         }
 
         // Descriptor Set Layout
-        VkDescriptorSetLayoutBinding binding{};
-        {
-            binding.binding            = 0;
-            binding.descriptorType     = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            binding.descriptorCount    = 1;
-            binding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
-            binding.pImmutableSamplers = nullptr;
-        }
+        m_IrradianceDescSetLayout = VyDescriptorSetLayout::Builder{}
+            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+        .buildUnique();
 
-        VkDescriptorSetLayoutCreateInfo layoutInfo{};
-        {
-            layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            layoutInfo.bindingCount = 1;
-            layoutInfo.pBindings    = &binding;
-        }
-
-        if (vkCreateDescriptorSetLayout(VyContext::device(), &layoutInfo, nullptr, &m_IrradianceDescSetLayout) != VK_SUCCESS)
-        {
-            VY_THROW_RUNTIME_ERROR("failed to create irradiance descriptor set layout!");
-        }
-
+        // Pipeline
         m_IrradiancePipeline = VyPipeline::GraphicsBuilder{}
-            .addDescriptorSetLayout(m_IrradianceDescSetLayout)
+            .addDescriptorSetLayout(m_IrradianceDescSetLayout->handle())
             .addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(Mat4) + sizeof(int) + sizeof(float)) // ViewProj + FaceIndex + SampleDelta
             .addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   "IrradianceConvolution.vert.spv")
             .addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, "IrradianceConvolution.frag.spv")
@@ -470,35 +422,18 @@ namespace Vy
             .addColorAttachment(VK_FORMAT_R32G32B32A32_SFLOAT)
             // .setDepthAttachment(VK_FORMAT_D32_SFLOAT)
             // No vertex input needed (generated in shader)
-            .setVertexBindingDescriptions  ({}) // Clear default vertex binding.
-			.setVertexAttributeDescriptions({}) // Clear default vertex attributes.
+            .clearVertexDescriptions() // Clear default vertex bindings and attributes.
             .setRenderPass(m_IrradianceRenderPass)
         .build();
 
         // Descriptor Pool
-        VkDescriptorPoolSize poolSize{};
-        poolSize.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSize.descriptorCount = 1;
-
-        VkDescriptorPoolCreateInfo poolInfo{};
-        poolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        poolInfo.poolSizeCount = 1;
-        poolInfo.pPoolSizes    = &poolSize;
-        poolInfo.maxSets       = 1;
-
-        if (vkCreateDescriptorPool(VyContext::device(), &poolInfo, nullptr, &m_IrradianceDescPool) != VK_SUCCESS)
-        {
-            VY_THROW_RUNTIME_ERROR("failed to create irradiance descriptor pool!");
-        }
+        m_IrradianceDescPool = VyDescriptorPool::Builder{}
+            .setMaxSets(1)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
+        .buildUnique();
 
         // Allocate Descriptor Set
-        VkDescriptorSetAllocateInfo allocInfo{};
-        allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool     = m_IrradianceDescPool;
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts        = &m_IrradianceDescSetLayout;
-
-        if (vkAllocateDescriptorSets(VyContext::device(), &allocInfo, &m_IrradianceDescSet) != VK_SUCCESS)
+        if (!m_IrradianceDescPool->allocateDescriptorSet(m_IrradianceDescSetLayout->handle(), m_IrradianceDescSet))
         {
             VY_THROW_RUNTIME_ERROR("failed to allocate irradiance descriptor set!");
         }
@@ -508,22 +443,14 @@ namespace Vy
 
     void IBLSystem::generateIrradianceMap(Skybox& skybox)
     {
+        // Combined image sampler.
+        VkDescriptorImageInfo imageInfo = skybox.descriptorImageInfo();
+        
         // Update descriptor set
-        VkDescriptorImageInfo imageInfo = skybox.getDescriptorInfo();
+        VyDescriptorWriter{ *m_IrradianceDescSetLayout, *m_IrradianceDescPool }
+            .writeImage(0, &imageInfo)
+            .update(m_IrradianceDescSet);
 
-        // VyDescriptorWriter{ }
-        VkWriteDescriptorSet  descriptorWrite{};
-        {
-            descriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet          = m_IrradianceDescSet;
-            descriptorWrite.dstBinding      = 0;
-            descriptorWrite.dstArrayElement = 0;
-            descriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrite.descriptorCount = 1;
-            descriptorWrite.pImageInfo      = &imageInfo;
-        }
-            
-        vkUpdateDescriptorSets(VyContext::device(), 1, &descriptorWrite, 0, nullptr);
 
         Mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
         Mat4 captureViews[]    = {
@@ -538,7 +465,7 @@ namespace Vy
         TVector<VkFramebuffer> framebuffers;
         TVector<VkImageView>   imageViews;
 
-        VkCommandBuffer commandBuffer = VyContext::device().beginSingleTimeCommands();
+        VkCommandBuffer cmdBuffer = VyContext::device().beginSingleTimeCommands();
         {
             for (int i = 0; i < 6; ++i)
             {
@@ -586,7 +513,7 @@ namespace Vy
                     renderPassInfo.pClearValues      = &clearValue;
                 }
 
-                vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+                vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
                 {
                     VkViewport viewport{};
                     {
@@ -604,11 +531,11 @@ namespace Vy
                         scissor.extent = {static_cast<U32>(m_Settings.IrradianceSize), static_cast<U32>(m_Settings.IrradianceSize)};
                     }
 
-                    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-                    vkCmdSetScissor (commandBuffer, 0, 1, &scissor);
+                    vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
+                    vkCmdSetScissor (cmdBuffer, 0, 1, &scissor);
 
-                    m_IrradiancePipeline.bind(commandBuffer);
-                    m_IrradiancePipeline.bindDescriptorSet(commandBuffer, 0, m_IrradianceDescSet);
+                    m_IrradiancePipeline.bind(cmdBuffer);
+                    m_IrradiancePipeline.bindDescriptorSet(cmdBuffer, 0, m_IrradianceDescSet);
 
                     struct PushBlock
                     {
@@ -625,14 +552,14 @@ namespace Vy
                         pushBlock.SampleDelta = m_Settings.IrradianceSampleDelta;
                     }
 
-                    m_IrradiancePipeline.pushConstants(commandBuffer, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &pushBlock);
+                    m_IrradiancePipeline.pushConstants(cmdBuffer, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &pushBlock);
 
-                    vkCmdDraw(commandBuffer, 36, 1, 0, 0);
+                    vkCmdDraw(cmdBuffer, 36, 1, 0, 0);
                 }
-                vkCmdEndRenderPass(commandBuffer);
+                vkCmdEndRenderPass(cmdBuffer);
             }
         }
-        VyContext::device().endSingleTimeCommands(commandBuffer);
+        VyContext::device().endSingleTimeCommands(cmdBuffer);
 
         for (auto framebuffer : framebuffers)
         {
@@ -695,29 +622,13 @@ namespace Vy
         }
 
         // Descriptor Set Layout
-        VkDescriptorSetLayoutBinding binding{};
-        {
-            binding.binding            = 0;
-            binding.descriptorType     = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            binding.descriptorCount    = 1;
-            binding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
-            binding.pImmutableSamplers = nullptr;
-        }
+        m_PrefilterDescSetLayout = VyDescriptorSetLayout::Builder{}
+            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+        .buildUnique();
 
-        VkDescriptorSetLayoutCreateInfo layoutInfo{};
-        {
-            layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            layoutInfo.bindingCount = 1;
-            layoutInfo.pBindings    = &binding;
-        }
-
-        if (vkCreateDescriptorSetLayout(VyContext::device(), &layoutInfo, nullptr, &m_PrefilterDescSetLayout) != VK_SUCCESS)
-        {
-            VY_THROW_RUNTIME_ERROR("failed to create prefilter descriptor set layout!");
-        }
-
+        // Pipeline
         m_PrefilterPipeline = VyPipeline::GraphicsBuilder{}
-            .addDescriptorSetLayout(m_PrefilterDescSetLayout)
+            .addDescriptorSetLayout(m_PrefilterDescSetLayout->handle())
             .addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(Mat4) + sizeof(int) + sizeof(float) + sizeof(U32)) // ViewProj + FaceIndex + Roughness + SampleCount
             .addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   "PrefilterEnvmap.vert.spv")
             .addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, "PrefilterEnvmap.frag.spv")
@@ -725,41 +636,18 @@ namespace Vy
             .addColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT)
             .setDepthAttachment(VK_FORMAT_D32_SFLOAT)
             // No vertex input needed (generated in shader)
-            .setVertexBindingDescriptions  ({}) // Clear default vertex binding.
-			.setVertexAttributeDescriptions({}) // Clear default vertex attributes.
+            .clearVertexDescriptions() // Clear default vertex bindings and attributes.
             .setRenderPass(m_PrefilterRenderPass)
         .build();
 
         // Descriptor Pool
-        VkDescriptorPoolSize poolSize{};
-        {
-            poolSize.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            poolSize.descriptorCount = 1;
-        }
-
-        VkDescriptorPoolCreateInfo poolInfo{};
-        {
-            poolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            poolInfo.poolSizeCount = 1;
-            poolInfo.pPoolSizes    = &poolSize;
-            poolInfo.maxSets       = 1;
-        }
-
-        if (vkCreateDescriptorPool(VyContext::device(), &poolInfo, nullptr, &m_PrefilterDescPool) != VK_SUCCESS)
-        {
-            VY_THROW_RUNTIME_ERROR("failed to create prefilter descriptor pool!");
-        }
+        m_PrefilterDescPool = VyDescriptorPool::Builder{}
+            .setMaxSets(1)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
+        .buildUnique();
 
         // Allocate Descriptor Set
-        VkDescriptorSetAllocateInfo allocInfo{};
-        {
-            allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            allocInfo.descriptorPool     = m_PrefilterDescPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts        = &m_PrefilterDescSetLayout;
-        }
-
-        if (vkAllocateDescriptorSets(VyContext::device(), &allocInfo, &m_PrefilterDescSet) != VK_SUCCESS)
+        if (!m_PrefilterDescPool->allocateDescriptorSet(m_PrefilterDescSetLayout->handle(), m_PrefilterDescSet))
         {
             VY_THROW_RUNTIME_ERROR("failed to allocate prefilter descriptor set!");
         }
@@ -769,21 +657,14 @@ namespace Vy
 
     void IBLSystem::generatePrefilteredEnvMap(Skybox& skybox)
     {
+        // Combined image sampler.
+        VkDescriptorImageInfo imageInfo = skybox.descriptorImageInfo();
+        
         // Update descriptor set
-        VkDescriptorImageInfo imageInfo = skybox.getDescriptorInfo();
+        VyDescriptorWriter{ *m_PrefilterDescSetLayout, *m_PrefilterDescPool }
+            .writeImage(0, &imageInfo)
+            .update(m_PrefilterDescSet);
 
-        VkWriteDescriptorSet  descriptorWrite{};
-        {
-            descriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet          = m_PrefilterDescSet;
-            descriptorWrite.dstBinding      = 0;
-            descriptorWrite.dstArrayElement = 0;
-            descriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrite.descriptorCount = 1;
-            descriptorWrite.pImageInfo      = &imageInfo;
-        }
-
-        vkUpdateDescriptorSets(VyContext::device(), 1, &descriptorWrite, 0, nullptr);
 
         Mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
         Mat4 captureViews[]    = {
@@ -798,7 +679,7 @@ namespace Vy
         TVector<VkFramebuffer> framebuffers;
         TVector<VkImageView>   imageViews;
 
-        VkCommandBuffer commandBuffer = VyContext::device().beginSingleTimeCommands();
+        VkCommandBuffer cmdBuffer = VyContext::device().beginSingleTimeCommands();
         {
             for (int mip = 0; mip < m_Settings.PrefilterMipLevels; ++mip)
             {
@@ -850,7 +731,7 @@ namespace Vy
                         renderPassInfo.pClearValues    = &clearValue;
                     }
 
-                    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+                    vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
                     {
                         VkViewport viewport{};
                         {
@@ -868,11 +749,11 @@ namespace Vy
                             scissor.extent = {mipWidth, mipHeight};
                         }
 
-                        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-                        vkCmdSetScissor (commandBuffer, 0, 1, &scissor);
+                        vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
+                        vkCmdSetScissor (cmdBuffer, 0, 1, &scissor);
 
-                        m_PrefilterPipeline.bind(commandBuffer);
-                        m_PrefilterPipeline.bindDescriptorSet(commandBuffer, 0, m_PrefilterDescSet);
+                        m_PrefilterPipeline.bind(cmdBuffer);
+                        m_PrefilterPipeline.bindDescriptorSet(cmdBuffer, 0, m_PrefilterDescSet);
 
                         struct PushBlock
                         {
@@ -891,15 +772,15 @@ namespace Vy
                             pushBlock.SampleCount = m_Settings.PrefilterSampleCount;
                         }
 
-                        m_PrefilterPipeline.pushConstants(commandBuffer, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &pushBlock);
+                        m_PrefilterPipeline.pushConstants(cmdBuffer, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &pushBlock);
 
-                        vkCmdDraw(commandBuffer, 36, 1, 0, 0);
+                        vkCmdDraw(cmdBuffer, 36, 1, 0, 0);
                     }
-                    vkCmdEndRenderPass(commandBuffer);
+                    vkCmdEndRenderPass(cmdBuffer);
                 }
             }
         }
-        VyContext::device().endSingleTimeCommands(commandBuffer);
+        VyContext::device().endSingleTimeCommands(cmdBuffer);
 
         for (auto framebuffer : framebuffers)
         {
@@ -921,63 +802,24 @@ namespace Vy
     void IBLSystem::createBRDFResources()
     {
         // Descriptor Set Layout
-        VkDescriptorSetLayoutBinding binding{};
-        {
-            binding.binding            = 0;
-            binding.descriptorType     = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            binding.descriptorCount    = 1;
-            binding.stageFlags         = VK_SHADER_STAGE_COMPUTE_BIT;
-            binding.pImmutableSamplers = nullptr;
-        }
+        m_BrdfDescSetLayout = VyDescriptorSetLayout::Builder{}
+            .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT)
+        .buildUnique();
 
-        VkDescriptorSetLayoutCreateInfo layoutInfo{};
-        {
-            layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            layoutInfo.bindingCount = 1;
-            layoutInfo.pBindings    = &binding;
-        }
-
-        if (vkCreateDescriptorSetLayout(VyContext::device(), &layoutInfo, nullptr, &m_BrdfDescSetLayout) != VK_SUCCESS)
-        {
-            VY_THROW_RUNTIME_ERROR("failed to create BRDF descriptor set layout!");
-        }
-
-
+        // Pipeline
         m_BrdfPipeline = VyPipeline::ComputeBuilder{}
-            .addDescriptorSetLayout(m_BrdfDescSetLayout)
+            .addDescriptorSetLayout(m_BrdfDescSetLayout->handle())
             .setShaderStage("BrdfLUT.comp.spv")
         .build();
 
         // Descriptor Pool
-        VkDescriptorPoolSize poolSize{};
-        {
-            poolSize.type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            poolSize.descriptorCount = 1;
-        }
-
-        VkDescriptorPoolCreateInfo poolInfo{};
-        {
-            poolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            poolInfo.poolSizeCount = 1;
-            poolInfo.pPoolSizes    = &poolSize;
-            poolInfo.maxSets       = 1;
-        }
-
-        if (vkCreateDescriptorPool(VyContext::device(), &poolInfo, nullptr, &m_BrdfDescPool) != VK_SUCCESS)
-        {
-            VY_THROW_RUNTIME_ERROR("failed to create BRDF descriptor pool!");
-        }
+        m_BrdfDescPool = VyDescriptorPool::Builder{}
+            .setMaxSets (1)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1)
+        .buildUnique();
 
         // Allocate Descriptor Set
-        VkDescriptorSetAllocateInfo allocInfo{};
-        {
-            allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            allocInfo.descriptorPool     = m_BrdfDescPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts        = &m_BrdfDescSetLayout;
-        }
-
-        if (vkAllocateDescriptorSets(VyContext::device(), &allocInfo, &m_BrdfDescSet) != VK_SUCCESS)
+        if (!m_BrdfDescPool->allocateDescriptorSet(m_BrdfDescSetLayout->handle(), m_BrdfDescSet))
         {
             VY_THROW_RUNTIME_ERROR("failed to allocate BRDF descriptor set!");
         }
@@ -987,34 +829,27 @@ namespace Vy
 
     void IBLSystem::generateBRDFLUT()
     {
+        VkDescriptorImageInfo storageImageInfo{};
+        {
+            storageImageInfo.sampler     = nullptr;
+            storageImageInfo.imageView   = m_BrdfLUTImageView.handle();
+            storageImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        }
+        
         // Update descriptor set
-        VkDescriptorImageInfo imageInfo{};
+        VyDescriptorWriter{ *m_BrdfDescSetLayout, *m_BrdfDescPool }
+            .writeImage(0, &storageImageInfo)
+            .update(m_BrdfDescSet);
+
+        // Dispatch
+        VkCommandBuffer cmdBuffer = VyContext::device().beginSingleTimeCommands();
         {
-            imageInfo.imageView   = m_BrdfLUTImageView.handle();
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            m_BrdfPipeline.bind(cmdBuffer);
+            m_BrdfPipeline.bindDescriptorSet(cmdBuffer, 0 , m_BrdfDescSet);
+
+            vkCmdDispatch(cmdBuffer, m_Settings.BrdfLUTSize / 16, m_Settings.BrdfLUTSize / 16, 1);
         }
-
-        VkWriteDescriptorSet descriptorWrite{};
-        {
-            descriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet          = m_BrdfDescSet;
-            descriptorWrite.dstBinding      = 0;
-            descriptorWrite.dstArrayElement = 0;
-            descriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            descriptorWrite.descriptorCount = 1;
-            descriptorWrite.pImageInfo      = &imageInfo;
-        }
-
-        vkUpdateDescriptorSets(VyContext::device(), 1, &descriptorWrite, 0, nullptr);
-
-        VkCommandBuffer commandBuffer = VyContext::device().beginSingleTimeCommands();
-        {
-            m_BrdfPipeline.bind(commandBuffer);
-            m_BrdfPipeline.bindDescriptorSet(commandBuffer, 0 , m_BrdfDescSet);
-
-            vkCmdDispatch(commandBuffer, m_Settings.BrdfLUTSize / 16, m_Settings.BrdfLUTSize / 16, 1);
-        }
-        VyContext::device().endSingleTimeCommands(commandBuffer);
+        VyContext::device().endSingleTimeCommands(cmdBuffer);
 
         transitionImageLayoutHelper(
             m_BrdfLUTImage, 

@@ -1,8 +1,9 @@
 #pragma once
 
-#include <Vy/GFX/Backend/Resources/Image.h>
-#include <Vy/GFX/Backend/Resources/ImageView.h>
-#include <Vy/GFX/Backend/Resources/Sampler.h>
+#include <Vy/GFX/Backend/Image/Image.h>
+#include <Vy/GFX/Backend/Image/ImageView.h>
+#include <Vy/GFX/Backend/Image/Sampler.h>
+
 #include <Vy/GFX/Backend/Descriptors.h>
 
 namespace Vy
@@ -30,27 +31,6 @@ namespace Vy
                 .memoryUsage( VMA_MEMORY_USAGE_AUTO )
                 .build();
 
-            // VyImageDesc imageDesc{
-            //     .Format     = m_ImageFormat,
-            //     .Extent     = { m_Size, m_Size, 1 },
-            //     .MipLevels  = 1,
-            //     .LayerCount = 6,
-            //     .Usage      = m_UsageFlags,
-            //     .Type       = VK_IMAGE_TYPE_2D,
-            //     .Tiling     = VK_IMAGE_TILING_OPTIMAL,
-            //     .Flags      = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT
-            // };
-
-            // m_Image = VyImage{ imageDesc };
-
-            // VyImageViewDesc viewDesc{
-            //     .BaseMipLevel = 0,
-            //     .LevelCount   = 1,
-            //     .BaseLayer    = 0,
-            //     .LayerCount   = 6,
-            //     .Type         = VK_IMAGE_VIEW_TYPE_CUBE
-            // }; // VyImageView{ viewDesc, m_Image };
-
             // this is the image view for the whole cube map
             m_ImageView = VyImageView::Builder{}
                 .viewType( VK_IMAGE_VIEW_TYPE_CUBE )
@@ -61,13 +41,8 @@ namespace Vy
                 .build( m_Image );
 
             // now we create the image views for each face of the cube map
-            // viewDesc.Type       = VK_IMAGE_VIEW_TYPE_2D;
-            // viewDesc.LayerCount = 1;
-        
-            for (U32 i = 0; i < 6; i++) // VyImageView{ viewDesc, m_Image };
+            for (U32 i = 0; i < 6; i++)
             {
-                // viewDesc.BaseLayer = i;
-
                 m_CubeFaceViews[i] = VyImageView::Builder{}
                     .viewType( VK_IMAGE_VIEW_TYPE_2D )
                     .format( format )
@@ -77,25 +52,12 @@ namespace Vy
                     .build( m_Image );
             }
 
-
-            // VySamplerDesc samplerDesc{
-            //     .MagFilter   = VK_FILTER_LINEAR,
-            //     .MinFilter   = VK_FILTER_LINEAR,
-            //     .AddressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-            //     .MipmapMode  = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-            //     .MaxLod      = 1.0f
-            // };
-
             m_Sampler = VySampler::Builder{}
                 .filters( VK_FILTER_LINEAR, VK_FILTER_LINEAR )
                 .addressMode( VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER )
                 .mipmapMode( VK_SAMPLER_MIPMAP_MODE_LINEAR )
                 .lodRange( 0.0f, 1.0f )
                 .build(); 
-            
-            
-            
-            //VySampler{ samplerDesc };
         }
 
 

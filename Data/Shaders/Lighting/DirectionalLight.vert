@@ -4,28 +4,30 @@ layout(location = 0) out vec3 fragColor;
 
 struct DirectionalLight
 {
-  vec4 direction;
-  vec4 color;
+    vec4 Direction;
+    vec4 Color;
 };
 
 layout(set = 0, binding = 0) uniform UBO
 {
-  mat4             proj;
-  mat4             view;
-  vec4             ambientLightColor;
-  vec4             cameraPosition;
-  vec4             pointLights[16 * 2]; // Placeholder
-  DirectionalLight directionalLights[16];
-  // ... rest of UBO
-}
-uUbo;
+    mat4             Projection;
+    mat4             View;
+    mat4             InverseView;
 
-layout(push_constant) uniform push_t
+    vec4             AmbientLightColor;
+
+    vec4             pointLights[16 * 2]; // Placeholder
+    DirectionalLight DirectionalLights[16];
+    // ... rest of UBO
+
+} uUbo;
+
+layout(push_constant) uniform Push
 {
-  mat4 modelMatrix;
-  vec4 color;
-}
-uPush;
+    mat4 ModelMatrix;
+    vec4 Color;
+
+} uPush;
 
 vec3 getArrowVertex(int index)
 {
@@ -62,9 +64,9 @@ void main()
 {
     vec3 vertexPos = getArrowVertex(gl_VertexIndex);
 
-    vec4 worldPos  = uPush.modelMatrix * vec4(vertexPos, 1.0);
+    vec4 worldPos  = uPush.ModelMatrix * vec4(vertexPos, 1.0);
     
-    gl_Position    = uUbo.proj * uUbo.view * worldPos;
+    gl_Position    = uUbo.Projection * uUbo.View * worldPos;
     
-    fragColor      = uPush.color.rgb;
+    fragColor      = uPush.Color.rgb;
 }

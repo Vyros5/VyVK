@@ -14,16 +14,21 @@ namespace Vy
         createSampler();
     }
 
+
     VyShadowMap::~VyShadowMap()
     {
         if (m_Framebuffer != VK_NULL_HANDLE)
         {
             vkDestroyFramebuffer(VyContext::device(), m_Framebuffer, nullptr);
+
+            m_Framebuffer = VK_NULL_HANDLE;
         }
 
         if (m_RenderPass != VK_NULL_HANDLE)
         {
             vkDestroyRenderPass(VyContext::device(), m_RenderPass, nullptr);
+
+            m_RenderPass = VK_NULL_HANDLE;
         }
     }
 
@@ -34,6 +39,7 @@ namespace Vy
         m_DepthImage = VyImage::Builder{}
             .imageType  (VK_IMAGE_TYPE_2D)
             .format     (m_DepthFormat)
+            // We will sample directly from the depth attachment.
             .usage      (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
             .extent     (VkExtent2D{ m_Width, m_Height })
             .arrayLayers(1)
@@ -86,23 +92,39 @@ namespace Vy
     }
 
 
+    void VyShadowMap::createSampler()
+    {
+        m_Sampler = VySampler::Builder{}
+            .filters      (VK_FILTER_LINEAR)
+            .mipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
+            .addressMode  (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER)
+            // .enableCompare(VK_COMPARE_OP_LESS_OR_EQUAL)        // percentage-closer filtering (PCF) comparison
+            .enableCompare(VK_COMPARE_OP_LESS)
+            .borderColor  (VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE) // Outside shadow map = no shadow
+            .lodRange     (0.0f, 1.0f)
+            .mipLodBias   (0.0f)
+        .build();
+    }
+
+
     void VyShadowMap::createRenderPass()
     {
         VkAttachmentDescription depthAttachment{};
         {
             depthAttachment.format         = m_DepthFormat;
             depthAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
-            depthAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            depthAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+            depthAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;  // Create depth at start of render pass
+            depthAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE; // We will later sample from the depth attachment, so we want to store the depth data
             depthAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             depthAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-            depthAttachment.finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+            depthAttachment.finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL; // For sampling later
         }
 
         VkAttachmentReference depthAttachmentRef{};
         {
             depthAttachmentRef.attachment = 0;
+            // During the subpass, we will be using the depth attachment as a depth/stencil attachment
             depthAttachmentRef.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         }
 
@@ -120,14 +142,14 @@ namespace Vy
             dependencies[0].srcSubpass      = VK_SUBPASS_EXTERNAL;
             dependencies[0].dstSubpass      = 0;
             dependencies[0].srcStageMask    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            dependencies[0].dstStageMask    = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+            dependencies[0].dstStageMask    = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT; // Early Frag
             dependencies[0].srcAccessMask   = VK_ACCESS_SHADER_READ_BIT;
             dependencies[0].dstAccessMask   = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
             dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
             
             dependencies[1].srcSubpass      = 0;
             dependencies[1].dstSubpass      = VK_SUBPASS_EXTERNAL;
-            dependencies[1].srcStageMask    = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+            dependencies[1].srcStageMask    = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT; // Late Frag
             dependencies[1].dstStageMask    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
             dependencies[1].srcAccessMask   = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
             dependencies[1].dstAccessMask   = VK_ACCESS_SHADER_READ_BIT;
@@ -174,25 +196,11 @@ namespace Vy
     }
 
 
-    void VyShadowMap::createSampler()
-    {
-        m_Sampler = VySampler::Builder{}
-            .filters      (VK_FILTER_LINEAR)
-            .mipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
-            .addressMode  (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER)
-            .enableCompare(VK_COMPARE_OP_LESS_OR_EQUAL)        // PCF comparison
-            .borderColor  (VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE) // Outside shadow map = no shadow
-            .lodRange     (0.0f, 1.0f)
-            .mipLodBias   (0.0f)
-        .build();
-    }
-
-
     void VyShadowMap::beginRenderPass(VkCommandBuffer cmdBuffer)
     {
         VkClearValue clearValue{};
         {
-            clearValue.depthStencil = {1.0f, 0};
+            clearValue.depthStencil = { 1.0f, 0 };
         }
 
         VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
@@ -200,8 +208,8 @@ namespace Vy
             renderPassInfo.renderPass        = m_RenderPass;
             renderPassInfo.framebuffer       = m_Framebuffer;
             
-            renderPassInfo.renderArea.offset = {0, 0};
-            renderPassInfo.renderArea.extent = {m_Width, m_Height};
+            renderPassInfo.renderArea.offset = { 0, 0 };
+            renderPassInfo.renderArea.extent = { m_Width, m_Height };
 
             renderPassInfo.clearValueCount   = 1;
             renderPassInfo.pClearValues      = &clearValue;
@@ -209,24 +217,9 @@ namespace Vy
 
         vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        VkViewport viewport{};
-        {
-            viewport.x        = 0.0f;
-            viewport.y        = 0.0f;
-            viewport.width    = static_cast<float>(m_Width);
-            viewport.height   = static_cast<float>(m_Height);
-            viewport.minDepth = 0.0f;
-            viewport.maxDepth = 1.0f;
-        }
-        
-        VkRect2D scissor{};
-        {
-            scissor.offset = {0, 0};
-            scissor.extent = {m_Width, m_Height};
-        }
-        
-        vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
-        vkCmdSetScissor (cmdBuffer, 0, 1, &scissor );
+        // Set viewport and scissor rect.
+        VKCmd::viewport(cmdBuffer, VkExtent2D{ m_Width, m_Height });
+        VKCmd::scissor (cmdBuffer, VkExtent2D{ m_Width, m_Height });
     }
 
 
@@ -305,11 +298,11 @@ namespace Vy
         {
             VkImageMemoryBarrier barrier{ VKInit::imageMemoryBarrier() };
             {
+                barrier.image                           = m_DepthImage;
                 barrier.oldLayout                       = VK_IMAGE_LAYOUT_UNDEFINED;
                 barrier.newLayout                       = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
                 barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
                 barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-                barrier.image                           = m_DepthImage;
 
                 barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_DEPTH_BIT;
                 barrier.subresourceRange.baseMipLevel   = 0;
@@ -321,7 +314,13 @@ namespace Vy
                 barrier.dstAccessMask                   = VK_ACCESS_SHADER_READ_BIT;
             }
             
-            vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+            vkCmdPipelineBarrier(cmdBuffer, 
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 
+                0, nullptr, 
+                0, nullptr, 
+                1, &barrier
+            );
         }
         VyContext::device().endSingleTimeCommands(cmdBuffer);
     }
@@ -337,6 +336,7 @@ namespace Vy
             depthAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
             depthAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
             // Since we transition per-layer before and after, use same layout
             depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             depthAttachment.finalLayout   = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -473,7 +473,7 @@ namespace Vy
     {
         VkClearValue clearValue{};
         {
-            clearValue.depthStencil = {1.0f, 0};
+            clearValue.depthStencil = { 1.0f, 0 };
         }
 
         VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
@@ -490,24 +490,9 @@ namespace Vy
 
         vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        VkViewport viewport{};
-        {
-            viewport.x        = 0.0f;
-            viewport.y        = 0.0f;
-            viewport.width    = static_cast<float>(m_Size);
-            viewport.height   = static_cast<float>(m_Size);
-            viewport.minDepth = 0.0f;
-            viewport.maxDepth = 1.0f;
-        }
-        
-        VkRect2D scissor{};
-        {
-            scissor.offset = {0, 0};
-            scissor.extent = {m_Size, m_Size};
-        }
-        
-        vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
-        vkCmdSetScissor (cmdBuffer, 0, 1, &scissor );
+        // Set viewport and scissor rect.
+        VKCmd::viewport(cmdBuffer, VkExtent2D{ m_Size, m_Size });
+        VKCmd::scissor (cmdBuffer, VkExtent2D{ m_Size, m_Size });
     }
 
 
@@ -540,14 +525,10 @@ namespace Vy
 
         vkCmdPipelineBarrier(cmdBuffer,
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-            0,
-            0,
-            nullptr,
-            0,
-            nullptr,
-            1,
-            &barrier
+            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
         );
     }
 
@@ -575,14 +556,10 @@ namespace Vy
 
         vkCmdPipelineBarrier(cmdBuffer,
             VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            0,
-            0,
-            nullptr,
-            0,
-            nullptr,
-            1,
-            &barrier
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
         );
     }
 }

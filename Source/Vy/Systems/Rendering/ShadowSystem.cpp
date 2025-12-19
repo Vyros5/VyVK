@@ -21,12 +21,12 @@ namespace Vy
     // =====================================================================================================================
 
     VyShadowSystem::VyShadowSystem(U32 shadowMapSize) : 
-        m_ShadowMapSize{shadowMapSize}
+        m_ShadowMapSize{ shadowMapSize }
     {
         // Create multiple shadow maps for directional/spot lights.
         for (int i = 0; i < MAX_SHADOW_MAPS; i++)
         {
-            m_ShadowMaps.push_back(MakeUnique<VyShadowMap>(shadowMapSize, shadowMapSize));
+            m_ShadowMaps.push_back( MakeUnique<VyShadowMap>(shadowMapSize, shadowMapSize) );
 
             m_LightSpaceMatrices[i] = Mat4(1.0f);
         }
@@ -34,7 +34,7 @@ namespace Vy
         // Create cube shadow maps for point lights.
         for (int i = 0; i < MAX_CUBE_SHADOW_MAPS; i++)
         {
-            m_CubeShadowMaps.push_back(MakeUnique<VyCubeShadowMap>(shadowMapSize));
+            m_CubeShadowMaps.push_back( MakeUnique<VyCubeShadowMap>(shadowMapSize) );
 
             m_PointLightPositions[i] = Vec3(0.0f);
             m_PointLightRanges   [i] = 25.0f;
@@ -60,25 +60,31 @@ namespace Vy
         // Only need position for shadow mapping.
 
         m_Pipeline = VyPipeline::GraphicsBuilder{}
-            // .addDescriptorSetLayout()
             .addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(ShadowPushConstants))
             .addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   "Shadows/Shadow.vert.spv")
             .addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, "Shadows/Shadow.frag.spv")
+
             // Cull front faces to reduce peter-panning
             .setCullMode(VK_CULL_MODE_FRONT_BIT)
+            
             // Depth bias to prevent shadow acne
             .setDepthBias(/*ConstantFactor*/ 1.25f, /*Clamp*/ 0.0f, /*SlopeFactor*/ 1.75f)
-            // .setDepthTest(/*DepthTest*/ true, /*WriteDepth*/ true, VK_COMPARE_OP_LESS_OR_EQUAL)
+
             // No color attachment - depth only
             .setDepthAttachment(VK_FORMAT_D32_SFLOAT)
+
             // Use the render pass from the first shadow map (all are identical)
             .setRenderPass(m_ShadowMaps[0]->renderPass())
+
         .buildUnique();
     }
 
     // =====================================================================================================================
 
-    Mat4 VyShadowSystem::calculateDirectionalLightMatrix(const Vec3& lightDirection, const Vec3& sceneCenter, float sceneRadius)
+    Mat4 VyShadowSystem::calculateDirectionalLightMatrix(
+        const Vec3& lightDirection, 
+        const Vec3& sceneCenter, 
+        float       sceneRadius)
     {
         // lightDirection points FROM light TO scene (the direction light travels).
         Vec3 lightDir = glm::normalize(lightDirection);
@@ -109,7 +115,11 @@ namespace Vy
 
     // =====================================================================================================================
 
-    Mat4 VyShadowSystem::calculateSpotLightMatrix(const Vec3& position, const Vec3& direction, float outerCutoffDegrees, float range)
+    Mat4 VyShadowSystem::calculateSpotLightMatrix(
+        const Vec3& position, 
+        const Vec3& direction, 
+        float       outerCutoffDegrees, 
+        float       range)
     {
         Vec3 lightDir = glm::normalize(direction);
 
@@ -181,7 +191,7 @@ namespace Vy
         m_ShadowLightCount = 0;
         Vec3 sceneCenter   = Vec3(0.0f);
 
-        // Render shadow map for first directional light
+        // Render shadow map for first directional light.
         auto dirView = frameInfo.Scene->registry().view<DirectionalLightComponent, TransformComponent>();
         
         for (auto&& [entity, dirLight, transform] : dirView.each())
@@ -193,6 +203,7 @@ namespace Vy
             m_LightSpaceMatrices[m_ShadowLightCount] = calculateDirectionalLightMatrix(lightDir, sceneCenter, sceneRadius);
             
             renderToShadowMap(frameInfo, *m_ShadowMaps[m_ShadowLightCount], m_LightSpaceMatrices[m_ShadowLightCount]);
+
             m_ShadowLightCount++;
 
             // Only one directional light shadow for now? The old code took dirLights[0].
@@ -200,7 +211,7 @@ namespace Vy
             break;
         }
 
-        // Render shadow maps for spotlights
+        // Render shadow maps for spotlights.
         auto spotView = frameInfo.Scene->registry().view<SpotLightComponent, TransformComponent>();
         
         for (auto&& [entity, spotLight, transform] : spotView.each())
@@ -220,7 +231,7 @@ namespace Vy
             m_ShadowLightCount++;
         }
 
-        // Render cube shadow maps for point lights
+        // Render cube shadow maps for point lights.
         renderPointLightShadowMaps(frameInfo);
     }
 
@@ -231,20 +242,24 @@ namespace Vy
         // Only need position for shadow mapping.
 
         m_CubePipeline = VyPipeline::GraphicsBuilder{}
-            // .addDescriptorSetLayout()
             .addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(CubeShadowPushConstants))
+
             // Use specialized cube shadow shaders that write linear depth
             .addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   "Shadows/CubeShadow.vert.spv")
             .addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, "Shadows/CubeShadow.frag.spv")
+            
             // No culling for point light shadows to ensure all geometry is captured
             .setCullMode(VK_CULL_MODE_NONE)
+            
             // // Depth bias to prevent shadow acne
             .setDepthBias(/*ConstantFactor*/ 1.25f, /*Clamp*/ 0.0f, /*SlopeFactor*/ 1.75f)
-            // .setDepthTest(/*DepthTest*/ true, /*WriteDepth*/ true, VK_COMPARE_OP_LESS_OR_EQUAL)
+
             // No color attachment - depth only
             .setDepthAttachment(VK_FORMAT_D32_SFLOAT)
+
             // Use the render pass from the first cube shadow map
             .setRenderPass(m_CubeShadowMaps[0]->renderPass())
+
         .buildUnique();
     }
 

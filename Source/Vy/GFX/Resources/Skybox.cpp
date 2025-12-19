@@ -2,7 +2,6 @@
 
 #include <Vy/GFX/Context.h>
 
-
 #include <stb_image.h>
 
 namespace Vy

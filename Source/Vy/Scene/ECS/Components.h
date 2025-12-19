@@ -11,7 +11,6 @@
 // Optional
 #include <Vy/Scene/ECS/Components/CameraComponent.h>
 #include <Vy/Scene/ECS/Components/ModelComponent.h>
-// #include <Vy/Scene/ECS/Components/MeshComponent.h>
 #include <Vy/Scene/ECS/Components/LightComponent.h>
 #include <Vy/Scene/ECS/Components/MaterialComponent.h>
 #include <Vy/Scene/ECS/Components/ColorComponent.h>

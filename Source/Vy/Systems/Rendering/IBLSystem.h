@@ -8,17 +8,13 @@
 
 namespace Vy
 {
-
-
-
-
     /**
      * @brief Image-Based Lighting (IBL) System
      *
      * Generates IBL textures from an environment cubemap for PBR ambient lighting:
      * - Irradiance Map: Diffuse ambient lighting (convolved hemisphere)
      * - Prefiltered Environment Map: Specular ambient lighting (mip-mapped by roughness)
-     * - BRDF LUT: 2D lookup texture for split-sum approximation
+     * - BRDF_LUT: 2D lookup texture for split-sum approximation
      */
     class IBLSystem
     {
@@ -65,9 +61,9 @@ namespace Vy
         VkDescriptorImageInfo brdfLUTDescriptorImageInfo() const;
 
     private:
-        void     createIrradianceMap();
-        void     createPrefilteredEnvMap();
-        void     createBRDFLUT();
+        void createIrradianceMap();
+        void createPrefilteredEnvMap();
+        void createBRDFLUT();
         
         void generateIrradianceMap(Skybox& skybox);
         void generatePrefilteredEnvMap(Skybox& skybox);
@@ -83,39 +79,39 @@ namespace Vy
         Settings m_Settings;
 
         // Irradiance cubemap
-        VyImage        m_IrradianceImage    ;
+        VyImage        m_IrradianceImage;
         VyImageView    m_IrradianceImageView;
-        VySampler      m_IrradianceSampler  ;
+        VySampler      m_IrradianceSampler;
 
         // Prefiltered environment cubemap
-        VyImage        m_PrefilteredImage    ;
+        VyImage        m_PrefilteredImage;
         VyImageView    m_PrefilteredImageView;
-        VySampler      m_PrefilteredSampler  ;
+        VySampler      m_PrefilteredSampler;
 
         // BRDF integration LUT
-        VyImage        m_BrdfLUTImage    ;
+        VyImage        m_BrdfLUTImage;
         VyImageView    m_BrdfLUTImageView;
-        VySampler      m_BrdfLUTSampler  ;
+        VySampler      m_BrdfLUTSampler;
 
         // Pipeline resources for irradiance convolution
-        VkRenderPass          m_IrradianceRenderPass     = VK_NULL_HANDLE;
-        VyPipeline            m_IrradiancePipeline;
-        VkDescriptorSetLayout m_IrradianceDescSetLayout  = VK_NULL_HANDLE;
-        VkDescriptorPool      m_IrradianceDescPool       = VK_NULL_HANDLE;
-        VkDescriptorSet       m_IrradianceDescSet        = VK_NULL_HANDLE;
+        VkRenderPass                  m_IrradianceRenderPass = VK_NULL_HANDLE;
+        VyPipeline                    m_IrradiancePipeline;
+        Unique<VyDescriptorSetLayout> m_IrradianceDescSetLayout;
+        Unique<VyDescriptorPool>      m_IrradianceDescPool;
+        VkDescriptorSet               m_IrradianceDescSet = VK_NULL_HANDLE;
 
         // Pipeline resources for prefilter convolution
-        VkRenderPass          m_PrefilterRenderPass     = VK_NULL_HANDLE;
-        VyPipeline            m_PrefilterPipeline;
-        VkDescriptorSetLayout m_PrefilterDescSetLayout  = VK_NULL_HANDLE;
-        VkDescriptorPool      m_PrefilterDescPool       = VK_NULL_HANDLE;
-        VkDescriptorSet       m_PrefilterDescSet        = VK_NULL_HANDLE;
+        VkRenderPass                  m_PrefilterRenderPass = VK_NULL_HANDLE;
+        VyPipeline                    m_PrefilterPipeline;
+        Unique<VyDescriptorSetLayout> m_PrefilterDescSetLayout;
+        Unique<VyDescriptorPool>      m_PrefilterDescPool;
+        VkDescriptorSet               m_PrefilterDescSet = VK_NULL_HANDLE;
 
         // Pipeline resources for BRDF LUT computation
-        VyPipeline            m_BrdfPipeline;
-        VkDescriptorSetLayout m_BrdfDescSetLayout  = VK_NULL_HANDLE;
-        VkDescriptorPool      m_BrdfDescPool       = VK_NULL_HANDLE;
-        VkDescriptorSet       m_BrdfDescSet        = VK_NULL_HANDLE;
+        VyPipeline                    m_BrdfPipeline;
+        Unique<VyDescriptorSetLayout> m_BrdfDescSetLayout;
+        Unique<VyDescriptorPool>      m_BrdfDescPool;
+        VkDescriptorSet               m_BrdfDescSet = VK_NULL_HANDLE;
 
         // Deferred regeneration state
         bool     m_RegenerationRequested = false;

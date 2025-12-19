@@ -97,6 +97,7 @@ namespace Vy
          */
 		static void flushDeletionQueue(U32 frameIndex);
 
+		static void waitIdle();
 
 		static bool allocateSet(VkDescriptorSetLayout layout, VkDescriptorSet& set);
 

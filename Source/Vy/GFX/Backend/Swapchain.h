@@ -29,7 +29,7 @@ namespace Vy
          * @brief Creates a new Swapchain object to buffer our images. 
          * 
          * @param windowExtent the window resolution. Images need to be scaled to an extent, 
-         *      this usually must follow the extents of the window. 
+         *                     this usually must follow the extents of the window. 
          */
         VySwapchain(VkExtent2D windowExtent);
 
@@ -51,15 +51,22 @@ namespace Vy
          * 
          * @return VkFormat the format being used by the renderer. 
          */
-        VkFormat swapchainImageFormat() { return m_SwapchainImageFormat; }
+        VkFormat swapchainImageFormat() 
+        { 
+            return m_SwapchainImageFormat; 
+        }
         
         /**
          * @brief Returns the image width and height that images are being rendered to. 
          * 
          * @return VkExtent2D a 2D representation of the height and width of the screen. 
          */
-        VkExtent2D swapchainExtent() { return m_SwapchainExtent; }
+        VkExtent2D swapchainExtent() 
+        { 
+            return m_SwapchainExtent; 
+        }
         
+
         /**
          * @brief Get a frame buffer object corresponding to the index.
          * 
@@ -67,11 +74,13 @@ namespace Vy
          * 
          * @param index the index of the required framebuffer. 
          * 
-         * @return VkFramebuffer the framebuffer at the index. 
+         * @return The framebuffer at the index. 
          */
-        const VyFramebuffer& frameBuffer(int index) const { return m_SwapchainFramebuffers[ index ]; }
+        const VyFramebuffer& frameBuffer(int index) const 
+        { 
+            return m_SwapchainFramebuffers[ index ]; 
+        }
 
-        // VkFramebuffer frameBuffer(int index) { return m_SwapchainFramebuffers[ index ]; }
         
         /**
          * @brief Get the current render pass object. 
@@ -80,14 +89,16 @@ namespace Vy
          */
         VyRenderPass& renderPass() const { return *m_RenderPass; }
 
-        // VkRenderPass renderPass() { return m_RenderPass; }
 
         /**
          * @brief Get the number of images that can be active at once. 
          * 
          * @return size_t representing the number of possible active simultaneous images. 
          */
-        size_t imageCount() { return m_SwapchainImages.size(); }
+        size_t imageCount()
+        { 
+            return m_SwapchainImages.size(); 
+        }
 
         /**
          * @brief Finds the depth format supported by this swapchain. 
@@ -99,21 +110,21 @@ namespace Vy
         /**
          * @brief Loads in the next image to be written to in the Swapchain. 
          * 
-         * @param imageIndex The index of the next image. 
+         * @param pImageIndex The index of the next image. 
          * 
          * @return The result of acquiring the next image. 
          */
-        VkResult acquireNextImage(U32* imageIndex);
+        VkResult acquireNextImage(U32* pImageIndex);
 
         /**
          * @brief Submits a command buffer for drawing.
          * 
-         * @param buffers    An array of command buffers. 
-         * @param imageIndex The index of the image being drawn. 
+         * @param pCmdBuffers An array of command buffers. 
+         * @param pImageIndex The index of the image being drawn. 
          * 
          * @return The result of submitting the buffer. 
          */
-        VkResult submitCommandBuffers(const VkCommandBuffer* cmdBuffers, U32* imageIndex);
+        VkResult submitCommandBuffers(const VkCommandBuffer* pCmdBuffers, U32* pImageIndex);
 
 
         bool compareSwapFormats(const VySwapchain& swapchain) const 
@@ -127,6 +138,21 @@ namespace Vy
             return static_cast<float>(m_SwapchainExtent.width ) / 
                    static_cast<float>(m_SwapchainExtent.height);
         }
+
+        // VkExtent2D shadowMapExtent() { return m_ShadowMapExtent; }
+        // VkImageView shadowDepthImageView() { return m_ShadowDepthImageView.handle(); }
+        // VkSampler shadowDepthSampler() { return m_ShadowSampler.handle(); }
+        // VyRenderPass& shadowRenderPass() const { return *m_ShadowRenderPass; }
+        // const VyFramebuffer& shadowMapFramebuffer() const { return m_ShadowMapFramebuffer; }
+
+        // VkDescriptorImageInfo shadowDescriptorImageInfo()
+        // {
+        //     return VkDescriptorImageInfo{
+        //         .sampler     = m_ShadowSampler.handle(),
+        //         .imageView   = m_ShadowDepthImageView.handle(),
+        //         .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+        //     };
+        // }
 
     private:
 
@@ -213,8 +239,12 @@ namespace Vy
 
         void destroySwapchain(VkSwapchainKHR swapchain);
 
+        // void createShadowDepthImage();
+        // void createShadowMapRenderPass();
+        // void createShadowMapFramebuffer();
+
     private:
-    
+
         VkFormat   m_SwapchainImageFormat; // Format used by this swapchain's images.
         VkFormat   m_SwapchainDepthFormat; // Format used by this swapchain's depthbuffer.
 
@@ -224,9 +254,9 @@ namespace Vy
         // TVector<VkFramebuffer>  m_SwapchainFramebuffers; // Framebuffer to each swapchain image.
         // VkRenderPass            m_RenderPass;            // Renderpass to be preformed on swapchain images.
         
-        TVector<VkImage>        m_DepthImages;           // Images that will be used to do depth tests.
-        TVector<VmaAllocation>  m_DepthImageAllocations; // Memory allocations of the depth images.
-        TVector<VkImageView>    m_DepthImageViews;       // Image views of the depth images.
+        TVector<VyImage>        m_DepthImages;           // Images that will be used to do depth tests.
+        // TVector<VmaAllocation>  m_DepthImageAllocations; // Memory allocations of the depth images.
+        TVector<VyImageView>    m_DepthImageViews;       // Image views of the depth images.
 
         TVector<VkImage>        m_SwapchainImages;     // All the images this swapchain is using for colors (rendering).
         TVector<VkImageView>    m_SwapchainImageViews; // All the image views for each image, which are descriptors for the images (stuff like if 2d or 3d, how many layers, ect.)
@@ -246,6 +276,15 @@ namespace Vy
         TVector<VyFramebuffer> m_SwapchainFramebuffers;
 
         VyPresentIdState m_PresentIdState;
+
+
+        // Unique<VyRenderPass>  m_ShadowRenderPass{};
+        // VyFramebuffer m_ShadowMapFramebuffer;
+        // VkExtent2D    m_ShadowMapExtent;
+        // VyImage       m_ShadowImage;
+        // VyImageView   m_ShadowDepthImageView;
+        // VySampler     m_ShadowSampler;
+
     };
 }
 

@@ -6,7 +6,6 @@
 namespace Vy 
 {
     VySkyboxSystem::VySkyboxSystem(
-        // VyRenderPass&         renderPass, 
         VkRenderPass          renderPass,
         VkDescriptorSetLayout globalSetLayout,
         Shared<VyEnvironment> environment)
@@ -26,16 +25,15 @@ namespace Vy
     {
         m_Pipeline = VyPipeline::GraphicsBuilder{}
             .addDescriptorSetLayouts(descSetLayouts)
-            .addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   "Skybox.vert.spv")
-            .addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, "Skybox.frag.spv")
+            .addShaderStage         (VK_SHADER_STAGE_VERTEX_BIT,   "Skybox.vert.spv")
+            .addShaderStage         (VK_SHADER_STAGE_FRAGMENT_BIT, "Skybox.frag.spv")
             // No depth writing, but depth testing is enabled (equal or less than) to render behind opaque objects.
-            .setDepthTest(true, false, VK_COMPARE_OP_LESS_OR_EQUAL) // Draw skybox behind everything
-            .addColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT)
-            .setCullMode(VK_CULL_MODE_BACK_BIT)
-            .setFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE) 
-            .setRenderPass(renderPass)
-            .setVertexBindingDescriptions  ({}) // Clear default vertex binding.
-            .setVertexAttributeDescriptions({}) // Clear default vertex attributes.
+            .setDepthTest           (true, false, VK_COMPARE_OP_LESS_OR_EQUAL) // Draw skybox behind everything
+            .addColorAttachment     (VK_FORMAT_R16G16B16A16_SFLOAT)
+            .setCullMode            (VK_CULL_MODE_BACK_BIT)
+            .setFrontFace           (VK_FRONT_FACE_COUNTER_CLOCKWISE) 
+            .setRenderPass          (renderPass)
+            .clearVertexDescriptions() // Clear default vertex bindings and attributes.
         .buildUnique();
     }
 
@@ -44,12 +42,10 @@ namespace Vy
     {
         m_Pipeline->bind(frameInfo.CommandBuffer);
 
+        // Bind global and skybox descriptor set.
         m_Pipeline->bindDescriptorSets(frameInfo.CommandBuffer, 
             0, 
-            TVector{ 
-                frameInfo.GlobalDescriptorSet, 
-                m_Skybox->descriptorSet() 
-            }
+            TVector{ frameInfo.GlobalDescriptorSet, m_Skybox->descriptorSet() }
         );
 
         // Draw 36 vertices (12 triangles) for a cube.

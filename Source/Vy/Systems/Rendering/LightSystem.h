@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Vy/Systems/Rendering/IRenderSystem.h>
-#include <Vy/Managers/Lighting/LightManager.h>
 
 namespace Vy 
 {
@@ -12,11 +11,6 @@ namespace Vy
             VkRenderPass          renderPass, 
             VkDescriptorSetLayout globalSetLayout
         );
-
-        // VyLightSystem(
-        //     VyRenderPass&         renderPass, 
-        //     VkDescriptorSetLayout globalSetLayout
-        // );
 
         VyLightSystem(const VyLightSystem&)            = delete;
         VyLightSystem& operator=(const VyLightSystem&) = delete;
@@ -29,8 +23,6 @@ namespace Vy
         
         // Update target-locked light rotation (call when light position or target changes)
         static void updateTargetLockedLight(EntityHandle entity, VyScene* scene);
-        
-        // void createPipeline(VkRenderPass& renderPass, TVector<VkDescriptorSetLayout> descSetLayouts);
 
     private:
 

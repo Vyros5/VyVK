@@ -30,7 +30,7 @@ namespace Vy
 
     VyEngine::~VyEngine() 
     {
-        m_RenderSystem->deinitialize();
+        m_RenderSystem->shutdown();
     }
 
 
@@ -43,92 +43,19 @@ namespace Vy
         // Load builtin entities for the current scene. 
         loadEntities();
 
-
         m_MaterialSystem = MakeUnique<VyMaterialSystem>();
 
-        // Create the descriptor resources and UBO buffers.
-        createDescriptorPools();
-		createUBOBuffers();
-        createDescriptors();
-
-        // [ Initialize Render Systems ]
+        // [ Initialize Rendering System ]
         m_RenderSystem = MakeUnique<VyMasterRenderSystem>(
-            m_Renderer,               // 
-            m_GlobalSetLayout,        // 
-            m_MaterialSetLayout,      // 
-            m_MaterialSystem,         // 
-            m_MaterialPool,           // 
-            m_Scene->getEnvironment() // 
+            m_Renderer,
+            m_MaterialSystem,
+            m_Scene->getEnvironment()
         );
 
         m_Window.setEventCallback([this]<typename E>(E&& event) 
         {
             onEvent(std::forward<E>(event));
         });
-    }
-
-
-	void VyEngine::createDescriptorPools()
-    {
-        // Create the global pool.
-        m_GlobalPool = VyDescriptorPool::Builder{}
-            .setMaxSets (MAX_FRAMES_IN_FLIGHT)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT)
-            .buildUnique();
-
-        // Create the material pool.
-        m_MaterialPool = VyDescriptorPool::Builder{}
-            .setMaxSets (1000)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4000)
-            .buildUnique();
-	}
-
-
-    void VyEngine::createUBOBuffers()
-    {
-        // Create the global UBO buffers (One per frame). 
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
-        {
-            m_UBOBuffers[i] = MakeUnique<VyBuffer>( VyBuffer::uniformBuffer(sizeof(GlobalUBO)), false );
-
-            // Map the buffer's memory so that it can be written to in the update loop.
-            m_UBOBuffers[i]->map();
-        }
-    }
-
-
-    void VyEngine::createDescriptors() 
-    {
-        // Create the global set layout.
-        m_GlobalSetLayout = VyDescriptorSetLayout::Builder{}
-            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS) // UBO
-            .buildUnique();
-
-        // Create the material set layout.
-        m_MaterialSetLayout = VyDescriptorSetLayout::Builder()
-            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Albedo
-            .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Normal
-            .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Roughness
-            .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Metallic
-            .buildUnique();
-
-        // Write the global descriptor sets.
-        for (int i = 0; i < m_GlobalSets.size(); i++)
-        {
-            auto bufferInfo = m_UBOBuffers[i]->descriptorBufferInfo();
-
-            VyDescriptorWriter{ *m_GlobalSetLayout, *m_GlobalPool }
-                .writeBuffer(0, &bufferInfo)
-				.build(m_GlobalSets[i]);
-        }
-
-        // Create descriptor sets for the skybox if it exists.
-        if (m_Scene->getEnvironment()->getSkybox())
-        {
-            auto skybox = m_Scene->getEnvironment()->getSkybox();
-
-            skybox->createDescriptorSet();
-        }
     }
 
 
@@ -160,10 +87,11 @@ namespace Vy
 
     void VyEngine::run()
     {
+        // Active Camera Object.
         VyCamera camera{};
 
         // [ Initialize FrameRate Controller (60 FPS) ]
-        FrameRateController frameRateController{ 60 };
+        FrameRateController frameRateController{ 60u };
 
         VkExtent2D previousExtent = m_Renderer.swapchainExtent();
 
@@ -187,74 +115,49 @@ namespace Vy
             if (auto cmdBuffer = m_Renderer.beginFrame()) 
             {
                 // Check if window was resized and recreate post-processing resources.
-                VkExtent2D currentExtent = m_Renderer.swapchainExtent();
-
-                if (currentExtent.width  != previousExtent.width || 
-                    currentExtent.height != previousExtent.height) 
                 {
-                    m_RenderSystem->recreate(currentExtent);
-
-                    previousExtent = currentExtent;
+                    VkExtent2D currentExtent = m_Renderer.swapchainExtent();
+                    
+                    if (currentExtent.width  != previousExtent.width || 
+                        currentExtent.height != previousExtent.height) 
+                    {
+                        m_RenderSystem->recreate(currentExtent);
+                        
+                        previousExtent = currentExtent;
+                    }
                 }
 
                 // Update Frame Info.
                 int frameIndex = m_Renderer.frameIndex();
 
                 VyFrameInfo frameInfo{
-                    .FrameIndex          = frameIndex,                 // Index of the current frame.
-                    .FrameTime           = deltaTime,                  // Time between frames.
-                    .CommandBuffer       = cmdBuffer,                  // Main command buffer.
-                    .GlobalDescriptorSet = m_GlobalSets[ frameIndex ], // Global descriptor set for the current frame.
-                    .Scene               = m_Scene,                    // Active scene.
-                    .Camera              = camera                      // Camera to update the UBOs.
+                    .FrameIndex          = frameIndex,                            // Index of the current frame.
+                    .FrameTime           = deltaTime,                             // Time between frames.
+                    .CommandBuffer       = cmdBuffer,                             // Main command buffer.
+                    .GlobalDescriptorSet = m_RenderSystem->globalSet(frameIndex), // Global descriptor set for the current frame.
+                    .Scene               = m_Scene,                               // Active scene.
+                    .Camera              = camera                                 // Active camera to update the UBOs.
                 };
 
                 // [ Update ]
                 {
-                    // Update Scripts and Scene Systems.
-                    {
-                        // m_Scene->update(deltaTime);
-                    }
+                    GlobalUBO ubo{};
 
-                    // Update Global UBO and Render Systems.
-                    {
-                        GlobalUBO ubo{};
-
-                        // Update Render Systems.
-                        m_RenderSystem->update(frameInfo, ubo);
-
-                        // Write UBO buffers.
-                        m_UBOBuffers[ frameInfo.FrameIndex ]->writeToBuffer( &ubo, sizeof(GlobalUBO), 0 );
-                        m_UBOBuffers[ frameInfo.FrameIndex ]->flush();
-                    }
+                    // Update UBOs and Render Systems.
+                    m_RenderSystem->updateUniformBuffers(frameInfo, ubo);
                 }
 
                 // [ Render ]
                 {
                     m_RenderSystem->render(frameInfo);
-                    
-                    // [ Post-Process Rendering ]
-                    {
-                        m_RenderSystem->renderPostProcess(frameInfo);
-                    }
-                    
-                    // [ Swapchain Final Composite Rendering ]
-                    {
-                        m_Renderer.beginSwapchainRenderPass(cmdBuffer);
-                        {
-                            m_RenderSystem->renderFinalComposite(frameInfo);
-                        }
-                        m_Renderer.endSwapchainRenderPass(cmdBuffer);
-                    }
                 }
 
                 m_Renderer.endFrame();
 
             } // [ Frame End ]
-        } 
-        // [ Main Loop End ]
+        } // [ Main Loop End ]
 
-        vkDeviceWaitIdle(VyContext::device());
+        VyContext::waitIdle();
     }
 
 
@@ -290,7 +193,8 @@ namespace Vy
         environment->setSkybox(skyboxTextures);
 
         // ========================================================================================
-        
+        // Materials
+
         MaterialComponent floorMat{ MakeShared<VyMaterial>() };
         // floorMat.loadAlbedoTexture("Textures/Floor/slate_floor_diff_2k.jpg");
         // floorMat.loadNormalTexture("Textures/Floor/slate_floor_nor_gl_2k.jpg");
@@ -309,7 +213,8 @@ namespace Vy
         vaseMat.setColor    ({ 1.0f, 1.0f, 0.1f });
 
         // ========================================================================================
-        
+        // Models & Entities
+
         Shared<VyStaticMesh> 
         model = VyStaticMesh::create("plane.obj");
 
@@ -407,6 +312,14 @@ namespace Vy
             }
         }
         
+        // auto dirLight = m_Scene->createEntity("DirLight");
+        // {
+        //     dirLight.add<DirectionalLightComponent>().;
+        //     vase.get<TransformComponent>() = TransformComponent{
+        //         { 0.0f, -0.01f, 0.0f },
+        //     };
+        // }
+
         // ========================================================================================
         
         VY_INFO_TAG("VyEngine", "Entities loaded");

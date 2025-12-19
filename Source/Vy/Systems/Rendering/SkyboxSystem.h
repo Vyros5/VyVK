@@ -12,7 +12,7 @@ namespace Vy
     {
     public:
         VySkyboxSystem(
-            VkRenderPass         renderPass, 
+            VkRenderPass          renderPass, 
             VkDescriptorSetLayout globalSetLayout,
             Shared<VyEnvironment> environment
         );

@@ -78,6 +78,16 @@ namespace Vy
         }
 
         m_PostProcessingSettings = postProc;
+
+        // m_Sun = createEntity("Sun");
+        // {
+        //     m_Sun.add<DirectionalLightComponent>().Color = { 1.0f, 1.0f, 0.5f };
+        //     m_Sun.get<TransformComponent>() = TransformComponent{
+        //         /* Translation */ { 1.0f, 1.0f, 2.0f },
+        //     };
+        // }
+
+        // VY_ASSERT(m_Sun.isValid(), "Sun is invalid" );
     }
 
 
@@ -89,7 +99,7 @@ namespace Vy
 			m_MainCamera.add<CameraComponent>();
 			m_MainCamera.add<CameraController>();
             m_MainCamera.get<TransformComponent>() = TransformComponent{
-                /* Position */ { 0.0f, -1.0f, -5.0f },
+                /* Translation */ { 0.0f, -1.0f, -5.0f },
             };
 		}
 

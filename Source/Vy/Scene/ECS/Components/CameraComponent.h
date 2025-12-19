@@ -13,6 +13,7 @@ namespace Vy
 		const Mat4& view()        const { return Camera.view();        }
 		const Mat4& inverseView() const { return Camera.inverseView(); }
 		const Mat4& projection()  const { return Camera.projection();  }
+		const Vec3  position()    const { return Camera.position();    }
 
 		CameraComponent(const CameraComponent&) = default;
 

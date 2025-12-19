@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Vy/GFX/Resources/Cubemap.h>
+#include <Vy/Scene/ECS/Components/LightComponent.h>
 
 namespace Vy
 {
@@ -30,6 +31,9 @@ namespace Vy
 		 */
 		Shared<VySkybox>& getSkybox() { return m_Skybox; }
 
+		
+		// DirectionalLightComponent getSun() const { return m_Sun; }
+
 		/**
 		 * @brief Set the skybox of the environment.
 		 * The skybox is used to render the background of the scene.
@@ -40,6 +44,7 @@ namespace Vy
 
 	private:
 		Vec4             m_AmbientLight = Vec4{ 0.67f, 0.85f, 0.9f, .02f };
-		Shared<VySkybox> m_Skybox = nullptr; 
+		Shared<VySkybox> m_Skybox       = nullptr; 
+		// DirectionalLightComponent m_Sun;
 	};
 }

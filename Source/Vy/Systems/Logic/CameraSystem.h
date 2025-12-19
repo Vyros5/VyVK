@@ -1,10 +1,25 @@
-// #pragma once
+#pragma once
 
 // #include <Vy/Systems/Logic/ILogicSystem.h>
 
-// #include <Vy/Scene/Scene.h>
-// #include <Vy/Scene/ECS/Components.h>
+#include <Vy/Scene/Scene.h>
+#include <Vy/Scene/ECS/Components.h>
+#include <Vy/GFX/FrameInfo.h>
 
+namespace Vy
+{
+	class VyCameraSystem 
+	{
+	public:
+		VyCameraSystem()  = default;
+		~VyCameraSystem() = default;
+
+		void update(const VyFrameInfo& frameInfo, float aspectRatio) const;
+
+	private:
+		void updateCamera(CameraComponent& cameraComp, const TransformComponent& transform, float aspectRatio) const;
+	};
+}
 // namespace Vy
 // {
 // 	class VyCameraSystem : public ILogicSystem

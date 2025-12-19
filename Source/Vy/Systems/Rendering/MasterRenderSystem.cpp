@@ -5,26 +5,25 @@
 namespace Vy
 {
 	VyMasterRenderSystem::VyMasterRenderSystem(
-		VyRenderer&                   renderer,
-		Shared<VyDescriptorSetLayout> globalSetLayout,
-		Shared<VyDescriptorSetLayout> materialSetLayout,
-		Shared<VyMaterialSystem>      materialSystem,
-		Shared<VyDescriptorPool>      materialPool,
-		Shared<VyEnvironment>         environment
+		VyRenderer&              renderer,
+		Shared<VyMaterialSystem> materialSystem,
+		Shared<VyEnvironment>    environment
 	) : 
-		m_Renderer         { renderer                     },
-		m_GlobalSetLayout  { std::move(globalSetLayout)   },
-		m_MaterialSetLayout{ std::move(materialSetLayout) },
-		m_MaterialSystem   { std::move(materialSystem)    },
-		m_MaterialPool     { std::move(materialPool)      },
-		m_Environment      { std::move(environment)       } //,
-		// m_LightManager     { static_cast<U32>(MAX_FRAMES_IN_FLIGHT), 128 }
+		m_Renderer      { renderer                  },
+		m_MaterialSystem{ std::move(materialSystem) },
+		m_Environment   { std::move(environment)    }
 	{
 		m_IsRunning = true;
 
-		// m_LightManager = MakeShared<VyLightManager>(MAX_FRAMES_IN_FLIGHT, 128);
+		// Create the descriptor resources and UBO buffers.
+        createDescriptorPools();
+		createUniformBuffers();
+        createDescriptors();
 
+		// Initialize Render Systems.
 		createRenderSystems();
+
+		VY_INFO_TAG("VyMasterRenderSystem", "- Initialized");
 	}
 
 
@@ -34,16 +33,84 @@ namespace Vy
 		{
 			VY_WARN_TAG("VyMasterRenderSystem", "Prematurally shutdown");
 		
-			deinitialize();
+			shutdown();
 		}
 	}
 
 	
-	void VyMasterRenderSystem::deinitialize() 
+	void VyMasterRenderSystem::shutdown() 
 	{
 		m_IsRunning = false;
 	}
 
+
+#pragma region [ Resources ]
+
+	void VyMasterRenderSystem::createDescriptorPools()
+	{
+		// Global pool is created by VyContext when VyRenderer is created.
+
+        // Create the material pool.
+        m_MaterialPool = VyDescriptorPool::Builder{}
+            .setMaxSets (1000)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4000)
+        .buildUnique();
+	}
+
+
+	void VyMasterRenderSystem::createDescriptors()
+	{
+        // Global set layout.
+        m_GlobalSetLayout = VyDescriptorSetLayout::Builder{}
+            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS) // Global UBO
+        .buildUnique();
+
+        // Material set layout.
+        m_MaterialSetLayout = VyDescriptorSetLayout::Builder()
+            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Albedo
+            .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Normal
+            .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Roughness
+            .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Metallic
+        .buildUnique();
+
+		// ----------------------------------------------------------------------------------------
+
+        // Write the global descriptor sets.
+        for (int i = 0; i < m_GlobalSets.size(); i++)
+        {
+            auto bufferInfo = m_UBOBuffers[i]->descriptorBufferInfo();
+
+            VyDescriptorWriter{ *m_GlobalSetLayout, *VyContext::globalPool() }
+                .writeBuffer(0, &bufferInfo)
+            .build(m_GlobalSets[i]);
+        }
+
+        // Create descriptor sets for the skybox if it exists.
+        if (m_Environment->getSkybox())
+        {
+            auto skybox = m_Environment->getSkybox();
+
+            skybox->createDescriptorSet();
+        }
+	}
+
+
+	void VyMasterRenderSystem::createUniformBuffers()
+	{
+        // Create the global UBO buffers (One per frame). 
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
+        {
+            m_UBOBuffers[i] = MakeUnique<VyBuffer>( VyBuffer::uniformBuffer(sizeof(GlobalUBO)), false );
+
+            // Map the buffer's memory so that it can be written to in the update loop.
+            m_UBOBuffers[i]->map();
+        }
+	}
+
+#pragma endregion Resources
+
+
+#pragma region [ Systems ]
 
 	void VyMasterRenderSystem::createRenderSystems()
 	{
@@ -55,19 +122,13 @@ namespace Vy
 
 		// ----------------------------------------------------------------------------------------
 
-		// m_ShadowSystem = MakeUnique<VyShadowSystem>(
-		// 	// m_LightManager
-		// );
-
-		// VY_INFO_TAG("VyMasterRenderSystem", "- VyShadowSystem Complete");
-
-		// ----------------------------------------------------------------------------------------
-
 		m_RenderSystem = MakeUnique<VyRenderSystem>(
 			// m_Renderer.swapchainRenderPass(),
 			m_PostProcessSystem->getHDRRenderPass(),
-			m_GlobalSetLayout  ->handle(),
-			m_MaterialSetLayout->handle()
+			TVector{
+				m_GlobalSetLayout  ->handle(),
+				m_MaterialSetLayout->handle()
+			}
 		);
 
 		VY_INFO_TAG("VyMasterRenderSystem", "- VyRenderSystem Complete");
@@ -77,7 +138,7 @@ namespace Vy
 		m_LightSystem = MakeUnique<VyLightSystem>(
 			// m_Renderer.swapchainRenderPass(),
 			m_PostProcessSystem->getHDRRenderPass(),
-			m_GlobalSetLayout->handle()
+			m_GlobalSetLayout  ->handle()
 		);
 
 		VY_INFO_TAG("VyMasterRenderSystem", "- VyLightSystem Complete");
@@ -87,7 +148,7 @@ namespace Vy
 		m_GridSystem = MakeUnique<VyGridSystem>(
 			// m_Renderer.swapchainRenderPass(),
 			m_PostProcessSystem->getHDRRenderPass(),
-			m_GlobalSetLayout->handle()
+			m_GlobalSetLayout  ->handle()
 		);
 
 		VY_INFO_TAG("VyMasterRenderSystem", "- VyGridSystem Complete");
@@ -106,10 +167,15 @@ namespace Vy
 		// ----------------------------------------------------------------------------------------
 	}
 
+#pragma endregion Systems
 
-	void VyMasterRenderSystem::update(VyFrameInfo& frameInfo, GlobalUBO& ubo)
+
+#pragma region [ Processes ]
+
+
+	void VyMasterRenderSystem::updateUniformBuffers(VyFrameInfo& frameInfo, GlobalUBO& ubo)
 	{
-		// // Update materials descriptor sets.
+		// // Update material descriptor sets.
 		m_MaterialSystem->updateMaterials(frameInfo, *m_MaterialSetLayout, *m_MaterialPool);
 
 		// [ Update UBO Data ]
@@ -117,37 +183,22 @@ namespace Vy
 			ubo.Projection  = frameInfo.Camera.projection();
 			ubo.View        = frameInfo.Camera.view();
 			ubo.InverseView = frameInfo.Camera.inverseView();
-
-			// Calculate Frustum Planes for Culling (Normalized)
-			// Mat4 vp   = ubo.Projection * ubo.View;
-			// Mat4 vpT  = glm::transpose(vp);
-			// Vec4 row0 = vpT[0];
-			// Vec4 row1 = vpT[1];
-			// Vec4 row2 = vpT[2];
-			// Vec4 row3 = vpT[3];
-
-			// ubo.FrustumPlanes[0] = row3 + row0; // Left
-			// ubo.FrustumPlanes[1] = row3 - row0; // Right
-			// ubo.FrustumPlanes[2] = row3 + row1; // Bottom
-			// ubo.FrustumPlanes[3] = row3 - row1; // Top
-			// ubo.FrustumPlanes[4] = row2;        // Near
-			// ubo.FrustumPlanes[5] = row3 - row2; // Far
-
-			// for (int i = 0; i < 6; i++)
-			// {
-			// 	float length = glm::length(Vec3(ubo.FrustumPlanes[i]));
-
-			// 	ubo.FrustumPlanes[i] /= length;
-			// }
 		}
 
 		// Update light values into UBO.
 		m_LightSystem->update(frameInfo, ubo);
+
+		// Write Global UBO buffers.
+		m_UBOBuffers[ frameInfo.FrameIndex ]->writeToBuffer( &ubo, sizeof(GlobalUBO), 0 );
+		m_UBOBuffers[ frameInfo.FrameIndex ]->flush();
 	}
 
+	// ---------------------------------------------------------------------------------------------------------------------
 
 	void VyMasterRenderSystem::render(VyFrameInfo& frameInfo) 
 	{
+		auto cmdBuffer = frameInfo.CommandBuffer;
+
 		TArray<VkClearValue, 2> clearValues{};
 		{
 			clearValues[0].color        = {{ 0.01f, 0.01f, 0.01f, 1.0f }};
@@ -168,42 +219,48 @@ namespace Vy
 		}
 
 		// [ HDR Render Pass ]
-		vkCmdBeginRenderPass(frameInfo.CommandBuffer, &hdrRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBeginRenderPass(cmdBuffer, &hdrRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 		{
 			// Set viewport and scissor for HDR rendering.
-			VKCmd::viewport(frameInfo.CommandBuffer, m_Renderer.swapchainExtent());
-			VKCmd::scissor (frameInfo.CommandBuffer, m_Renderer.swapchainExtent());
+			VKCmd::viewport(cmdBuffer, m_Renderer.swapchainExtent());
+			VKCmd::scissor (cmdBuffer, m_Renderer.swapchainExtent());
 			
 			// [ Render Systems ]
 			{
-				// m_SkyboxSystem->render(frameInfo);
+				m_SkyboxSystem->render(frameInfo);
 				m_RenderSystem->render(frameInfo);
 				m_LightSystem ->render(frameInfo);
 				m_GridSystem  ->render(frameInfo);
 			}
 		}
-		vkCmdEndRenderPass(frameInfo.CommandBuffer);
+		vkCmdEndRenderPass(cmdBuffer);
+
+		// [ Apply Post-Processing ]
+		const auto& postProcSettings = frameInfo.Scene->getPostProcessingComponent();
+		{
+			m_PostProcessSystem->renderPostProcess(
+				cmdBuffer,
+				frameInfo.FrameIndex,
+				postProcSettings
+			);
+		}
+
+		// [ Swapchain Final Composite Pass ]
+		{
+			m_Renderer.beginSwapchainRenderPass(cmdBuffer);
+			{
+				m_PostProcessSystem->renderFinalComposite(
+					cmdBuffer,
+					m_Renderer.swapchainRenderPass().handle(),
+					frameInfo.FrameIndex,
+					postProcSettings
+				);
+			}
+			m_Renderer.endSwapchainRenderPass(cmdBuffer);
+		}
+
+		// [ End of Frame ]
 	}
 
-
-	void VyMasterRenderSystem::renderPostProcess(VyFrameInfo& frameInfo)
-	{
-		m_PostProcessSystem->renderPostProcess(
-			frameInfo.CommandBuffer,
-			frameInfo.FrameIndex,
-			frameInfo.Scene->getPostProcessingComponent()
-		);
-	}
-
-
-	void VyMasterRenderSystem::renderFinalComposite(VyFrameInfo& frameInfo)
-	{
-		m_PostProcessSystem->renderFinalComposite(
-			frameInfo.CommandBuffer,
-			m_Renderer.swapchainRenderPass().handle(),
-			frameInfo.FrameIndex,
-			frameInfo.Scene->getPostProcessingComponent()
-		);
-	}
-
+#pragma endregion Processes
 }

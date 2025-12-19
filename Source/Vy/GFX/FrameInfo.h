@@ -72,6 +72,11 @@ namespace Vy
         Mat4 LightSpaceModelMatrix{ 1.0f };
     };
 
+    struct ShadowMapPushConstantsData
+    {
+        Mat4 ModelMatrix{ 1.0f };
+    };
+
     struct PostProcessPushConstantData 
     {
         float BloomIntensity; // 
@@ -100,14 +105,25 @@ namespace Vy
         float            EmissionStrength{ 0.0f };
     };
 
+	struct VyRenderInfo 
+    {
+		VkFramebuffer         Framebuffer;
+		VkRenderPass          RenderPass;
+
+		VkRect2D              Scissor {};
+		VkViewport            Viewport{};
+		TVector<VkClearValue> ClearValues;
+	};
 
     struct VyFrameInfo 
     {
         int              FrameIndex;
         float            FrameTime;
         VkCommandBuffer  CommandBuffer;
+        // U32              DynamicOffset;
         VkDescriptorSet  GlobalDescriptorSet;
-        VkDescriptorSet  GlobalTextureSet; // Bindless
+        // VkDescriptorSet  ShadowDescriptorSet;
+        // VkDescriptorSet  GlobalTextureSet; // Bindless
         // VkDescriptorSet  LightDescriptorSet;
         Shared<VyScene>& Scene;
         VyCamera&        Camera;

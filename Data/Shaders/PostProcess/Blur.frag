@@ -23,6 +23,7 @@ void main()
     for(int i = 1; i < 5; i++) 
     {
         vec2 offset = uPush.Direction * texelSize * float(i);
+        
         result += texture(inputTexture, fragUV + offset).rgb * weights[i];
         result += texture(inputTexture, fragUV - offset).rgb * weights[i];
     }

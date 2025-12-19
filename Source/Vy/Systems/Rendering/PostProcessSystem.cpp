@@ -10,7 +10,7 @@ namespace Vy
     VyPostProcessSystem::VyPostProcessSystem(
         VkExtent2D extent
     ) :
-        m_Extent(extent)
+        m_Extent{ extent }
     {
         createHDRResources();
         createBloomResources();
@@ -33,9 +33,9 @@ namespace Vy
 
     void VyPostProcessSystem::cleanup() 
     {
-        vkDeviceWaitIdle(VyContext::device());
+        VyContext::waitIdle();
 
-        // Destroy pipelines
+        // Cleanup pipelines
         if (m_PostProcessPipelineLayout != VK_NULL_HANDLE) 
         {
             // TODO: Being passes to pipeline and gets deleted there causing an error.
@@ -46,17 +46,18 @@ namespace Vy
             // m_PostProcessPipelineLayout = VK_NULL_HANDLE;
         }
 
+        // Cleanup pipelines.
         m_PostProcessPipeline      .reset();
         m_BlurPipeline             .reset();
         m_BrightnessExtractPipeline.reset();
 
-        // Destroy descriptor layouts and pool
+        // Cleanup descriptor layouts and pool.
         m_BrightnessExtractSetLayout.reset();
         m_BlurSetLayout             .reset();
         m_PostProcessSetLayout      .reset();
         m_DescriptorPool            .reset();
 
-        // Destroy bloom framebuffers and images.
+        // Cleanup bloom framebuffers and images.
         for (int i = 0; i < 2; i++) 
         {
             for (size_t j = 0; j < MAX_FRAMES_IN_FLIGHT; j++) 
@@ -72,13 +73,15 @@ namespace Vy
             m_BloomImages[i]      .clear();
         }
 
+        // Cleanup bloom RenderPass.
         if (m_BloomRenderPass != VK_NULL_HANDLE) 
         {
             vkDestroyRenderPass(VyContext::device(), m_BloomRenderPass, nullptr);
+
             m_BloomRenderPass = VK_NULL_HANDLE;
         }
 
-        // Destroy HDR framebuffers and images.
+        // Cleanup HDR framebuffers and images.
         for (size_t i = 0; i < m_HDRFramebuffers.size(); i++) 
         {
             vkDestroyFramebuffer(VyContext::device(), m_HDRFramebuffers[i], nullptr);
@@ -90,9 +93,11 @@ namespace Vy
         m_HDRImageViews     .clear();
         m_HDRImages         .clear();
 
+        // Cleanup HDR RenderPass.
         if (m_HDRRenderPass != VK_NULL_HANDLE) 
         {
             vkDestroyRenderPass(VyContext::device(), m_HDRRenderPass, nullptr);
+            
             m_HDRRenderPass = VK_NULL_HANDLE;
         }
     }
@@ -104,6 +109,7 @@ namespace Vy
         m_Extent = newExtent;
 
         cleanup();
+
         createHDRResources();
         createBloomResources();
         createRenderPasses();
@@ -122,29 +128,29 @@ namespace Vy
 
     void VyPostProcessSystem::createHDRResources() 
     {
-        m_HDRImages         .resize(MAX_FRAMES_IN_FLIGHT);
-        m_HDRImageViews     .resize(MAX_FRAMES_IN_FLIGHT);
-        m_HDRDepthImages    .resize(MAX_FRAMES_IN_FLIGHT);
-        m_HDRDepthImageViews.resize(MAX_FRAMES_IN_FLIGHT);
+        m_HDRImages         .resize( MAX_FRAMES_IN_FLIGHT );
+        m_HDRImageViews     .resize( MAX_FRAMES_IN_FLIGHT );
+        m_HDRDepthImages    .resize( MAX_FRAMES_IN_FLIGHT );
+        m_HDRDepthImageViews.resize( MAX_FRAMES_IN_FLIGHT );
 
         VkFormat hdrFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
         {
-            // Create HDR color image
+            // Create color image
             m_HDRImages[i] = VyImage::Builder{}
                 .extent     (m_Extent)
                 .format     (hdrFormat)
                 .tiling     (VK_IMAGE_TILING_OPTIMAL)
                 .usage      (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
                 .memoryUsage(VMA_MEMORY_USAGE_AUTO)
-                .build();
+            .build();
 
-            // Create image view
+            // Create color image view
             m_HDRImageViews[i] = VyImageView::Builder{}
                 .format    (hdrFormat)
                 .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                .build     (m_HDRImages[i]);
+            .build(m_HDRImages[i]);
 
 
             VkFormat depthFormat = VyContext::device().findSupportedFormat(
@@ -164,23 +170,23 @@ namespace Vy
                 .tiling     (VK_IMAGE_TILING_OPTIMAL)
                 .usage      (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
                 .memoryUsage(VMA_MEMORY_USAGE_AUTO)
-                .build();
+            .build();
 
             // Create depth image view
             m_HDRDepthImageViews[i] = VyImageView::Builder{}
                 .format    (depthFormat)
                 .aspectMask(VK_IMAGE_ASPECT_DEPTH_BIT)
-                .build     (m_HDRDepthImages[i]);
+            .build(m_HDRDepthImages[i]);
         }
 
         // Create HDR sampler
         m_HDRSampler = VySampler::Builder{}
-            .filters          (VK_FILTER_LINEAR)
-            .mipmapMode       (VK_SAMPLER_MIPMAP_MODE_LINEAR)
-            .addressMode      (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
-            .enableAnisotropy (false)
-            .borderColor      (VK_BORDER_COLOR_INT_OPAQUE_BLACK)
-            .build();
+            .filters         (VK_FILTER_LINEAR) // linear
+            .mipmapMode      (VK_SAMPLER_MIPMAP_MODE_LINEAR)
+            .addressMode     (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
+            .enableAnisotropy(false)
+            .borderColor     (VK_BORDER_COLOR_INT_OPAQUE_BLACK)
+        .build();
     }
 
 #pragma endregion HDR Resources
@@ -194,41 +200,42 @@ namespace Vy
     {
         for (int i = 0; i < 2; i++) 
         {
-            m_BloomImages[i]    .resize(MAX_FRAMES_IN_FLIGHT);
-            m_BloomImageViews[i].resize(MAX_FRAMES_IN_FLIGHT);
+            m_BloomImages[i]    .resize( MAX_FRAMES_IN_FLIGHT );
+            m_BloomImageViews[i].resize( MAX_FRAMES_IN_FLIGHT );
         }
 
         VkFormat bloomFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 
+        // Create bloom images and views.
         for (int pingPong = 0; pingPong < 2; pingPong++) 
         {
             for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
             {
-                // Create bloom image
+                // Bloom image
                 m_BloomImages[pingPong][i] = VyImage::Builder{}
                     .extent     (VkExtent2D{ m_Extent.width / 2, m_Extent.height / 2 })
                     .format     (bloomFormat)
                     .tiling     (VK_IMAGE_TILING_OPTIMAL)
                     .usage      (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
                     .memoryUsage(VMA_MEMORY_USAGE_AUTO)
-                    .build();
+                .build();
 
-                // Create bloom image view
+                // Bloom image view
                 m_BloomImageViews[pingPong][i] = VyImageView::Builder{}
                     .format    (bloomFormat)
                     .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                    .build     (m_BloomImages[pingPong][i]);
+                .build(m_BloomImages[pingPong][i]);
             }
         }
 
         // Create bloom sampler
         m_BloomSampler = VySampler::Builder{}
-            .filters          (VK_FILTER_LINEAR)
-            .mipmapMode       (VK_SAMPLER_MIPMAP_MODE_LINEAR)
-            .addressMode      (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
-            .enableAnisotropy (false)
-            .borderColor      (VK_BORDER_COLOR_INT_OPAQUE_BLACK)
-            .build();
+            .filters         (VK_FILTER_LINEAR)
+            .mipmapMode      (VK_SAMPLER_MIPMAP_MODE_LINEAR)
+            .addressMode     (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
+            .enableAnisotropy(false)
+            .borderColor     (VK_BORDER_COLOR_INT_OPAQUE_BLACK)
+        .build();
     }
 
 #pragma endregion Bloom Resources
@@ -242,6 +249,7 @@ namespace Vy
     {
         // [ HDR Render Pass ]
         {
+            // 0 - Color Attachment
             VkAttachmentDescription colorAttachment{};
             {
                 colorAttachment.format         = VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -254,13 +262,12 @@ namespace Vy
                 colorAttachment.finalLayout    = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             }
 
+            // 1 - Depth Attachment
             VkAttachmentDescription depthAttachment{};
             {
                 // Find and set image format to use for this depth buffer.
-                depthAttachment.format = VyContext::device().findSupportedFormat(
-                    { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
-                    VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
-                );
+                depthAttachment.format = VyContext::device().findDepthFormat();
+
                 // One sample per pixel (more samples used for multisampling).
                 depthAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
                 // Tells the depthbuffer attachment to clear each time it is loaded.
@@ -333,6 +340,7 @@ namespace Vy
 
         // [ Bloom Render Pass ] (simple color attachment for bloom buffers)
         {
+            // 0 - Color Attachment
             VkAttachmentDescription colorAttachment{};
             {
                 colorAttachment.format         = VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -400,10 +408,11 @@ namespace Vy
     void VyPostProcessSystem::createFramebuffers() 
     {
         // [ HDR Framebuffers ]
-        m_HDRFramebuffers.resize(MAX_FRAMES_IN_FLIGHT);
+        m_HDRFramebuffers.resize( MAX_FRAMES_IN_FLIGHT );
 
         for (size_t i = 0; i < m_HDRFramebuffers.size(); i++) 
         {
+            // Framebuffer Attachments (ImageViews)
             TArray<VkImageView, 2> attachments = {
                 m_HDRImageViews[i]     .handle(),
                 m_HDRDepthImageViews[i].handle()
@@ -430,7 +439,7 @@ namespace Vy
         // [ Bloom Framebuffers ]
         for (int pingPong = 0; pingPong < 2; pingPong++) 
         {
-            m_BloomFramebuffers[pingPong].resize(MAX_FRAMES_IN_FLIGHT);
+            m_BloomFramebuffers[pingPong].resize( MAX_FRAMES_IN_FLIGHT );
 
             for (size_t i = 0; i < m_BloomFramebuffers[pingPong].size(); i++) 
             {
@@ -463,17 +472,17 @@ namespace Vy
 
     void VyPostProcessSystem::createDescriptorSetLayouts() 
     {
-        // Brightness extract: single texture input
+        // Brightness Extract: Single texture input
         m_BrightnessExtractSetLayout = VyDescriptorSetLayout::Builder{}
             .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // hdrTexture
             .buildUnique();
 
-        // Blur: single texture input
+        // Blur: Single texture input
         m_BlurSetLayout = VyDescriptorSetLayout::Builder{}
             .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // inputTexture
             .buildUnique();
 
-        // Post process: scene texture + bloom texture
+        // Post Process: scene texture + bloom texture
         m_PostProcessSetLayout = VyDescriptorSetLayout::Builder{}
             .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // sceneTexture
             .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // bloomTexture
@@ -484,14 +493,14 @@ namespace Vy
 
     void VyPostProcessSystem::createDescriptorSets() 
     {
-        // Descriptor pool
+        // [ Descriptor pool ]
         m_DescriptorPool = VyDescriptorPool::Builder{}
-            .setMaxSets(MAX_FRAMES_IN_FLIGHT * 6)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_FRAMES_IN_FLIGHT * 8)
+            .setMaxSets(MAX_FRAMES_IN_FLIGHT * 6) // 12
+            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_FRAMES_IN_FLIGHT * 8) // 16
             .buildUnique();
 
-        // [ Brightness Extract Descriptor Sets ]
-        m_BrightnessExtractDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+        // [ Brightness Extract Descriptor Sets ] (2 sets)
+        m_BrightnessExtractDescriptorSets.resize( MAX_FRAMES_IN_FLIGHT );
         
         for (size_t i = 0; i < m_BrightnessExtractDescriptorSets.size(); i++) 
         {
@@ -507,10 +516,10 @@ namespace Vy
                 .build(m_BrightnessExtractDescriptorSets[i]);
         }
 
-        // [ Blur Descriptor Sets ]
+        // [ Blur Descriptor Sets ] (4 sets) ?
         for (int pingPong = 0; pingPong < 2; pingPong++) 
         {
-            m_BlurDescriptorSets[pingPong].resize(MAX_FRAMES_IN_FLIGHT);
+            m_BlurDescriptorSets[pingPong].resize( MAX_FRAMES_IN_FLIGHT );
 
             for (size_t i = 0; i < m_BlurDescriptorSets[pingPong].size(); i++) 
             {
@@ -527,8 +536,8 @@ namespace Vy
             }
         }
 
-        // [ Post Process Descriptor Sets ]
-        m_PostProcessDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+        // [ Post Process Descriptor Sets ] (2 sets)
+        m_PostProcessDescriptorSets.resize( MAX_FRAMES_IN_FLIGHT );
         
         for (size_t i = 0; i < m_PostProcessDescriptorSets.size(); i++) 
         {
@@ -565,34 +574,32 @@ namespace Vy
         // [ Brightness Extract Pipeline ]
         {
             m_BrightnessExtractPipeline = VyPipeline::GraphicsBuilder{}
-                .addDescriptorSetLayout(m_BrightnessExtractSetLayout->handle())
-                .addPushConstantRange(VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(float))
-                .addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   "PostProcess/BrightnessExtract.vert.spv")
-                .addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, "PostProcess/BrightnessExtract.frag.spv")
-                .setDepthTest(false, false)
-                .setCullMode(VK_CULL_MODE_NONE)
-                .addColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT)
-                .setDepthAttachment(VK_FORMAT_D32_SFLOAT)
-                .setVertexBindingDescriptions  ({}) // Clear default vertex binding.
-                .setVertexAttributeDescriptions({}) // Clear default vertex attributes.
-                .setRenderPass(m_BloomRenderPass)
+                .addDescriptorSetLayout (m_BrightnessExtractSetLayout->handle())
+                .addPushConstantRange   (VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(float))
+                .addShaderStage         (VK_SHADER_STAGE_VERTEX_BIT,   "PostProcess/BrightnessExtract.vert.spv")
+                .addShaderStage         (VK_SHADER_STAGE_FRAGMENT_BIT, "PostProcess/BrightnessExtract.frag.spv")
+                .setDepthTest           (false, false)
+                .setCullMode            (VK_CULL_MODE_NONE)
+                .addColorAttachment     (VK_FORMAT_R16G16B16A16_SFLOAT)
+                .setDepthAttachment     (VK_FORMAT_D32_SFLOAT)
+                .clearVertexDescriptions() // Clear default vertex bindings and attributes.
+                .setRenderPass          (m_BloomRenderPass)
             .buildUnique();
         }
 
         // [ Blur Pipeline ]
         {
             m_BlurPipeline = VyPipeline::GraphicsBuilder{}
-                .addDescriptorSetLayout(m_BlurSetLayout->handle())
-                .addPushConstantRange(VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(Vec2))
-                .addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   "PostProcess/Blur.vert.spv")
-                .addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, "PostProcess/Blur.frag.spv")
-                .setDepthTest(false, false)
-                .setCullMode(VK_CULL_MODE_NONE)
-                .addColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT)
-                .setDepthAttachment(VK_FORMAT_D32_SFLOAT)
-                .setVertexBindingDescriptions  ({}) // Clear default vertex binding.
-                .setVertexAttributeDescriptions({}) // Clear default vertex attributes.
-                .setRenderPass(m_BloomRenderPass)
+                .addDescriptorSetLayout (m_BlurSetLayout->handle())
+                .addPushConstantRange   (VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(Vec2))
+                .addShaderStage         (VK_SHADER_STAGE_VERTEX_BIT,   "PostProcess/Blur.vert.spv")
+                .addShaderStage         (VK_SHADER_STAGE_FRAGMENT_BIT, "PostProcess/Blur.frag.spv")
+                .setDepthTest           (false, false)
+                .setCullMode            (VK_CULL_MODE_NONE)
+                .addColorAttachment     (VK_FORMAT_R16G16B16A16_SFLOAT)
+                .setDepthAttachment     (VK_FORMAT_D32_SFLOAT)
+                .clearVertexDescriptions() // Clear default vertex bindings and attributes.
+                .setRenderPass          (m_BloomRenderPass)
             .buildUnique();
         }
 
@@ -704,11 +711,11 @@ namespace Vy
 
                         m_BlurPipeline->bindDescriptorSet(cmdBuffer, 0, m_BlurDescriptorSets[0][frameIndex]);
 
-                        Vec2 direction(1.0f, 0.0f);
+                        Vec2 direction( 1.0f, 0.0f );
 
                         m_BlurPipeline->pushConstants(cmdBuffer, VK_SHADER_STAGE_FRAGMENT_BIT, &direction, sizeof(Vec2));
 
-                        vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
+                        vkCmdDraw(cmdBuffer, 3, 1, 0, 0); // Full-screen triangle
                     }
                     vkCmdEndRenderPass(cmdBuffer);
                 }
@@ -726,11 +733,11 @@ namespace Vy
 
                         m_BlurPipeline->bindDescriptorSet(cmdBuffer, 0, m_BlurDescriptorSets[1][frameIndex]);
 
-                        Vec2 direction(0.0f, 1.0f);
+                        Vec2 direction( 0.0f, 1.0f );
 
                         m_BlurPipeline->pushConstants(cmdBuffer, VK_SHADER_STAGE_FRAGMENT_BIT, &direction, sizeof(Vec2));
 
-                        vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
+                        vkCmdDraw(cmdBuffer, 3, 1, 0, 0); // Full-screen triangle
                     }
                     vkCmdEndRenderPass(cmdBuffer);
                 }
@@ -760,15 +767,14 @@ namespace Vy
             auto tempLayoutCopy = m_PostProcessPipelineLayout;
 
             m_PostProcessPipeline = VyPipeline::GraphicsBuilder{}
-                .addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   "PostProcess/PostProcess.vert.spv")
-                .addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, "PostProcess/PostProcess.frag.spv")
-                .setDepthTest(false, false)
-                .setCullMode(VK_CULL_MODE_NONE) // Disable culling for fullscreen triangle.
-                .addColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT)
-                .setDepthAttachment(VK_FORMAT_D32_SFLOAT)
-                .setVertexBindingDescriptions  ({}) // Clear default vertex binding.
-                .setVertexAttributeDescriptions({}) // Clear default vertex attributes.
-                .setRenderPass(swapchainRenderPass)
+                .addShaderStage         (VK_SHADER_STAGE_VERTEX_BIT,   "PostProcess/PostProcess.vert.spv")
+                .addShaderStage         (VK_SHADER_STAGE_FRAGMENT_BIT, "PostProcess/PostProcess.frag.spv")
+                .setDepthTest           (false, false)     // Disable Depth testing and writing.
+                .setCullMode            (VK_CULL_MODE_NONE) // Disable culling for fullscreen triangle.
+                .addColorAttachment     (VK_FORMAT_R16G16B16A16_SFLOAT)
+                .setDepthAttachment     (VK_FORMAT_D32_SFLOAT)
+                .clearVertexDescriptions() // Clear default vertex bindings and attributes.
+                .setRenderPass          (swapchainRenderPass)
             .buildUnique(tempLayoutCopy);
         }
 

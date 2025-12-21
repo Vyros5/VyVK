@@ -13,6 +13,7 @@ namespace Vy
 		static constexpr VkFormat           kUseImageFormat     = VK_FORMAT_UNDEFINED;
 		static constexpr VkImageAspectFlags kUseImageAspectMask = 0;
 
+		String             DebugName    = "";
 		VkImageViewType    ViewType     = VK_IMAGE_VIEW_TYPE_2D;
 		VkFormat           Format       = kUseImageFormat;
 
@@ -41,6 +42,12 @@ namespace Vy
 		public:
 			Builder() = default;
 
+			Builder& name(String strName)
+			{
+				m_Info.DebugName = strName; 
+				return *this;
+			}
+
 			Builder& viewType(VkImageViewType type)
 			{
 				m_Info.ViewType = type; 
@@ -55,9 +62,16 @@ namespace Vy
 				return *this; 
 			}
 
-			Builder& aspectMask(VkImageAspectFlags aspectMask)
+			Builder& aspectMask(VkImageAspectFlags aspectMask, bool exclusive = true)
 			{
-				m_Info.AspectMask = aspectMask; 
+				if (exclusive)
+				{
+					m_Info.AspectMask = aspectMask; 
+				}
+				else
+				{
+					m_Info.AspectMask |= aspectMask; 
+				}
 
 				return *this; 
 			}
@@ -74,6 +88,20 @@ namespace Vy
 			{
 				m_Info.BaseLayer  = baseArrayLayer;
 				m_Info.LayerCount = layerCount;
+
+				return *this; 
+			}
+
+			Builder& baseLayer(U32 baseArrayLayer)
+			{
+				m_Info.BaseLayer  = baseArrayLayer;
+
+				return *this; 
+			}
+
+			Builder& components(VkComponentSwizzle swizzle)
+			{
+				m_Info.Components = { swizzle };
 
 				return *this; 
 			}
@@ -136,10 +164,12 @@ namespace Vy
 		VY_NODISCARD const VkImageView& handleRef()        { return m_ImageView; }
 		VyImageViewCreateInfo           createInfo() const { return m_Info; }
 		
+		void setName(const String& name) const;
+
 	private:
 		void destroy();
 
-		VkImageView           m_ImageView = VK_NULL_HANDLE;
+		VkImageView           m_ImageView{ VK_NULL_HANDLE };
 		VyImageViewCreateInfo m_Info;
 	};
 }

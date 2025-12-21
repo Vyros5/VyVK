@@ -72,7 +72,7 @@ namespace Vy
         // ---------------------------------------------------------------
         // Bloom ping-pong buffers
         VkRenderPass           m_BloomRenderPass;
-        TVector<VkFramebuffer> m_BloomFramebuffers[2];
+        TVector<VkFramebuffer> m_BloomFramebuffers[2]; // 0 = Vertical, 1 = Horizontal.
 
         TVector<VyImage>       m_BloomImages    [2];
         TVector<VyImageView>   m_BloomImageViews[2];

@@ -54,6 +54,11 @@ namespace Vy
 
 		// Store create info.
 		m_Info = desc;
+
+		if (desc.DebugName != "")
+		{
+			setName(desc.DebugName);
+		}
 	}
 
 
@@ -84,6 +89,12 @@ namespace Vy
 		}
 
 		return *this;
+	}
+
+
+	void VySampler::setName(const String& name) const
+	{
+		VyDebugLabel::setObjectName(reinterpret_cast<U64>(m_Sampler), VK_OBJECT_TYPE_SAMPLER, name.c_str());
 	}
 
 

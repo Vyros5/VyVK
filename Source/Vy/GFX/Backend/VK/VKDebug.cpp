@@ -1,6 +1,132 @@
 #include <Vy/GFX/Backend/VK/VKDebug.h>
 
 #include <Vy/GFX/Context.h>
+namespace Vy
+{
+    void VyDebugLabel::init() 
+    {
+        vkCmdBeginDebugUtilsLabelEXT =
+                reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>(
+                    vkGetDeviceProcAddr(VyContext::device(), "vkCmdBeginDebugUtilsLabelEXT"));
+
+        vkCmdEndDebugUtilsLabelEXT =
+                reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(
+                    vkGetDeviceProcAddr(VyContext::device(), "vkCmdEndDebugUtilsLabelEXT"));
+
+        vkSetDebugUtilsObjectNameEXT =
+                reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
+                    vkGetDeviceProcAddr(VyContext::device(), "vkSetDebugUtilsObjectNameEXT"));
+
+    }
+
+    bool VyDebugLabel::isAvailable() 
+    {
+        return 
+            vkCmdBeginDebugUtilsLabelEXT &&
+            vkCmdEndDebugUtilsLabelEXT   &&
+            vkSetDebugUtilsObjectNameEXT;
+    }
+
+    VyDebugLabel::ScopedCmdLabel::ScopedCmdLabel(VkCommandBuffer cmdBuffer, const String& name, const Vec4& color): 
+        m_CmdBuffer(cmdBuffer) 
+    {
+        if (vkCmdBeginDebugUtilsLabelEXT) 
+        {
+            const VkDebugUtilsLabelEXT labelInfo = {
+                VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+                nullptr,
+                name.c_str(),
+                { color[0], color[1], color[2], color[3] }
+            };
+
+            vkCmdBeginDebugUtilsLabelEXT(m_CmdBuffer, &labelInfo);
+        }
+    }
+
+    VyDebugLabel::ScopedCmdLabel::~ScopedCmdLabel() 
+    {
+        if (vkCmdEndDebugUtilsLabelEXT) 
+        {
+            vkCmdEndDebugUtilsLabelEXT(m_CmdBuffer);
+        }
+    }
+
+
+    void VyDebugLabel::beginCmdLabel(VkCommandBuffer cmdBuffer, const String& name, Vec4 color) 
+    {
+        if (vkCmdBeginDebugUtilsLabelEXT) 
+        {
+            const VkDebugUtilsLabelEXT labelInfo = {
+                VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+                nullptr,
+                name.c_str(),
+                { color[0], color[1], color[2], color[3] }
+            };
+
+            vkCmdBeginDebugUtilsLabelEXT(cmdBuffer, &labelInfo);
+        }
+    }
+
+
+    void VyDebugLabel::endCmdLabel(VkCommandBuffer cmdBuffer) 
+    {
+        if (vkCmdEndDebugUtilsLabelEXT) 
+        {
+            vkCmdEndDebugUtilsLabelEXT(cmdBuffer);
+        }
+    }
+
+
+    void VyDebugLabel::setObjectName(U64 objectHandle, VkObjectType objectType, const String& name) 
+    {
+        if (vkSetDebugUtilsObjectNameEXT) 
+        {
+            const VkDebugUtilsObjectNameInfoEXT nameInfo = {
+                VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+                nullptr,
+                objectType,
+                objectHandle,
+                name.c_str()
+            };
+            
+            vkSetDebugUtilsObjectNameEXT(VyContext::device(), &nameInfo);
+        }
+    }
+
+
+    void VyDebugLabel::nameBuffer(VkBuffer buffer, const String& name) 
+    {
+        setObjectName(reinterpret_cast<U64>(buffer), VK_OBJECT_TYPE_BUFFER, name);
+    }
+
+    void VyDebugLabel::nameImage(VkImage image, const String& name) 
+    {
+        setObjectName(reinterpret_cast<U64>(image), VK_OBJECT_TYPE_IMAGE, name);
+    }
+
+    void VyDebugLabel::nameCommandBuffer(VkCommandBuffer cmdBuffer, const String& name) 
+    {
+        setObjectName(reinterpret_cast<U64>(cmdBuffer), VK_OBJECT_TYPE_COMMAND_BUFFER, name);
+    }
+
+    void VyDebugLabel::nameAllocation(VmaAllocation vma_allocation, const String& name) 
+    {
+        VmaAllocationInfo allocInfo;
+        vmaGetAllocationInfo(VyContext::allocator(), vma_allocation, &allocInfo);
+
+        VkDebugUtilsObjectNameInfoEXT nameInfo{};
+        {
+            nameInfo.sType        = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+            nameInfo.objectType   = VK_OBJECT_TYPE_DEVICE_MEMORY; // Memory is the underlying object
+            nameInfo.objectHandle = reinterpret_cast<U64>(allocInfo.deviceMemory);
+            nameInfo.pObjectName  = name.c_str();
+        }
+
+        vkSetDebugUtilsObjectNameEXT(VyContext::device(), &nameInfo);
+    }
+}
+
+
 
 namespace Vy
 {

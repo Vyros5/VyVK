@@ -67,6 +67,8 @@ namespace Vy
     private:
         void loadEntities();
 
+        bool isRunning();
+
         void updateCamera(VyCamera& camera);
 
     private:

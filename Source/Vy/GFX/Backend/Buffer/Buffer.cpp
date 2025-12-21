@@ -383,6 +383,17 @@ namespace Vy
 
     // ========================================================================================
 
+	void VyBuffer::setName(const String& name) const
+	{
+        VyDebugLabel::nameBuffer(m_Buffer, name);
+        
+		if (m_Allocation) 
+		{
+            VyDebugLabel::nameAllocation(m_Allocation, name);
+        }
+	}
+
+
 	void VyBuffer::moveFrom(VyBuffer&& other)
 	{
 		m_Buffer        = std::exchange(other.m_Buffer,        VK_NULL_HANDLE);

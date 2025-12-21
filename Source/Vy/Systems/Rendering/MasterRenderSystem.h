@@ -39,10 +39,6 @@ namespace Vy
 
         void render(VyFrameInfo& frameInfo);
 
-        // void renderPostProcess(VyFrameInfo& frameInfo);
-
-        // void renderFinalComposite(VyFrameInfo& frameInfo);
-
         void recreate(VkExtent2D newExtent)
         {
             m_PostProcessSystem->recreate(newExtent);
@@ -82,7 +78,7 @@ namespace Vy
         TVector<VkDescriptorSet>      m_MaterialSets;
 
         // Descriptor Set Layouts
-        Shared<VyDescriptorSetLayout> m_GlobalSetLayout{};
+        Shared<VyDescriptorSetLayout> m_GlobalSetLayout  {};
         Shared<VyDescriptorSetLayout> m_MaterialSetLayout{};
 
         Shared<VyEnvironment> m_Environment;

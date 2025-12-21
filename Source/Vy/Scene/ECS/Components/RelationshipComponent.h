@@ -4,9 +4,6 @@
 
 namespace Vy
 {
-	/// @brief Stores the parent entity
-	/// @note Use VyEntity::setParent to set the parent of an entity 
-
 	/**
 	 * ParentComponent - Reference to parent entity
 	 *
@@ -36,68 +33,4 @@ namespace Vy
 
 		constexpr ChildrenComponent() = default;
 	};
-
-	// /// @brief Stores the next and previous sibling of the entity (for linked list)
-	// /// @note Use VyEntity::addChild to add a child to an entity (siblings are automatically updated)
-	// struct SiblingsComponent
-	// {
-	// 	VyEntity Next{};
-	// 	VyEntity Prev{};
-	// };
-
-	// /// @brief Stores the children entities as the first and last child of a linked list
-	// /// @note Use VyEntity::addChild to add a child to an entity
-	// struct ChildrenComponent
-	// {
-	// 	struct Iterator
-	// 	{
-	// 		VyEntity Current{};
-
-	// 		VyEntity operator*() const 
-    //         { 
-    //             return Current; 
-    //         }
-			
-    //         Iterator& operator++() 
-    //         { 
-    //             Current = Current.get<SiblingsComponent>().Next; 
-    //             return *this; 
-    //         }
-			
-    //         bool operator==(const Iterator& other) const 
-    //         { 
-    //             return Current == other.Current; 
-    //         }
-	// 	};
-
-	// 	struct ReverseIterator
-	// 	{
-	// 		VyEntity Current{};
-
-	// 		VyEntity operator*() const 
-    //         { 
-    //             return Current; 
-    //         }
-			
-    //         ReverseIterator& operator++() 
-    //         { 
-    //             Current = Current.get<SiblingsComponent>().Prev; 
-    //             return *this; 
-    //         }
-			
-    //         bool operator==(const ReverseIterator& other) const 
-    //         { 
-    //             return Current == other.Current; 
-    //         };
-	// 	};
-
-	// 	size_t   Count = 0;
-	// 	VyEntity First{};
-	// 	VyEntity Last{};
-
-	// 	ChildrenComponent::Iterator        begin()  const { return { First      }; }
-	// 	ChildrenComponent::Iterator        end()    const { return { VyEntity{} }; }
-	// 	ChildrenComponent::ReverseIterator rbegin() const { return { Last       }; }
-	// 	ChildrenComponent::ReverseIterator rend()   const { return { VyEntity{} }; }
-	// };
 }

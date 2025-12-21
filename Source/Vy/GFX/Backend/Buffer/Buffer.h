@@ -379,6 +379,9 @@ namespace Vy
          */
 		void copyTo(VyBuffer& dest, VkDeviceSize instanceSize);
 
+
+        void setName(const String& name) const;
+
     private:
         /**
          * @brief Calculates the aligned instance size.

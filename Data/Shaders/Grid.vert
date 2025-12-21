@@ -8,18 +8,28 @@ struct PointLight
     vec4 Color;    // w is intensity
 };
 
+struct CameraData
+{
+    mat4 Projection;
+    mat4 View;
+    mat4 InverseView;
+};
+
 // ================================================================================================
 // Uniforms
 
 layout(set = 0, binding = 0) uniform GlobalUBO 
 {
-    mat4       Projection;
-    mat4       View;
-    mat4       InverseView;
+    CameraData       Camera;
 
-    vec4       AmbientLightColor; // w is intensity
-    PointLight PointLights[10];
-    int        NumPointLights;
+    // vec4             AmbientLightColor; // rgb = color, a = intensity
+
+    // PointLight       PointLights      [ MAX_POINT_LIGHTS  ];
+    // DirectionalLight DirectionalLights[ MAX_DIRECT_LIGHTS ];
+    // SpotLight        SpotLights       [ MAX_SPOT_LIGHTS   ];
+    // int              NumPointLights;
+    // int              NumDirectionalLights;
+    // int              NumSpotLights;
 
 } uUbo;
 
@@ -57,13 +67,13 @@ void main()
     vec3 point = gridPlane[gl_VertexIndex].xyz;
 
     // unprojecting on the near plane.
-    nearPoint = unprojectPoint(point.x, point.y, 0.0, uUbo.View, uUbo.Projection).xyz;
+    nearPoint = unprojectPoint(point.x, point.y, 0.0, uUbo.Camera.View, uUbo.Camera.Projection).xyz;
 
     // unprojecting on the far plane.
-    farPoint  = unprojectPoint(point.x, point.y, 1.0, uUbo.View, uUbo.Projection).xyz;
+    farPoint  = unprojectPoint(point.x, point.y, 1.0, uUbo.Camera.View, uUbo.Camera.Projection).xyz;
     
-    fragView  = uUbo.View;
-    fragProj  = uUbo.Projection;
+    fragView  = uUbo.Camera.View;
+    fragProj  = uUbo.Camera.Projection;
 
     // Using directly the clipped coordinates.
     gl_Position = vec4(point.xyz, 1.0);

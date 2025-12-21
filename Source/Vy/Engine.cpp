@@ -84,6 +84,10 @@ namespace Vy
         }
 	}
 
+    bool VyEngine::isRunning()
+    {
+        return !m_Window.shouldClose() && m_Running;
+    }
 
     void VyEngine::run()
     {
@@ -96,7 +100,7 @@ namespace Vy
         VkExtent2D previousExtent = m_Renderer.swapchainExtent();
 
         // [ Main Loop ]
-        while (!m_Window.shouldClose() || m_Running) 
+        while (isRunning()) 
         {
             // Poll Window Events
             m_Window.pollEvents();
@@ -196,21 +200,27 @@ namespace Vy
         // Materials
 
         MaterialComponent floorMat{ MakeShared<VyMaterial>() };
-        // floorMat.loadAlbedoTexture("Textures/Floor/slate_floor_diff_2k.jpg");
-        // floorMat.loadNormalTexture("Textures/Floor/slate_floor_nor_gl_2k.jpg");
-        floorMat.setMetallic (0.7f);
-        floorMat.setRoughness(0.3f);
+        {
+            // floorMat.loadAlbedoTexture("Textures/Floor/slate_floor_diff_2k.jpg");
+            // floorMat.loadNormalTexture("Textures/Floor/slate_floor_nor_gl_2k.jpg");
+            floorMat.setMetallic (0.7f);
+            floorMat.setRoughness(0.3f);
+        }
 
         MaterialComponent wallMat{ MakeShared<VyMaterial>() };
-        wallMat.loadAlbedoTexture("Textures/StoneSlate/castle_wall_slates_diff_4k.jpg");
-        wallMat.loadNormalTexture("Textures/StoneSlate/castle_wall_slates_nor_gl_4k.jpg");
-        wallMat.setMetallic (3.0f);
-        wallMat.setRoughness(0.002f);
+        {
+            wallMat.loadAlbedoTexture("Textures/StoneSlate/castle_wall_slates_diff_4k.jpg");
+            wallMat.loadNormalTexture("Textures/StoneSlate/castle_wall_slates_nor_gl_4k.jpg");
+            wallMat.setMetallic (3.0f);
+            wallMat.setRoughness(0.002f);
+        }
 
         MaterialComponent vaseMat{ MakeShared<VyMaterial>() };
-        vaseMat.setMetallic (7.0f);
-        vaseMat.setRoughness(0.002f);
-        vaseMat.setColor    ({ 1.0f, 1.0f, 0.1f });
+        {
+            vaseMat.setMetallic (7.0f);
+            vaseMat.setRoughness(0.002f);
+            vaseMat.setColor    ({ 1.0f, 1.0f, 0.1f });
+        }
 
         // ========================================================================================
         // Models & Entities
@@ -224,7 +234,7 @@ namespace Vy
             floor.add<MaterialComponent>(floorMat);
             floor.get<TransformComponent>() = TransformComponent{
                 /* Position */ { 0.0f, -0.01f, 0.0f },
-                /* Scale    */ { 2.0f, 2.0f, 2.0f }
+                /* Scale    */ { 2.0f,  2.0f,  2.0f }
             };
         }
         
@@ -234,7 +244,7 @@ namespace Vy
             roof.add<MaterialComponent>(floorMat);
             roof.get<TransformComponent>() = TransformComponent{
                 /* Position */ { 0.0f, -4.0f, 0.0f },
-                /* Scale    */ { 2.0f, 2.0f, 2.0f }//,
+                /* Scale    */ { 2.0f,  2.0f, 2.0f }//,
                 // /* Rotation */ { glm::pi<float>() / 2, 0.0f, 0.0f }
             };
         }
@@ -245,7 +255,7 @@ namespace Vy
             wallRight.add<MaterialComponent>(wallMat);
             wallRight.get<TransformComponent>() = TransformComponent{
                 /* Position */ { 2.0f, -2.0f, 0.0f },
-                /* Scale    */ { 2.0f, 2.0f, 2.0f },
+                /* Scale    */ { 2.0f,  2.0f, 2.0f },
                 /* Rotation */ { glm::pi<float>() / 2, 0.0f, -glm::pi<float>() / 2 }
             };
         }
@@ -256,7 +266,7 @@ namespace Vy
             wallLeft.add<MaterialComponent>(wallMat);
             wallLeft.get<TransformComponent>() = TransformComponent{
                 /* Position */ { -2.0f, -2.0f, 0.0f },
-                /* Scale    */ { 2.0f, 2.0f, 2.0f },
+                /* Scale    */ {  2.0f,  2.0f, 2.0f },
                 /* Rotation */ { glm::pi<float>() / 2, 0.0f, glm::pi<float>() / 2 }
             };
         }
@@ -267,7 +277,7 @@ namespace Vy
             wallBack.add<MaterialComponent>(wallMat);
             wallBack.get<TransformComponent>() = TransformComponent{
                 /* Position */ { 0.0f, -2.0f, 2.0f },
-                /* Scale    */ { 2.0f, 2.0f, 2.0f },
+                /* Scale    */ { 2.0f,  2.0f, 2.0f },
                 /* Rotation */ { glm::pi<float>() / 2, 0.0f, 0.0f }
             };
         }

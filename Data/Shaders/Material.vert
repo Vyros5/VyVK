@@ -4,61 +4,62 @@
 
 struct PointLight 
 {
-    vec4 Position; // ignore w
-    vec4 Color;    // w is intensity
+    vec4 Position; // xyz = position, w = unused
+    vec4 Color;    // rgb = color,    a = intensity
 };
 
 struct SpotLight 
 {
-    vec4  Position;    // ignore w
-    vec4  Direction;   // ignore w
-    vec4  Color;       // w is intensity
-    // float InnerCutoff; // cos of inner angle
+    vec4  Position;    // xyz = position,  w = unused
+    vec4  Direction;   // xyz = direction, w = unused
+    vec4  Color;       // rgb = color,     a = intensity
+    float InnerCutoff; // cos of inner angle
     float OuterCutoff; // cos of outer angle
-    float ConstantAtten;
-    float LinearAtten;
-    float QuadraticAtten;
+    float _pad0;
+    float _pad1;
 };
 
 struct DirectionalLight 
 {
-    vec4 Direction; // ignore w
-    vec4 Color;     // w is intensity
+    vec4 Direction; // xyz = direction, w = unused
+    vec4 Color;     // rgb = color,     a = intensity
 };
+
+struct CameraData
+{
+    mat4 Projection;
+    mat4 View;
+    mat4 InverseView;
+};
+
+
+const int MAX_POINT_LIGHTS  = 10;
+const int MAX_DIRECT_LIGHTS = 10;
+const int MAX_SPOT_LIGHTS   = 10;
 
 // ================================================================================================
 // Uniforms
 
 layout(set = 0, binding = 0) uniform GlobalUBO 
 {
-    mat4             Projection;
-    mat4             View;
-    mat4             InverseView;
+    CameraData       Camera;
 
-    vec4             AmbientLightColor; // w is intensity
+    vec4             AmbientLightColor; // rgb = color, a = intensity
 
-    PointLight       PointLights[10];
-    DirectionalLight DirectionalLights[10];
-    SpotLight        SpotLights[10];
-    mat4             LightSpaceMatrices[10];
-    vec4             PointLightShadowData[4]; // xyz = position, w = far plane
+    PointLight       PointLights      [ MAX_POINT_LIGHTS  ];
+    DirectionalLight DirectionalLights[ MAX_DIRECT_LIGHTS ];
+    SpotLight        SpotLights       [ MAX_SPOT_LIGHTS   ];
     int              NumPointLights;
-    int              NumSpotLights;
     int              NumDirectionalLights;
-    int              ShadowLightCount;     // 2D shadow maps (directional + spot)
-    int              CubeShadowLightCount; // Cube shadow maps (point lights)
-    int              _pad1;
-    int              _pad2;
-    int              _pad3;
-    vec4             FrustumPlanes[6];
+    int              NumSpotLights;
 
 } uUbo;
+
 
 layout(push_constant) uniform Push 
 {
     mat4 ModelMatrix;
     mat4 NormalMatrix;
-    // mat4 LightSpaceMatrix;
 
     vec3  Albedo;
     float Metallic;
@@ -95,7 +96,7 @@ void main()
 {
     vec4 positionWorld = uPush.ModelMatrix * vec4(inPosition, 1.0);
 
-    gl_Position = uUbo.Projection * uUbo.View * positionWorld;
+    gl_Position = uUbo.Camera.Projection * uUbo.Camera.View * positionWorld;
 
     fragNormalWorld = normalize(mat3(uPush.NormalMatrix) * inNormal);
     fragPosWorld    = positionWorld.xyz;

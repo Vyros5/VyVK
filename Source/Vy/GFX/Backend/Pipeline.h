@@ -103,6 +103,9 @@ namespace Vy
             GraphicsBuilder& setDepthBias(float constantFactor, float clamp, float slopeFactor);
             GraphicsBuilder& setLineWidth(float lineWidth);
 
+            // Multisampling
+            GraphicsBuilder& setRasterizationSamples(VkSampleCountFlagBits samples);
+
             // Color Blending
 			GraphicsBuilder& addColorAttachment(VkFormat colorFormat, bool alphaBlending = false);
 
@@ -122,7 +125,7 @@ namespace Vy
             // Build
 			Unique<VyPipeline> buildUnique();
             Unique<VyPipeline> buildUnique(VkPipelineLayout layout);
-			VyPipeline build();
+			VyPipeline         build();
 
 		private:
 			void addShaderStage(VkShaderStageFlagBits stage, VkShaderModule shaderModule, const char* entryPoint);
@@ -217,12 +220,16 @@ namespace Vy
          */
 		void bind(VkCommandBuffer cmdBuffer) const;
 
+
         /** 
          * @brief Binds a descriptor set to the pipeline.
          * 
-         * @param cmdBuffer     The command buffer to bind the descriptor set to.
-         * @param setIndex      The index of the descriptor set.
-         * @param descriptorSet The descriptor set to bind.
+         * @param cmdBuffer          The command buffer to bind the descriptor set to.
+         * @param setIndex           The index of the descriptor set.
+         * @param descriptorSet      The descriptor set to bind.
+         * @param dynamicOffsetCount (Optional) The number of dynamic offsets in the pDynamicOffsets array.
+         * @param pDynamicOffsets    (Optional) A pointer to an array of U32 values specifying dynamic offsets.
+         * 
          */
 		void bindDescriptorSet(
             VkCommandBuffer cmdBuffer, 
@@ -233,7 +240,17 @@ namespace Vy
         ) const;
 
 
+        // https://docs.vulkan.org/guide/latest/descriptor_dynamic_offset.html
 
+        /**
+         * @brief Binds multiple descriptor sets to the pipeline.
+         * 
+         * @param cmdBuffer          The command buffer to bind the descriptor set to.
+         * @param setIndex           The index of the descriptor set.
+         * @param descriptorSets     The descriptors set to bind.
+         * @param dynamicOffsetCount (Optional) The number of dynamic offsets in the pDynamicOffsets array.
+         * @param pDynamicOffsets    (Optional) A pointer to an array of U32 values specifying dynamic offsets.
+         */
 	    void bindDescriptorSets(
             VkCommandBuffer          cmdBuffer, 
             SetIndex                 setIndex, 
@@ -251,7 +268,13 @@ namespace Vy
          * @param size       Size of the constant data in bytes.
          * @param offset     Offset into the push constant range. (Default is 0)
          */
-        void pushConstants(VkCommandBuffer cmdBuffer, VkShaderStageFlags stageFlags, const void* pData, U32 size, U32 offset = 0) const;
+        void pushConstants(
+            VkCommandBuffer    cmdBuffer, 
+            VkShaderStageFlags stageFlags, 
+            const void*        pData, 
+            U32                size, 
+            U32                offset = 0
+        ) const;
 
         /** 
          * @brief Pushes a typed constant to the pipeline.
@@ -262,7 +285,10 @@ namespace Vy
          * @param data        Reference to the constant data to push.
          */
 		template<typename T>
-		void pushConstants(VkCommandBuffer cmdBuffer, VkShaderStageFlags stageFlags, const T& data) const
+		void pushConstants(
+            VkCommandBuffer    cmdBuffer, 
+            VkShaderStageFlags stageFlags, 
+            const T&           data) const
 		{
 			pushConstants(cmdBuffer, stageFlags, &data, sizeof(T));
 		}

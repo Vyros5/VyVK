@@ -9,55 +9,53 @@
 namespace Vy 
 {
 
-#define MAX_LIGHTS 10
+#define MAX_POINT_LIGHTS  10
+#define MAX_DIRECT_LIGHTS 10
+#define MAX_SPOT_LIGHTS   10
 
     struct PointLightUBO
     {
-        Vec4 Position{}; // w component unused
-        Vec4 Color   {}; // w is intensity
-    };
-
-    struct SpotLightUBO
-    {
-        Vec4  Position   {}; // w component unused
-        Vec4  Direction  {}; // w component unused
-        Vec4  Color      {}; // w is intensity
-        // float InnerCutoff{}; // cos of inner angle
-        float OuterCutoff{}; // cos of outer angle
-        float ConstantAtten{};  // Constant attenuation
-        float LinearAtten{};    // Linear attenuation
-        float QuadraticAtten{}; // Quadratic attenuation
+        Vec4 Position{}; // xyz = position, w = unused
+        Vec4 Color   {}; // rgb = color,    a = intensity
     };
 
     struct DirectionalLightUBO
     {
-        Vec4 Direction{}; // w component unused
-        Vec4 Color    {}; // w is intensity
+        Vec4 Direction{}; // xyz = direction, w = *unused* ambientStrength 
+        Vec4 Color    {}; // rgb = color,     a = intensity
     };
+    
+    struct SpotLightUBO
+    {
+        Vec4  Position   {}; // xyz = position,    w = unused
+        Vec4  Direction  {}; // xyz = direction,   w = unused
+        Vec4  Color      {}; // rgb = color,       a = intensity
+        float InnerCutoff{}; // cos of inner angle
+        float OuterCutoff{}; // cos of outer angle
+        float _pad0{ 0.0f };
+        float _pad1{ 0.0f };
+    };
+
+    struct CameraDataUBO
+    {
+        Mat4 Projection  { 1.0f };
+        Mat4 View        { 1.0f };
+        Mat4 InverseView { 1.0f };
+    };
+
 
     struct GlobalUBO 
     {
-        Mat4                Projection  { 1.0f };
-        Mat4                View        { 1.0f };
-        Mat4                InverseView { 1.0f };
+        CameraDataUBO       CameraData{};
 
-        Vec4                AmbientLightColor{ 1.0f, 1.0f, 1.0f, 0.02f }; // w is intensity
+        Vec4                AmbientLightColor   { 1.0f, 1.0f, 1.0f, 0.02f }; // rgb = color, a = intensity
 
-        PointLightUBO       PointLights       [ MAX_LIGHTS ];
-        DirectionalLightUBO DirectionalLights [ MAX_LIGHTS ];
-        SpotLightUBO        SpotLights        [ MAX_LIGHTS ];
-        Mat4                LightSpaceMatrices[ MAX_LIGHTS ]; // Light space transformation matrices for shadows
-        Vec4                PointLightShadowData[4];          // xyz = position, w = far plane (for cube shadows)
+        PointLightUBO       PointLights         [ MAX_POINT_LIGHTS  ];
+        DirectionalLightUBO DirectionalLights   [ MAX_DIRECT_LIGHTS ];
+        SpotLightUBO        SpotLights          [ MAX_SPOT_LIGHTS   ];
         int                 NumPointLights      { 0 };
         int                 NumDirectionalLights{ 0 };
         int                 NumSpotLights       { 0 };
-
-        int                 ShadowLightCount    { 0 }; // Number of 2D shadow maps (directional + spot)
-        int                 CubeShadowLightCount{ 0 }; // Number of cube shadow maps (point lights)
-        int                 _pad1{};
-        int                 _pad2{};
-        int                 _pad3{};
-        Vec4                FrustumPlanes[6]; // Frustum planes for culling (Left, Right, Bottom, Top, Near, Far)
     };
 
     

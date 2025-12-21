@@ -14,7 +14,11 @@ namespace Vy
     class VySampledTexture
     {
     public:
-        VySampledTexture(const String& filepath, bool srgb = true, bool flipY = false);
+        VySampledTexture(
+            const String& filepath, 
+            bool          bSRGB   = true, 
+            bool          bFlipY  = false
+        );
 
         ~VySampledTexture();
 
@@ -45,8 +49,8 @@ namespace Vy
         int height()    const { return m_Height;    }
         int mipLevels() const { return m_MipLevels; }
 
-        void setGlobalIndex(U32 index) { m_GlobalIndex = index; }
-        U32 globalIndex() const { return m_GlobalIndex; }
+        // void setGlobalIndex(U32 index) { m_GlobalIndex = index; }
+        // U32 globalIndex() const { return m_GlobalIndex; }
 
         /**
          * @brief Get approximate memory size of this texture
@@ -60,11 +64,9 @@ namespace Vy
     private:
 
         void createImageView(VkFormat format);
-        void createSampler();
-        void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, U32 mipLevels);
-        void copyBufferToImage(VkBuffer buffer, VkImage image, U32 width, U32 height);
-        void generateMipmaps(VkImage image, VkFormat format, I32 width, I32 height, U32 mipLevels);
 
+        void createSampler();
+        
         VyImage     m_Image;
         VyImageView m_View;
         VySampler   m_Sampler;
@@ -72,6 +74,6 @@ namespace Vy
         int m_Width       = 0;
         int m_Height      = 0;
         U32 m_MipLevels   = 1;
-        U32 m_GlobalIndex = 0;
+        // U32 m_GlobalIndex = 0;
     };
 }

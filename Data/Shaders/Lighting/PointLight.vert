@@ -37,6 +37,7 @@ layout(push_constant) uniform Push
 layout (location = 0) out vec2 fragOffset;
 
 // ================================================================================================
+// Constants
 
 const vec2 OFFSETS[6] = vec2[](
     vec2(-1.0, -1.0),

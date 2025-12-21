@@ -1,5 +1,7 @@
 #include <Vy/GFX/Backend/Device.h>
 
+#include <Vy/GFX/Backend/VK/vk_enum_str.h>
+
 #include <Vy/GFX/Context.h>
 #include <Vy/Globals.h>
 
@@ -148,8 +150,10 @@ namespace Vy
     VyDevice::~VyDevice() 
     {
         vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
+
 		vmaDestroyAllocator(m_Allocator);
-        vkDestroyDevice(m_Device, nullptr);
+        
+		vkDestroyDevice(m_Device, nullptr);
 
         if (kEnableValidationLayers) 
         {
@@ -157,6 +161,7 @@ namespace Vy
         }
 
         vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
+		
         vkDestroyInstance(m_Instance, nullptr);
     }
 
@@ -274,6 +279,8 @@ namespace Vy
 		}
 
 		VY_ASSERT(m_PhysicalDevice != VK_NULL_HANDLE, "Failed to find a suitable GPU");
+		
+		m_MsaaSamples = getMaxUsableSampleCount();
 
 		vkGetPhysicalDeviceProperties(m_PhysicalDevice, &m_Properties);
 		U32 major = VK_VERSION_MAJOR(m_Properties.apiVersion);
@@ -282,9 +289,8 @@ namespace Vy
 		
 		VY_INFO_TAG("VyDevice", "Selected GPU: {} (Vulkan {}.{}.{})", m_Properties.deviceName, major, minor, patch);
 
-		VY_INFO_TAG("VyDevice", "maxDescriptorSetUniformBuffers: {}", m_Properties.limits.maxDescriptorSetUniformBuffers);
-
-		m_MsaaSamples = getMaxSampleCount();
+		// VY_INFO_TAG("VyDevice", "maxDescriptorSetUniformBuffers: {}", m_Properties.limits.maxDescriptorSetUniformBuffers);
+		VY_INFO_TAG("VyDevice", "Max Samples: {}", STR_VK_SAMPLE_COUNT_FLAG_BITS(m_MsaaSamples));
     }
 
 	// --------------------------------------------------------------------------------------------
@@ -334,33 +340,57 @@ namespace Vy
 
 		// Features
 
-		// Enable Vulkan 1.2 features for Bindless Rendering
+		// Vulkan 1.2 Features ( Bindless Rendering / Descriptor Indexing Features )
 		VkPhysicalDeviceVulkan12Features vk12Features{};
 		{
 			vk12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-			vk12Features.pNext = nullptr; // Chain end
 
-			vk12Features.descriptorIndexing                        = VK_TRUE;
-			vk12Features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-			vk12Features.descriptorBindingPartiallyBound           = VK_TRUE;
-			vk12Features.descriptorBindingVariableDescriptorCount  = VK_TRUE;
-			vk12Features.runtimeDescriptorArray                    = VK_TRUE;
-			vk12Features.scalarBlockLayout                         = VK_TRUE;
-			vk12Features.bufferDeviceAddress                       = VK_TRUE;
+			vk12Features.descriptorIndexing                         = VK_TRUE;
+			// This enables the ability to use non-uniform indexing for sampled image arrays within shaders.
+			// Non-uniform indexing means that the index used to access an array can be dynamically calculated within 
+			// the shader, rather than being a constant. 
+			vk12Features.shaderSampledImageArrayNonUniformIndexing  = VK_TRUE;
+			vk12Features.shaderStorageImageArrayNonUniformIndexing  = VK_TRUE;
+			vk12Features.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
+			// This allows descriptor sets to have some bindings that are not bound to any resources.
+			// This is useful for situations where you don't need to bind all resources in a descriptor set.
+			vk12Features.descriptorBindingPartiallyBound            = VK_TRUE;
+			vk12Features.descriptorBindingVariableDescriptorCount   = VK_TRUE;
+			// This enables runtime-sized descriptor arrays, 
+			// which means that the size of descriptor arrays can be determined dynamically at runtime.
+			vk12Features.runtimeDescriptorArray                     = VK_TRUE;
+			vk12Features.scalarBlockLayout                          = VK_TRUE;
+			vk12Features.bufferDeviceAddress                        = VK_TRUE;
 		}
 
+		// Vulkan 1.3 Features ( Dynamic Rendering )
+		VkPhysicalDeviceVulkan13Features vk13Features{};
+		{
+			vk13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+
+			vk13Features.dynamicRendering               = VK_TRUE;
+			vk13Features.shaderDemoteToHelperInvocation = VK_TRUE;
+		}
+
+        VkPhysicalDeviceBufferDeviceAddressFeaturesKHR bdaFeatures{};
+		{
+			bdaFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR;
+
+			bdaFeatures.bufferDeviceAddress = VK_TRUE;
+		} 
+
+		// Maintenance
 		VkPhysicalDeviceMaintenance4Features maintenance4Features{};
 		{
 			maintenance4Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES;
-			maintenance4Features.pNext = &vk12Features; // Chain to vk12Features
 
 			maintenance4Features.maintenance4 = VK_TRUE;
 		}
 
+		// Mesh Shaders
 		VkPhysicalDeviceMeshShaderFeaturesEXT meshShaderFeatures{};
 		{
 			meshShaderFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
-			meshShaderFeatures.pNext = &maintenance4Features; // Chain to maintenance4Features
 
 			meshShaderFeatures.taskShader                             = VK_TRUE;
 			meshShaderFeatures.meshShader                             = VK_TRUE;
@@ -373,6 +403,7 @@ namespace Vy
 		VkPhysicalDevicePresentIdFeaturesKHR presentIdFeaturesQuery{}; 
 		{
 			presentIdFeaturesQuery.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR;
+
 			presentIdFeaturesQuery.pNext = &meshShaderFeatures;
 		}
 		
@@ -383,6 +414,7 @@ namespace Vy
 			VkPhysicalDeviceFeatures2 features2{}; 
 			{
 				features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+				
 				features2.pNext = &presentIdFeaturesQuery; // Chain to presentIdFeaturesQuery
 			}
 
@@ -409,6 +441,13 @@ namespace Vy
 		}
 
 		// Set up pNext chain: presentId (if supported) -> meshShaderFeatures -> vk12Features
+
+		vk12Features.pNext         = nullptr;               // Chain end
+		vk13Features.pNext         = &vk12Features;         // Chain to vk12Features
+		maintenance4Features.pNext = &vk12Features;         // Chain to vk12Features
+		bdaFeatures.pNext          = &maintenance4Features; // Chain to maintenance4Features
+		meshShaderFeatures.pNext   = &bdaFeatures;          // Chain to bdaFeatures
+		
 		void* pNextChain = &meshShaderFeatures;
 
 		if (m_PresentIdSupported)
@@ -416,78 +455,18 @@ namespace Vy
 			pNextChain = &presentIdFeaturesEnable;
 		}
 
-		// // Descriptor Indexing Features
-        // VkPhysicalDeviceDescriptorIndexingFeaturesEXT indexingFeatures{};
-		// {
-		// 	indexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
-		// 	// This enables the ability to use non-uniform indexing for sampled image arrays within shaders.
-		// 	// Non-uniform indexing means that the index used to access an array can be dynamically calculated within 
-		// 	// the shader, rather than being a constant. 
-		// 	indexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-			
-		// 	// This allows descriptor sets to have some bindings that are not bound to any resources.
-		// 	// This is useful for situations where you don't need to bind all resources in a descriptor set.
-		// 	indexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
-			
-		// 	// This enables runtime-sized descriptor arrays, 
-		// 	// which means that the size of descriptor arrays can be determined dynamically at runtime.
-		// 	indexingFeatures.runtimeDescriptorArray = VK_TRUE;
-		// }
-
-
-		// VkPhysicalDeviceVulkan13Features vulkan13Features{};
-		// {
-		// 	vulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-		// 	// vulkan13Features.computeFullSubgroups         = VK_TRUE;
-		// 	// vulkan13Features.synchronization2             = VK_TRUE;
-		// 	vulkan13Features.dynamicRendering               = VK_TRUE;
-		// 	// vulkan13Features.shaderIntegerDotProduct      = VK_TRUE;
-		// 	vulkan13Features.shaderDemoteToHelperInvocation = VK_TRUE;
-		// }
-
-        // // --- Feature Chaining ---
-        // indexingFeatures.pNext = &vulkan13Features;
-        // vulkan13Features.pNext = nullptr; // Make sure the last one points to nullptr
-
         VkPhysicalDeviceFeatures deviceFeatures{};
 		{
-			deviceFeatures.samplerAnisotropy = VK_TRUE;
-			deviceFeatures.shaderInt64       = VK_TRUE;
+			// Enable anisotropic filtering
+			// A texture filtering technique that improves the quality of textures when viewed at oblique angles.
+			deviceFeatures.samplerAnisotropy  = VK_TRUE;
+			deviceFeatures.shaderInt64        = VK_TRUE;
+
+			// Enable fill mode non solid for wireframe support
+			deviceFeatures.fillModeNonSolid   = VK_TRUE;
+			deviceFeatures.robustBufferAccess = VK_TRUE;
 		}
 
-        // // This structure holds the physical device features that are required for the logical device.
-        // VkPhysicalDeviceFeatures2 deviceFeatures2{};
-		// {
-		// 	deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-			
-		// 	// Enable anisotropic filtering
-		// 	// A texture filtering technique that improves the quality of textures when viewed at oblique angles.
-		// 	deviceFeatures2.features.samplerAnisotropy = VK_TRUE;
-			
-		// 	// Enable fill mode non solid for wireframe support
-		// 	deviceFeatures2.features.fillModeNonSolid = VK_TRUE;
-			
-		// 	// Chain the indexing features to the pNext of deviceFeatures2
-		// 	deviceFeatures2.pNext = &indexingFeatures;
-		// }
-
-        // // Fetch the physical device features
-        // vkGetPhysicalDeviceFeatures2(m_PhysicalDevice, &deviceFeatures2);
-
-        // // Check if the required features are supported
-        // if (!indexingFeatures.shaderSampledImageArrayNonUniformIndexing ||
-        //     !indexingFeatures.descriptorBindingPartiallyBound ||
-        //     !indexingFeatures.runtimeDescriptorArray) 
-		// {
-        //     throw std::runtime_error("Required descriptor indexing features are not supported!");
-        // }
-
-		// // Check if the required features are supported
-		// if (!deviceFeatures2.features.samplerAnisotropy ||
-        //     !deviceFeatures2.features.fillModeNonSolid) 
-		// {
-		// 	throw std::runtime_error("Required features are not supported!");
-		// }
 
         // Device
 		VkDeviceCreateInfo createInfo{ VKInit::deviceCreateInfo() };
@@ -495,24 +474,24 @@ namespace Vy
 			// This field is a pointer to an extension structure. 
 			// It allows to chain additional information, enabling the use of Vulkan extensions. 
 			// This is where you would place structures that enable newer Vulkan features.
-        	createInfo.pNext                   = pNextChain; //&deviceFeatures2;
+        	createInfo.pNext                   = pNextChain;
 
 			// pEnabledFeatures is the older, legacy way of specifying core Vulkan 1.0 features,
 			// when using VkPhysicalDeviceFeatures2 set it to nullptr
-			createInfo.pEnabledFeatures        = &deviceFeatures; //nullptr;
+			createInfo.pEnabledFeatures        = &deviceFeatures;
 			createInfo.flags                   = 0;
 			
             // Queue Creation
 			createInfo.queueCreateInfoCount    = static_cast<U32>(queueCreateInfos.size());
 			createInfo.pQueueCreateInfos       = queueCreateInfos.data();
 			
-            // Layers (Deprecated)
-			createInfo.enabledLayerCount       = 0;
-			createInfo.ppEnabledLayerNames     = nullptr;
-			
             // Device Extensions
 			createInfo.enabledExtensionCount   = static_cast<U32>(enabledExtensions.size());
 			createInfo.ppEnabledExtensionNames = enabledExtensions.data();
+
+            // Layers (Deprecated)
+			createInfo.enabledLayerCount       = 0;
+			createInfo.ppEnabledLayerNames     = nullptr;
 			
 			// Not necessary anymore because device specific validation layers have been deprecated.
 			if constexpr (kEnableValidationLayers)
@@ -527,6 +506,9 @@ namespace Vy
 		volkLoadDevice(m_Device);
 
 		VY_ASSERT(indices.isComplete(), "Queue family indices are not complete.");
+
+		// Initialize debug label.
+		VyDebugLabel::init();
 
 		// Create queues.
 		vkGetDeviceQueue(m_Device, indices.GraphicsFamily.value(), 0, &m_GraphicsQueue);
@@ -940,7 +922,7 @@ namespace Vy
 	}
 
 
-	VkSampleCountFlagBits VyDevice::getMaxSampleCount() 
+	VkSampleCountFlagBits VyDevice::getMaxUsableSampleCount() 
 	{
 		VkSampleCountFlags countsFlags = 
 			m_Properties.limits.framebufferColorSampleCounts & 

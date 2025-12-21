@@ -17,7 +17,9 @@ namespace Vy
     }
 
 
-    void VyGridSystem::createPipeline(VkRenderPass& renderPass, TVector<VkDescriptorSetLayout> descSetLayouts)
+    void VyGridSystem::createPipeline(
+        VkRenderPass&                  renderPass, 
+        TVector<VkDescriptorSetLayout> descSetLayouts)
     {
         m_Pipeline = VyPipeline::GraphicsBuilder{}
             .addDescriptorSetLayouts(descSetLayouts)

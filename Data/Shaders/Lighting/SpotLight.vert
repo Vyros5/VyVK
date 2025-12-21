@@ -4,13 +4,17 @@ layout(location = 0) out vec3 fragColor;
 
 struct SpotLight
 {
-    vec4  position;
-    vec4  direction;
-    vec4  Color;
-    float outerCutoff;
-    float constantAtten;
-    float linearAtten;
-    float quadraticAtten;
+    vec4  Position;    // xyz = position,    w = unused
+    vec4  Direction;   // xyz = direction,   w = unused
+    vec4  Color;       // rgb = color,       a = intensity
+    float InnerCutoff; // cos of inner angle
+    float OuterCutoff; // cos of outer angle
+    float _pad0;
+    float _pad1;
+    // float outerCutoff;
+    // float constantAtten;
+    // float linearAtten;
+    // float quadraticAtten;
 };
 
 // ================================================================================================

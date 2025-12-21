@@ -71,23 +71,14 @@ namespace Vy
         {
             postProc.BloomEnabled    = true;
             postProc.BloomThreshold  = 0.8f;
-            postProc.BloomIntensity  = 1.2f;
-            postProc.BloomIterations = 5;
+            postProc.BloomIntensity  = 0.5f;
+            postProc.BloomIterations = 5; // Note: Do not change, This number is hardcoded in the shader.
+
             postProc.Exposure        = 1.0f;
             postProc.Gamma           = 1.65f;
         }
 
         m_PostProcessingSettings = postProc;
-
-        // m_Sun = createEntity("Sun");
-        // {
-        //     m_Sun.add<DirectionalLightComponent>().Color = { 1.0f, 1.0f, 0.5f };
-        //     m_Sun.get<TransformComponent>() = TransformComponent{
-        //         /* Translation */ { 1.0f, 1.0f, 2.0f },
-        //     };
-        // }
-
-        // VY_ASSERT(m_Sun.isValid(), "Sun is invalid" );
     }
 
 

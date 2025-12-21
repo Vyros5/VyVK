@@ -98,7 +98,7 @@ namespace Vy
 	void VyMasterRenderSystem::createUniformBuffers()
 	{
         // Create the global UBO buffers (One per frame). 
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
+        for (int i = 0; i < m_UBOBuffers.size(); i++) 
         {
             m_UBOBuffers[i] = MakeUnique<VyBuffer>( VyBuffer::uniformBuffer(sizeof(GlobalUBO)), false );
 
@@ -158,7 +158,7 @@ namespace Vy
 		m_SkyboxSystem = MakeUnique<VySkyboxSystem>(
 			// m_Renderer.swapchainRenderPass(),
 			m_PostProcessSystem->getHDRRenderPass(),
-			m_GlobalSetLayout->handle(),
+			m_GlobalSetLayout  ->handle(),
 			m_Environment
 		);
 
@@ -175,18 +175,18 @@ namespace Vy
 
 	void VyMasterRenderSystem::updateUniformBuffers(VyFrameInfo& frameInfo, GlobalUBO& ubo)
 	{
-		// // Update material descriptor sets.
+		// Update material descriptor sets.
 		m_MaterialSystem->updateMaterials(frameInfo, *m_MaterialSetLayout, *m_MaterialPool);
 
 		// [ Update UBO Data ]
 		{
-			ubo.Projection  = frameInfo.Camera.projection();
-			ubo.View        = frameInfo.Camera.view();
-			ubo.InverseView = frameInfo.Camera.inverseView();
+			ubo.CameraData.Projection  = frameInfo.Camera.projection();
+			ubo.CameraData.View        = frameInfo.Camera.view();
+			ubo.CameraData.InverseView = frameInfo.Camera.inverseView();
 		}
 
 		// Update light values into UBO.
-		m_LightSystem->update(frameInfo, ubo);
+		m_LightSystem->update( frameInfo, ubo );
 
 		// Write Global UBO buffers.
 		m_UBOBuffers[ frameInfo.FrameIndex ]->writeToBuffer( &ubo, sizeof(GlobalUBO), 0 );
@@ -238,11 +238,7 @@ namespace Vy
 		// [ Apply Post-Processing ]
 		const auto& postProcSettings = frameInfo.Scene->getPostProcessingComponent();
 		{
-			m_PostProcessSystem->renderPostProcess(
-				cmdBuffer,
-				frameInfo.FrameIndex,
-				postProcSettings
-			);
+			m_PostProcessSystem->renderPostProcess(cmdBuffer, frameInfo.FrameIndex, postProcSettings);
 		}
 
 		// [ Swapchain Final Composite Pass ]

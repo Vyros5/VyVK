@@ -74,6 +74,8 @@ namespace Vy
         
         createRenderPass();
         
+        createColorResources();
+
         createDepthResources();
         
         createFramebuffers();
@@ -93,7 +95,7 @@ namespace Vy
             VyContext::device(),                          // Device swap chain is on.
             m_Swapchain,                                  // Swapchain being used.
             UINT64_MAX,                                   // Use max so no timeout.
-            m_ImageAvailableSemaphores[ m_CurrentFrame ], // Give semaphore to be triggered when image is ready for rendering (Must not be a signaled semaphore).
+            m_ImageAvailableSemaphores[ m_CurrentFrame ], // Semaphore to be triggered when image is ready for rendering (Must not be a signaled semaphore).
             VK_NULL_HANDLE,                               // No fences in use for this.
             pImageIndex                                   // Gets set to image index to use.
         );
@@ -119,8 +121,8 @@ namespace Vy
         VkSemaphore signalSemaphores[] = { m_RenderFinishedSemaphores[ m_CurrentFrame ] };
 
         // Specify the semaphore to wait on before execution begins and in which stage of the pipeline to wait.
-        VkSemaphore          waitSemaphores[]   = { m_ImageAvailableSemaphores[ m_CurrentFrame ] };
-        VkPipelineStageFlags waitStages[]       = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        VkSemaphore          waitSemaphores[] = { m_ImageAvailableSemaphores[ m_CurrentFrame ] };
+        VkPipelineStageFlags waitStages[]     = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
         
         // [ Submit ]
         VkSubmitInfo submitInfo{ VKInit::submitInfo() };
@@ -128,6 +130,7 @@ namespace Vy
             // Semaphore(s) to wait before the command buffers for this batch begin execution.
             submitInfo.waitSemaphoreCount   = 1;
             submitInfo.pWaitSemaphores      = waitSemaphores;
+
             // Pipeline stages at which each corresponding semaphore wait will occur.
             submitInfo.pWaitDstStageMask    = waitStages;
             
@@ -228,6 +231,7 @@ namespace Vy
         // Get the minimum image count to use.
 		U32 imageCount = chooseImageCount(swapchainSupport.Capabilities);
 
+        // [ Create Info ]
         VkSwapchainCreateInfoKHR createInfo{ VKInit::swapchainCreateInfoKHR() };
         {
             // Surface onto which the swapchain will present images. 
@@ -444,7 +448,14 @@ namespace Vy
             depthAttachment.format         = findDepthFormat(); 
 
             // One sample per pixel (more samples used for multisampling).
-            depthAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+            if (m_UseMsaaSamples)
+            {
+                depthAttachment.samples    = VyContext::device().supportedSampleCount();
+            }
+            else
+            {
+                depthAttachment.samples    = VK_SAMPLE_COUNT_1_BIT;
+            }
 
             // Tells the depthbuffer attachment to clear each time it is loaded.
             depthAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -479,7 +490,14 @@ namespace Vy
             colorAttachment.format         = swapchainImageFormat(); 
 
             // // One sample per pixel (more samples used for multisampling).
-            colorAttachment.samples        = VK_SAMPLE_COUNT_1_BIT; 
+            if (m_UseMsaaSamples)
+            {
+                colorAttachment.samples    = VyContext::device().supportedSampleCount();
+            }
+            else
+            {
+                colorAttachment.samples    = VK_SAMPLE_COUNT_1_BIT;
+            }
 
 			// VK_ATTACHMENT_LOAD_OP_LOAD:      Preserve the existing contents of the attachment.
 			// VK_ATTACHMENT_LOAD_OP_CLEAR:     Clear the values to a constant at the start.
@@ -510,7 +528,7 @@ namespace Vy
             // Layout used for presenting to the screen.
 			// The layout to automatically transition to when the render pass finishes.
 			// Uses VK_IMAGE_LAYOUT_PRESENT_SRC_KHR so the image will be ready for presentation using the swapchain after rendering.
-            colorAttachment.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;  
+            colorAttachment.finalLayout    = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;  
         }
 
         // Defines the attachment index and the layout while rendering for the subpass (given to subpass below).
@@ -519,6 +537,25 @@ namespace Vy
             colorAttachmentRef.attachment  = 0;                                        // Index of this attachment in the swapchain.
             colorAttachmentRef.layout      = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // What this attachment is laid out to support.
         }
+
+        VkAttachmentDescription colorAttachmentResolve{};
+        {
+            colorAttachmentResolve.format         = swapchainImageFormat(); 
+            colorAttachmentResolve.samples        = VK_SAMPLE_COUNT_1_BIT;
+            colorAttachmentResolve.loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            colorAttachmentResolve.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+            colorAttachmentResolve.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            colorAttachmentResolve.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+            colorAttachmentResolve.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        }
+
+        VkAttachmentReference colorAttachmentResolveRef{};
+        {
+            colorAttachmentResolveRef.attachment = 2;
+            colorAttachmentResolveRef.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        }
+
 
         // //A subpass in Vulkan is a phase of rendering that can read from and write to certain framebuffer attachments (color, depth, and stencil buffers).
         VkSubpassDescription subpass{};
@@ -534,6 +571,8 @@ namespace Vy
 
             // Refenece to the attachment index and layout for the depth attachment.
             subpass.pDepthStencilAttachment = &depthAttachmentRef; 
+
+            subpass.pResolveAttachments     = &colorAttachmentResolveRef;
         }
 
         // Declare a dependency for the subpass (forces thread sync between source and destination).
@@ -561,78 +600,19 @@ namespace Vy
         }
 
         // Create RenderPass.
-		VyRenderPassDesc renderPassDesc{};
+        TArray<VkAttachmentDescription, 3> attachments = { colorAttachment, depthAttachment, colorAttachmentResolve };
+        VkRenderPassCreateInfo renderPassInfo{ VKInit::renderPassCreateInfo() };
         {
-			renderPassDesc.AttachmentDescriptions = { colorAttachment, depthAttachment };
-			renderPassDesc.SubpassDescription     = subpass;
-			renderPassDesc.SubpassDependency      = dependency;
-		}
+            renderPassInfo.attachmentCount = static_cast<U32>(attachments.size());
+            renderPassInfo.pAttachments    = attachments.data();
+            renderPassInfo.subpassCount    = 1;
+            renderPassInfo.pSubpasses      = &subpass;
+            renderPassInfo.dependencyCount = 1;
+            renderPassInfo.pDependencies   = &dependency;
+        }
 
-        m_RenderPass = MakeUnique<VyRenderPass>(renderPassDesc);
+        m_RenderPass = MakeUnique<VyRenderPass>(renderPassInfo);
     }
-
-
-    // void VySwapchain::createShadowMapRenderPass()
-    // {
-    //     VkAttachmentDescription depthAttachment{};
-    //     {
-    //         depthAttachment.format         = VK_FORMAT_D32_SFLOAT;
-    //         depthAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
-    //         depthAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    //         depthAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-    //         depthAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    //         depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    //         depthAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-    //         depthAttachment.finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    //     }
-
-    //     VkAttachmentReference depthReference{};
-    //     {
-    //         depthReference.attachment = 0;
-    //         depthReference.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    //     }
-
-    //     VkSubpassDescription subpass{};
-    //     {
-    //         subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    //         subpass.colorAttachmentCount    = 0;
-    //         subpass.pDepthStencilAttachment = &depthReference;
-    //     }
-
-    //     TArray<VkSubpassDependency, 2> dependencies;
-    //     {
-    //         dependencies[0].srcSubpass      = VK_SUBPASS_EXTERNAL;
-    //         dependencies[0].dstSubpass      = 0;
-    //         dependencies[0].srcStageMask    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    //         dependencies[0].dstStageMask    = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    //         dependencies[0].srcAccessMask   = VK_ACCESS_SHADER_READ_BIT;
-    //         dependencies[0].dstAccessMask   = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    //         dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-            
-    //         dependencies[1].srcSubpass      = 0;
-    //         dependencies[1].dstSubpass      = VK_SUBPASS_EXTERNAL;
-    //         dependencies[1].srcStageMask    = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    //         dependencies[1].dstStageMask    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    //         dependencies[1].srcAccessMask   = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    //         dependencies[1].dstAccessMask   = VK_ACCESS_SHADER_READ_BIT;
-    //         dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-    //     }
-
-    //     VkRenderPassCreateInfo renderPassInfo{ VKInit::renderPassCreateInfo() };
-    //     {
-    //         renderPassInfo.attachmentCount = 1;
-    //         renderPassInfo.pAttachments    = &depthAttachment;
-
-    //         renderPassInfo.subpassCount    = 1;
-    //         renderPassInfo.pSubpasses      = &subpass;
-            
-    //         renderPassInfo.dependencyCount = static_cast<U32>(dependencies.size());
-    //         renderPassInfo.pDependencies   = dependencies.data();
-    //     }
-
-    //     // Create RenderPass.
-    //     m_ShadowRenderPass = MakeUnique<VyRenderPass>(renderPassInfo);
-    // }
 
     // ---------------------------------------------------------------------------------------------------------------------
     // MARK: Framebuffers
@@ -640,13 +620,18 @@ namespace Vy
     void VySwapchain::createFramebuffers() 
     {
         // Resize framebuffers to match swapchain image count.
-        m_SwapchainFramebuffers.reserve(imageCount());
+        m_SwapchainFramebuffers.reserve( imageCount() );
         
         // Iterate over all the framebuffers.
         for (size_t i = 0; i < imageCount(); i++) 
         {
             // Get color and depth attachment images for current index.
-            const std::vector attachments = { m_SwapchainImageViews[i], m_DepthImageViews[i].handle() };
+            const std::vector attachments = { 
+            
+                m_ColorImageViews[i].handle(), 
+                m_DepthImageViews[i].handle(), 
+                m_SwapchainImageViews[i], 
+            };
 
             // Get the size of the swapchain.
             VkExtent2D swapchainExtent = this->swapchainExtent();
@@ -671,33 +656,6 @@ namespace Vy
 			m_SwapchainFramebuffers.emplace_back( *m_RenderPass, framebufferDesc );
         }
     }
-
-
-    // void VySwapchain::createShadowMapFramebuffer()
-    // {
-    //     VY_ASSERT(m_ShadowRenderPass     != VK_NULL_HANDLE, "m_ShadowRenderPass is invalid!");
-    //     VY_ASSERT(m_ShadowDepthImageView != VK_NULL_HANDLE, "m_ShadowDepthImageView is invalid!");
-
-    //     const std::vector attachments = { m_ShadowDepthImageView.handle() };
-
-    //     VyFramebufferDesc framebufferDesc{};
-    //     {
-    //         // Set size to match shadow map size.
-    //         framebufferDesc.Width       = m_ShadowMapExtent.width;
-    //         framebufferDesc.Height      = m_ShadowMapExtent.height;
-
-    //         // Attachments
-    //         framebufferDesc.Attachments = attachments;
-
-    //         // Only one layer.
-    //         framebufferDesc.Layers      = 1;
-
-    //         // Flags
-    //         framebufferDesc.Flags       = 0;
-    //     }
-
-    //     m_ShadowMapFramebuffer = VyFramebuffer{ *m_ShadowRenderPass, framebufferDesc };
-    // }
 
     // ---------------------------------------------------------------------------------------------------------------------
     // MARK: Depth Res.
@@ -738,8 +696,15 @@ namespace Vy
                 // Set the image to be used as a depth/stencil attachment.
                 builder.usage(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
                 
-                // No multisampling.
-                builder.sampleCount(VK_SAMPLE_COUNT_1_BIT);
+                // Sampling.
+                if (m_UseMsaaSamples)
+                {
+                    builder.sampleCount(VyContext::device().supportedSampleCount());
+                }
+                else
+                {
+                    builder.sampleCount(VK_SAMPLE_COUNT_1_BIT);
+                }
                 
                 // Set so image can only be accessed by one command buffer queue family at a time.
                 builder.sharingMode(VK_SHARING_MODE_EXCLUSIVE);
@@ -752,11 +717,11 @@ namespace Vy
             // Depth ImageView Framebuffer Attachments.
             auto viewBuilder = VyImageView::Builder{};
             {
-                viewBuilder.viewType(VK_IMAGE_VIEW_TYPE_2D);
-                viewBuilder.format(depthFormat);
-                viewBuilder.aspectMask(VK_IMAGE_ASPECT_DEPTH_BIT);
+                viewBuilder.viewType   (VK_IMAGE_VIEW_TYPE_2D);
+                viewBuilder.format     (depthFormat);
+                viewBuilder.aspectMask (VK_IMAGE_ASPECT_DEPTH_BIT);
                 viewBuilder.arrayLayers(0, 1);
-                viewBuilder.mipLevels(0, 1);
+                viewBuilder.mipLevels  (0, 1);
             }
             
             m_DepthImageViews[i] = viewBuilder.build(m_DepthImages[i]);
@@ -764,39 +729,72 @@ namespace Vy
     }
 
 
-    // void VySwapchain::createShadowDepthImage()
-    // {
-    //     m_ShadowImage = VyImage::Builder{}
-    //         .imageType(VK_IMAGE_TYPE_2D)
-    //         .extent(m_ShadowMapExtent)
-    //         .mipLevels(1)
-    //         .arrayLayers(1)
-    //         .format(VK_FORMAT_D32_SFLOAT)
-    //         .tiling(VK_IMAGE_TILING_OPTIMAL)
-    //         .usage(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
-    //         .sampleCount(VK_SAMPLE_COUNT_1_BIT)
-    //         .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
-    //         .memoryUsage(VMA_MEMORY_USAGE_AUTO)
-    //     .build();
+    void VySwapchain::createColorResources()
+    {
+        // Format of the image being used in this swapchain's renderpass's color attachment.
+        VkFormat colorFormat = swapchainImageFormat();
 
-    //     m_ShadowDepthImageView = VyImageView::Builder{}
-    //         .viewType(VK_IMAGE_VIEW_TYPE_2D)
-    //         .format(VK_FORMAT_D32_SFLOAT)
-    //         .aspectMask(VK_IMAGE_ASPECT_DEPTH_BIT)
-    //         .arrayLayers(0, 1)
-    //         .mipLevels(0, 1)
-    //     .build(m_ShadowImage);
+        // Get the size of the swapchain output.
+        VkExtent2D swapchainExtent = this->swapchainExtent();
 
-    //     m_ShadowSampler = VySampler::Builder{}
-    //         .filters(VK_FILTER_LINEAR)
-    //         .mipmapMode(VK_SAMPLER_MIPMAP_MODE_LINEAR)
-    //         .addressMode(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER)
-    //         .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
-    //         .enableAnisotropy(true)
-    //         .lodRange(0.0f, 100.0f)
-    //         .mipLodBias(0.0f)
-    //     .build();
-    // }
+        // Resize all vectors of color images/images data to equal the number of images the swapchain is using.
+        m_ColorImages    .resize( imageCount() );
+        m_ColorImageViews.resize( imageCount() );
+
+        // Iterate over each color image and create an image view for it.
+        for (int i = 0; i < m_ColorImages.size(); i++) 
+        {
+            // Color Images
+            auto builder = VyImage::Builder{};
+            {
+                builder.imageType  (VK_IMAGE_TYPE_2D);
+                builder.extent     (swapchainExtent);
+                builder.mipLevels  (1);
+                builder.arrayLayers(1);
+                
+                // Set the format to match the format of the color attachment on the renderpass.
+                builder.format(colorFormat);
+                
+                // Set tiling settings to be optimal.
+                builder.tiling(VK_IMAGE_TILING_OPTIMAL);
+                
+                // Undefined layout
+                builder.imageLayout(VK_IMAGE_LAYOUT_UNDEFINED);
+                
+                // Set the image to be used as a color attachment.
+                builder.usage(VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+                
+                // Sampling.
+                if (m_UseMsaaSamples)
+                {
+                    builder.sampleCount(VyContext::device().supportedSampleCount());
+                }
+                else
+                {
+                    builder.sampleCount(VK_SAMPLE_COUNT_1_BIT);
+                }
+
+                // Set so image can only be accessed by one command buffer queue family at a time.
+                builder.sharingMode(VK_SHARING_MODE_EXCLUSIVE);
+                
+                builder.memoryUsage(VMA_MEMORY_USAGE_AUTO);
+            }
+
+            m_ColorImages[i] = builder.build();
+
+            // Depth ImageView Framebuffer Attachments.
+            auto viewBuilder = VyImageView::Builder{};
+            {
+                viewBuilder.viewType   (VK_IMAGE_VIEW_TYPE_2D);
+                viewBuilder.format     (colorFormat);
+                viewBuilder.aspectMask (VK_IMAGE_ASPECT_COLOR_BIT);
+                viewBuilder.arrayLayers(0, 1);
+                viewBuilder.mipLevels  (0, 1);
+            }
+            
+            m_ColorImageViews[i] = viewBuilder.build(m_ColorImages[i]);
+        }
+    }
 
     // ---------------------------------------------------------------------------------------------------------------------
     // MARK: Sync Objects
@@ -834,7 +832,7 @@ namespace Vy
     {
         m_SwapchainFramebuffers.clear();
 
-        // Cleanup Swapchain (Color) Image Views.
+        // Cleanup Swapchain Image Views.
 		for (auto imageView : m_SwapchainImageViews)
 		{
             if (imageView != VK_NULL_HANDLE)
@@ -845,23 +843,11 @@ namespace Vy
 
         m_SwapchainImageViews.clear();
 
-        // Cleanup Depth Resources.
-        // for (int i = 0; i < m_DepthImages.size(); i++) 
-        // {
-        //     if (m_DepthImageViews[i] != VK_NULL_HANDLE)
-        //     {
-        //         VyContext::destroy(m_DepthImageViews[i]);
-        //     }
+        m_DepthImageViews.clear();
+        m_DepthImages    .clear();
 
-        //     if (m_DepthImages[i] != VK_NULL_HANDLE)
-        //     {
-        //         VyContext::destroy(m_DepthImages[i], m_DepthImageAllocations[i]);
-        //     }
-        // }
-
-        m_DepthImageViews      .clear();
-        m_DepthImages          .clear();
-
+        m_ColorImageViews.clear();
+        m_ColorImages    .clear();
 
         // Cleanup Render Pass.
         // if (m_RenderPass != VK_NULL_HANDLE)

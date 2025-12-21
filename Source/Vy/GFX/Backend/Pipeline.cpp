@@ -162,6 +162,15 @@ namespace Vy
 
 
 	VyPipeline::GraphicsBuilder& 
+	VyPipeline::GraphicsBuilder::setRasterizationSamples(VkSampleCountFlagBits samples)
+	{
+		m_GraphicsConfig.MultisampleInfo.rasterizationSamples = samples;
+
+		return *this;
+	}
+
+
+	VyPipeline::GraphicsBuilder& 
 	VyPipeline::GraphicsBuilder::setDepthTest(
 		bool        enableDepthTest, 
 		bool        writeDepth, 
@@ -632,7 +641,7 @@ namespace Vy
 		if (m_Layout != VK_NULL_HANDLE)
 		{
 			vkDestroyPipelineLayout(VyContext::device(), m_Layout, nullptr);
-			// VyContext::destroy(m_Layout);
+
 			m_Layout = VK_NULL_HANDLE;
 		}
 	}

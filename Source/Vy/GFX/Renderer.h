@@ -301,34 +301,7 @@ namespace Vy
 		 */
         void endSwapchainRenderPass(VkCommandBuffer cmdBuffer) const;
 
-        // https://github.com/invzz/VulkanEngine/blob/6385247108ad82d91c9d80f191848d354079f5a9/include/Engine/Graphics/Renderer.hpp
-        // VkRenderPass offscreenRenderPass() const 
-        // { 
-        //     return m_OffscreenFramebuffer->renderPass(); 
-        // }
-
-        // void beginShadowSwapchainRenderPass(VkCommandBuffer cmdBuffer);
-
-        // VyRenderPass&        shadowMapRenderPass()     const { return m_Swapchain->shadowRenderPass();     }
-        // VkImageView          shadowMapDepthImageView() const { return m_Swapchain->shadowDepthImageView(); }
-        // VkSampler            shadowMapDepthSampler()   const { return m_Swapchain->shadowDepthSampler();   }
-        // const VyFramebuffer& shadowMapFrameBuffer()    const { return m_Swapchain->shadowMapFramebuffer(); }
-        // VkDescriptorImageInfo shadowMapDescriptorImageInfo() { return m_Swapchain->shadowDescriptorImageInfo(); }
-        // VkDescriptorImageInfo offscreenDescriptorImageInfo(int index) const;
-        // VkDescriptorImageInfo depthDescriptorImageInfo(int index) const;
-
-        // void beginOffscreenRenderPass(VkCommandBuffer cmdBuffer);
-        // void endOffscreenRenderPass(VkCommandBuffer cmdBuffer) const;
-        
-        // void generateOffscreenMipmaps(VkCommandBuffer cmdBuffer);
-        // void generateDepthPyramid(VkCommandBuffer cmdBuffer);
-        
-        // void beginRenderPass(const VyFramebuffer& frameBuffer, const VyRenderPass& renderPass) const;
-        
     private:
-        
-        // void createOffscreenResources();
-        // void createHZBPipeline();
 
         /**
          * @brief Creates the command buffers used for rendering.
@@ -349,9 +322,6 @@ namespace Vy
          */
         void recreateSwapchain();
 
-
-        
-
     private:
 
         VyWindow&                  m_Window;
@@ -360,23 +330,8 @@ namespace Vy
         Unique<VySwapchain>        m_Swapchain;
         TVector<VkCommandBuffer>   m_CommandBuffers;
 
-        // Unique<VyHZBFramebuffer>   m_OffscreenFramebuffer;
-
         U32                        m_CurrentImageIndex{ 0 }; // Index of the current swap chain image.
         int                        m_CurrentFrameIndex{ 0 }; // Index of the current frame.
         bool                       m_IsFrameStarted{ false };
-
-        //-----------------------------------------------------------------------------------------
-        // HZB (Hierarchical Z-Buffer) Generation Resources
-        // Unique<VyPipeline>                m_HZBPipeline;
-        
-        // Unique<VyDescriptorSetLayout>     m_HZBSetLayout;
-        
-        // Unique<VyDescriptorPool>          m_HZBDescriptorPool;
-
-        // // Sets for each frame and each mip transition. [Frame][Mip]
-        // TVector<TVector<VkDescriptorSet>> m_HZBDescriptorSets;
-
-        //-----------------------------------------------------------------------------------------
     };
 }

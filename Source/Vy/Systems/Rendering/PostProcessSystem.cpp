@@ -153,15 +153,7 @@ namespace Vy
             .build(m_HDRImages[i]);
 
 
-            VkFormat depthFormat = VyContext::device().findSupportedFormat(
-                { 
-                    VK_FORMAT_D32_SFLOAT, 
-                    VK_FORMAT_D32_SFLOAT_S8_UINT, 
-                    VK_FORMAT_D24_UNORM_S8_UINT
-                },
-                VK_IMAGE_TILING_OPTIMAL,
-                VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
-            );
+            VkFormat depthFormat = VyContext::device().findDepthFormat();
 
             // Create depth image
             m_HDRDepthImages[i] = VyImage::Builder{}
@@ -179,9 +171,9 @@ namespace Vy
             .build(m_HDRDepthImages[i]);
         }
 
-        // Create HDR sampler
+        // Create HDR sampler (Linear)
         m_HDRSampler = VySampler::Builder{}
-            .filters         (VK_FILTER_LINEAR) // linear
+            .filters         (VK_FILTER_LINEAR)
             .mipmapMode      (VK_SAMPLER_MIPMAP_MODE_LINEAR)
             .addressMode     (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
             .enableAnisotropy(false)
@@ -270,15 +262,10 @@ namespace Vy
 
                 // One sample per pixel (more samples used for multisampling).
                 depthAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
-                // Tells the depthbuffer attachment to clear each time it is loaded.
                 depthAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                // Contents within the depth buffer render area are not needed after rendering.
                 depthAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                // Previous contents within the stencil don't need to be preserved and will be undefined.
                 depthAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                // Contents within the stencil render area are not needed after rendering.
                 depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                // Inital image contents does not matter since we are clearing them on load.
                 depthAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
                 // Set so the layout after rendering allows read and write access as a depth/stencil attachment.
                 depthAttachment.finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -650,7 +637,7 @@ namespace Vy
         VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo()};
         {
             renderPassInfo.renderPass        = m_BloomRenderPass;
-            renderPassInfo.framebuffer       = m_BloomFramebuffers[0][frameIndex]; // Ping-pong buffer 0
+            renderPassInfo.framebuffer       = m_BloomFramebuffers[0][ frameIndex ]; // Ping-pong buffer 0
 
             renderPassInfo.renderArea.offset = { 0, 0 };
             renderPassInfo.renderArea.extent = { m_Extent.width / 2, m_Extent.height / 2 };
@@ -659,6 +646,7 @@ namespace Vy
             renderPassInfo.pClearValues      = &clearColor;
         }
 
+        // Dynamic Viewport and Scissor rect.
         VkViewport viewport{};
         {
             viewport.x        = 0.0f;
@@ -685,22 +673,24 @@ namespace Vy
 
                 m_BrightnessExtractPipeline->bind(cmdBuffer);
 
-                m_BrightnessExtractPipeline->bindDescriptorSet(cmdBuffer, 0, m_BrightnessExtractDescriptorSets[frameIndex]);
+                // Set 0 - Brightness Extract Descriptor Sets
+                m_BrightnessExtractPipeline->bindDescriptorSet(cmdBuffer, 0, m_BrightnessExtractDescriptorSets[ frameIndex ]);
                 
                 float threshold = settings.BloomThreshold;
 
                 m_BrightnessExtractPipeline->pushConstants(cmdBuffer, VK_SHADER_STAGE_FRAGMENT_BIT, &threshold, sizeof(float));
 
-                vkCmdDraw(cmdBuffer, 3, 1, 0, 0); // Full-screen triangle
+                // Full-screen triangle.
+                vkCmdDraw(cmdBuffer, 3, 1, 0, 0); 
             }
             vkCmdEndRenderPass(cmdBuffer);
-
+            
             // [ Blur passes ]
             for (int i = 0; i < settings.BloomIterations; i++) 
             {
                 // [ Horizontal Blur Pass ]
                 {
-                    renderPassInfo.framebuffer = m_BloomFramebuffers[1][frameIndex]; // Ping-pong buffer 1
+                    renderPassInfo.framebuffer = m_BloomFramebuffers[1][ frameIndex ]; // Ping-pong buffer 1
                     
                     vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
                     {
@@ -709,20 +699,22 @@ namespace Vy
 
                         m_BlurPipeline->bind(cmdBuffer);
 
-                        m_BlurPipeline->bindDescriptorSet(cmdBuffer, 0, m_BlurDescriptorSets[0][frameIndex]);
+                        // Set 0 - Blur Descriptor Set [0]
+                        m_BlurPipeline->bindDescriptorSet(cmdBuffer, 0, m_BlurDescriptorSets[0][ frameIndex ]);
 
                         Vec2 direction( 1.0f, 0.0f );
 
                         m_BlurPipeline->pushConstants(cmdBuffer, VK_SHADER_STAGE_FRAGMENT_BIT, &direction, sizeof(Vec2));
 
-                        vkCmdDraw(cmdBuffer, 3, 1, 0, 0); // Full-screen triangle
+                        // Full-screen triangle
+                        vkCmdDraw(cmdBuffer, 3, 1, 0, 0); 
                     }
                     vkCmdEndRenderPass(cmdBuffer);
                 }
 
                 // [ Vertical Blur Pass ]
                 {
-                    renderPassInfo.framebuffer = m_BloomFramebuffers[0][frameIndex]; // Ping-pong buffer 0
+                    renderPassInfo.framebuffer = m_BloomFramebuffers[0][ frameIndex ]; // Ping-pong buffer 0
                     
                     vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
                     {
@@ -731,19 +723,21 @@ namespace Vy
 
                         m_BlurPipeline->bind(cmdBuffer);
 
-                        m_BlurPipeline->bindDescriptorSet(cmdBuffer, 0, m_BlurDescriptorSets[1][frameIndex]);
+                        // Set 0 - Blur Descriptor Set [1]
+                        m_BlurPipeline->bindDescriptorSet(cmdBuffer, 0, m_BlurDescriptorSets[1][ frameIndex ]);
 
                         Vec2 direction( 0.0f, 1.0f );
 
                         m_BlurPipeline->pushConstants(cmdBuffer, VK_SHADER_STAGE_FRAGMENT_BIT, &direction, sizeof(Vec2));
 
-                        vkCmdDraw(cmdBuffer, 3, 1, 0, 0); // Full-screen triangle
+                        // Full-screen triangle
+                        vkCmdDraw(cmdBuffer, 3, 1, 0, 0); 
                     }
                     vkCmdEndRenderPass(cmdBuffer);
                 }
             }
         } 
-        else 
+        else // Bloom disabled
         {
             // Clear bloom buffer to black and transition to correct layout.
             vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -769,19 +763,20 @@ namespace Vy
             m_PostProcessPipeline = VyPipeline::GraphicsBuilder{}
                 .addShaderStage         (VK_SHADER_STAGE_VERTEX_BIT,   "PostProcess/PostProcess.vert.spv")
                 .addShaderStage         (VK_SHADER_STAGE_FRAGMENT_BIT, "PostProcess/PostProcess.frag.spv")
-                .setDepthTest           (false, false)     // Disable Depth testing and writing.
-                .setCullMode            (VK_CULL_MODE_NONE) // Disable culling for fullscreen triangle.
+                .setDepthTest           (false, false)       // Disable Depth testing and writing.
+                .setCullMode            (VK_CULL_MODE_NONE)  // Disable culling for fullscreen triangle.
                 .addColorAttachment     (VK_FORMAT_R16G16B16A16_SFLOAT)
                 .setDepthAttachment     (VK_FORMAT_D32_SFLOAT)
                 .clearVertexDescriptions() // Clear default vertex bindings and attributes.
-                .setRenderPass          (swapchainRenderPass)
+                .setRenderPass          (swapchainRenderPass) // Assign swapchain renderpass.
             .buildUnique(tempLayoutCopy);
         }
 
-        // Bind pipeline and render full-screen quad.
+        // Bind pipeline.
         m_PostProcessPipeline->bind(cmdBuffer);
 
-        m_PostProcessPipeline->bindDescriptorSet(cmdBuffer, 0, m_PostProcessDescriptorSets[frameIndex]);
+        // Set 0 - Post Processing Descriptor Sets
+        m_PostProcessPipeline->bindDescriptorSet(cmdBuffer, 0, m_PostProcessDescriptorSets[ frameIndex ]);
 
         PostProcessPushConstantData push{};
         {
@@ -794,9 +789,14 @@ namespace Vy
             push.Vibrance       = settings.Vibrance;
         }
 
-        m_PostProcessPipeline->pushConstants(cmdBuffer, VK_SHADER_STAGE_FRAGMENT_BIT, &push, sizeof(PostProcessPushConstantData));
+        m_PostProcessPipeline->pushConstants(cmdBuffer, 
+            VK_SHADER_STAGE_FRAGMENT_BIT, 
+            &push, 
+            sizeof(PostProcessPushConstantData)
+        );
 
-        vkCmdDraw(cmdBuffer, 3, 1, 0, 0); // Full-screen triangle
+        // Full-screen triangle.
+        vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
     }
 
 #pragma endregion Rendering

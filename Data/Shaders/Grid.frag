@@ -8,20 +8,30 @@ struct PointLight
     vec4 Color;    // w is intensity
 };
 
+// struct CameraData
+// {
+//     mat4 Projection;
+//     mat4 View;
+//     mat4 InverseView;
+// };
+
 // ================================================================================================
 // Uniforms
 
-layout(set = 0, binding = 0) uniform GlobalUBO 
-{
-    mat4       Projection;
-    mat4       View;
-    mat4       InverseView;
-    
-    vec4       AmbientLightColor; // w is intensity
-    PointLight PointLights[10];
-    int        NumPointLights;
+// layout(set = 0, binding = 0) uniform GlobalUBO 
+// {
+//     CameraData       Camera;
 
-} uUbo;
+//     // vec4             AmbientLightColor; // rgb = color, a = intensity
+
+//     // PointLight       PointLights      [ MAX_POINT_LIGHTS  ];
+//     // DirectionalLight DirectionalLights[ MAX_DIRECT_LIGHTS ];
+//     // SpotLight        SpotLights       [ MAX_SPOT_LIGHTS   ];
+//     // int              NumPointLights;
+//     // int              NumDirectionalLights;
+//     // int              NumSpotLights;
+
+// } uUbo;
 
 // ================================================================================================
 
@@ -44,8 +54,6 @@ const float NEAR_PLANE     =  0.01f;
 const float FAR_FLANE      =  10.0f;
 
 // ================================================================================================
-
-
 
 
 // Grid generation.
@@ -119,7 +127,7 @@ void main()
     float linearDepth = computeLinearDepth(fragPos3D);
     float fading      = max(0.0f, (FADE_LIMIT - linearDepth));
 
-    // Adding multiple resolutions for the grid
+    // Adding multiple resolutions for the grid.
     outColor    = (grid(fragPos3D, GRID_SCALE) + grid(fragPos3D, 1.0f)) * float(t > 0.0f);
     outColor.a *= fading;
 }

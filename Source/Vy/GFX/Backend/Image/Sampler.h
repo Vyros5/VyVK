@@ -10,6 +10,7 @@ namespace Vy
 
 		U32                  MipLevels			     = 1;
 
+		String               DebugName               = "";
 		VkFilter             MagFilter               = VK_FILTER_LINEAR;
 		VkFilter             MinFilter               = VK_FILTER_LINEAR;
 		VkSamplerMipmapMode  MipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR;
@@ -33,6 +34,12 @@ namespace Vy
 
 		public:
 			Builder() = default;
+
+			Builder& name(String strName)
+			{
+				m_Info.DebugName = strName; 
+				return *this;
+			}
 
 			Builder& mipLevels(U32 levels)
 			{
@@ -144,6 +151,8 @@ namespace Vy
 		VY_NODISCARD VkSampler handle() const { return m_Sampler; }
 
 		VY_NODISCARD VySamplerCreateInfo createInfo() const { return m_Info; }
+
+		void setName(const String& name) const;
 	
 	private:
 		void destroy();

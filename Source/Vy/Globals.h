@@ -19,12 +19,6 @@
 #define MODELS_DIR ASSETS_DIR  "Models/"
 #define CUBEMAP_DIR ASSETS_DIR "Cubemap/"
 
-#define MAX_MODEL_COUNT 250
-#define MAX_TEXTURE_COUNT 250
-#define MAX_BONES 100
-#define MAX_BONE_INFLUENCE 4
-#define INVALID_MODEL_INDEX 9999
-#define INVALID_TEXTURE_INDEX 9999
 
 namespace Vy
 { // C:\dev\Engine\Vy\Source\Vy\Core\Globals.h

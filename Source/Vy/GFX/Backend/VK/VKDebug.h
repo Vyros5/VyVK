@@ -4,6 +4,56 @@
 
 namespace Vy
 {
+	// https://github.com/brammie15/Vovy/blob/master/src/Utils/DebugLabel.cpp
+	// https://github.com/brammie15/Vovy/blob/master/src/Utils/DebugLabel.h
+
+	class VyDebugLabel 
+	{
+	public:
+		static void init();
+
+		static bool isAvailable();
+
+		class ScopedCmdLabel 
+		{
+		public:
+			ScopedCmdLabel(VkCommandBuffer cmdBuffer, const String& name, const Vec4& color = Vec4(1.0f, 1.0f, 1.0f, 1.0f));
+
+			~ScopedCmdLabel();
+
+			ScopedCmdLabel(const ScopedCmdLabel&)            = delete;
+			ScopedCmdLabel& operator=(const ScopedCmdLabel&) = delete;
+
+
+		private:
+			VkCommandBuffer m_CmdBuffer;
+		};
+
+		static void beginCmdLabel(VkCommandBuffer cmdBuffer, const String& name, Vec4 color);
+
+		static void endCmdLabel(VkCommandBuffer cmdBuffer);
+
+		static void setObjectName(U64 objectHandle, VkObjectType objectType, const String& name);
+
+		static void nameBuffer(VkBuffer buffer, const String& name);
+
+		static void nameImage(VkImage image, const String& name);
+
+		static void nameCommandBuffer(VkCommandBuffer cmdBuffer, const String& name);
+
+		static void nameAllocation(VmaAllocation allocation, const String& name);
+
+	private:
+		static inline PFN_vkCmdBeginDebugUtilsLabelEXT vkCmdBeginDebugUtilsLabelEXT = nullptr;
+		static inline PFN_vkCmdEndDebugUtilsLabelEXT   vkCmdEndDebugUtilsLabelEXT = nullptr;
+		static inline PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT = nullptr;
+		// static inline std::once_flag                   initFlag;
+	};
+}
+
+
+namespace Vy
+{
 	struct InstanceDebugUtils
 	{
 		VkDebugUtilsMessengerEXT            debugUtilsMessenger{ VK_NULL_HANDLE };

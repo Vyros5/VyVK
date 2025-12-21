@@ -1,6 +1,8 @@
 #pragma once
 
 #include <Vy/GFX/Backend/VK/VKCore.h>
+#include <Vy/GFX/Backend/VK/VKDebug.h>
+
 #include <Vy/Core/Window.h>
 
 namespace Vy
@@ -544,7 +546,7 @@ namespace Vy
         void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo);
 
 
-		VkSampleCountFlagBits getMaxSampleCount();
+		VkSampleCountFlagBits getMaxUsableSampleCount();
 
 
 		void recordCopyBuffer(

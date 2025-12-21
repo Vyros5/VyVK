@@ -40,22 +40,6 @@ namespace Vy
     }
 
 
-    // void VyLightSystem::createPipeline(VkRenderPass& renderPass, TVector<VkDescriptorSetLayout> descSetLayouts)
-    // {
-    //     m_Pipeline = VyPipeline::GraphicsBuilder{}
-    //         .addDescriptorSetLayouts(descSetLayouts)
-    //         .addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(PointLightPushConstantData))
-    //         .addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   "PointLight.vert.spv")
-    //         .addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, "PointLight.frag.spv")
-    //         .addColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT, true)
-    //         .setDepthAttachment(VK_FORMAT_D32_SFLOAT)
-    //         .setDepthTest(true, false)
-    //         .setRenderPass(renderPass)
-	// 		.clearVertexDescriptions() // Clear default vertex bindings and attributes.
-    //     .buildUnique();
-    // }
-
-
     void VyLightSystem::update(VyFrameInfo& frameInfo, GlobalUBO& ubo) 
     {
         ubo.NumPointLights       = 0;
@@ -67,13 +51,13 @@ namespace Vy
         auto& registry = frameInfo.Scene->registry();
         
         // ----------------------------------------------------------------------------------------
+        // [ Process Point Lights ]
 
-        // [ Process point lights ]
         auto pointView = registry.view<PointLightComponent, TransformComponent>();
 
         for (auto&& [ entity, pointLight, transform ] : pointView.each())
         {
-            VY_ASSERT(ubo.NumPointLights < MAX_LIGHTS, "Exceeded maximum point light count!");
+            VY_ASSERT(ubo.NumPointLights < MAX_POINT_LIGHTS, "Exceeded maximum point light count!");
 
             // Update light Position. (Temporary)
             transform.Translation = Vec3(rotateLight * Vec4(transform.Translation, 1.0f));
@@ -89,13 +73,13 @@ namespace Vy
         }
         
         // ----------------------------------------------------------------------------------------
+        // [ Process Directional Lights ]
 
-        // [ Process directional lights ]
         auto dirView = registry.view<DirectionalLightComponent, TransformComponent>();
 
         for (auto&& [ entity, dirLight, transform ] : dirView.each())
         {
-            VY_ASSERT(ubo.NumDirectionalLights < MAX_LIGHTS, "Exceeded maximum directional light count!");
+            VY_ASSERT(ubo.NumDirectionalLights < MAX_DIRECT_LIGHTS, "Exceeded maximum directional light count!");
 
             // Update rotation to look at target if enabled.
             if (dirLight.UseTargetPoint)
@@ -116,13 +100,13 @@ namespace Vy
         }
 
         // ----------------------------------------------------------------------------------------
+        // [ Process Spot Lights ]
 
-        // [ Process spot lights ]
         auto spotView = registry.view<SpotLightComponent, TransformComponent>();
 
         for (auto&& [ entity, spotLight, transform ] : spotView.each())
         {
-            VY_ASSERT(ubo.NumSpotLights < MAX_LIGHTS, "Exceeded maximum spot light count!");
+            VY_ASSERT(ubo.NumSpotLights < MAX_SPOT_LIGHTS, "Exceeded maximum spot light count!");
 
             // Update rotation to look at target if enabled.
             if (spotLight.UseTargetPoint)
@@ -134,13 +118,11 @@ namespace Vy
 
             // Copy light to UBO.
             {
-                ubo.SpotLights[ubo.NumSpotLights].Position       = Vec4(transform.Translation, 1.0f);
-                ubo.SpotLights[ubo.NumSpotLights].Direction      = Vec4(glm::normalize(direction), glm::cos(glm::radians(spotLight.InnerCutoffAngle)));
-                ubo.SpotLights[ubo.NumSpotLights].Color          = Vec4(spotLight.Color, spotLight.Intensity);
-                ubo.SpotLights[ubo.NumSpotLights].OuterCutoff    = glm::cos(glm::radians(spotLight.OuterCutoffAngle));
-                ubo.SpotLights[ubo.NumSpotLights].ConstantAtten  = spotLight.ConstantAttenuation;
-                ubo.SpotLights[ubo.NumSpotLights].LinearAtten    = spotLight.LinearAttenuation;
-                ubo.SpotLights[ubo.NumSpotLights].QuadraticAtten = spotLight.QuadraticAttenuation;
+                ubo.SpotLights[ubo.NumSpotLights].Position    = Vec4(transform.Translation, 1.0f);
+                ubo.SpotLights[ubo.NumSpotLights].Direction   = Vec4(glm::normalize(direction), glm::cos(glm::radians(spotLight.InnerCutoffAngle)));
+                ubo.SpotLights[ubo.NumSpotLights].Color       = Vec4(spotLight.Color, spotLight.Intensity);
+                ubo.SpotLights[ubo.NumSpotLights].OuterCutoff = glm::cos(glm::radians(spotLight.OuterCutoffAngle));
+                ubo.SpotLights[ubo.NumSpotLights].InnerCutoff = glm::cos(glm::radians(spotLight.InnerCutoffAngle));
             }
 
             // Increment Spot Lights

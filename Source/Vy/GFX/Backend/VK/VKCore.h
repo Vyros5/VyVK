@@ -976,6 +976,22 @@ namespace Vy
             return ret;
         }
 
+        inline VkRenderingInfoKHR renderingInfoKHR()
+        {
+            VkRenderingInfoKHR ret{};
+            ret.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+
+            return ret;
+        }
+
+        inline VkRenderingAttachmentInfoKHR renderingAttachmentInfoKHR()
+        {
+            VkRenderingAttachmentInfoKHR ret{};
+            ret.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+
+            return ret;
+        }
+
         inline VkDescriptorSetLayoutBindingFlagsCreateInfo descriptorSetLayoutBindingFlagsCreateInfo()
         {
             VkDescriptorSetLayoutBindingFlagsCreateInfo ret{};

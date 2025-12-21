@@ -136,10 +136,21 @@ namespace Vy
         }
 
 		VyContext::device().createImage(m_Image, m_Allocation, m_CreateInfo, allocInfo);
+
+		if (desc.DebugName != "")
+		{
+			setName(desc.DebugName);
+		}
 	}
 
 
-	void VyImage::copyFrom(VkCommandBuffer cmdBuffer, const VyBuffer& srcBuffer)
+	void VyImage::setName(const String& name) const
+	{
+		VyDebugLabel::setObjectName(reinterpret_cast<U64>(m_Image), VK_OBJECT_TYPE_IMAGE, name.c_str());
+	}
+
+
+	void VyImage::copyFrom(VkCommandBuffer cmdBuffer, const VyBuffer& srcBuffer, bool toShaderReadOnly)
 	{
         // Transition image layout to be optimal for receiving data.
 		VKCmd::transitionImageLayout(
@@ -161,43 +172,8 @@ namespace Vy
 			m_LayerCount
 		);
 		
-        // Transition image layout again to be optimal for shader read access.
-		VKCmd::transitionImageLayout(
-			cmdBuffer, 
-			m_Image, 
-			m_Format, 
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 
-			m_MipLevels, 
-			m_LayerCount
-		);
-	}
-
-
-	void VyImage::copyFrom(const VyBuffer& srcBuffer)
-	{
-		VkCommandBuffer cmdBuffer = VyContext::device().beginSingleTimeCommands();
+		if (toShaderReadOnly)
 		{
-			// Transition image layout to be optimal for receiving data.
-			VKCmd::transitionImageLayout(
-				cmdBuffer, 
-				m_Image, 
-				m_Format, 
-				m_Layout, 
-				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
-				m_MipLevels, 
-				m_LayerCount
-			);
-			
-			// Copy the contents of the image (from the buffer) to the vkImage.
-			VKCmd::copyBufferToImage(
-				cmdBuffer, 
-				srcBuffer.handle(), 
-				m_Image, 
-				m_Extent, 
-				m_LayerCount
-			);
-			
 			// Transition image layout again to be optimal for shader read access.
 			VKCmd::transitionImageLayout(
 				cmdBuffer, 
@@ -208,6 +184,15 @@ namespace Vy
 				m_MipLevels, 
 				m_LayerCount
 			);
+		}
+	}
+
+
+	void VyImage::copyFrom(const VyBuffer& srcBuffer, bool toShaderReadOnly)
+	{
+		VkCommandBuffer cmdBuffer = VyContext::device().beginSingleTimeCommands();
+		{
+			copyFrom(cmdBuffer, srcBuffer, toShaderReadOnly);
 		}
 		VyContext::device().endSingleTimeCommands(cmdBuffer);
 	}
@@ -251,6 +236,15 @@ namespace Vy
 
 	void VyImage::generateMipmaps(VkCommandBuffer cmdBuffer, VkImageLayout finalLayout)
 	{
+		// Check if image format supports linear blitting.
+		VkFormatProperties formatProperties;
+		vkGetPhysicalDeviceFormatProperties(VyContext::physicalDevice(), m_Format, &formatProperties);
+
+		if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
+		{
+			VY_THROW_RUNTIME_ERROR("Image format does not support linear blitting!");
+		}
+
         // Transition the base level to be optimal for transfer destination.
 		transitionLayout(cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -361,6 +355,16 @@ namespace Vy
 		);
 
 		m_Layout = finalLayout;
+	}
+
+
+	void VyImage::generateMipmaps(VkImageLayout finalLayout)
+	{
+		VkCommandBuffer cmdBuffer = VyContext::device().beginSingleTimeCommands();
+		{
+			generateMipmaps(cmdBuffer, finalLayout);
+		}
+		VyContext::device().endSingleTimeCommands(cmdBuffer);
 	}
 
 	

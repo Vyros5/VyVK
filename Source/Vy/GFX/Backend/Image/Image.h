@@ -7,7 +7,7 @@ namespace Vy
 {
 	struct VyImageCreateInfo
 	{
-		// CString                  DebugName     = nullptr;
+		String                   DebugName     = "";
 		VkImageType              ImageType     = VK_IMAGE_TYPE_2D;
 		VkFormat                 Format        = VK_FORMAT_R8G8B8A8_SRGB;
 		VkExtent3D               Extent 	   = { 1, 1, 1 };
@@ -37,11 +37,11 @@ namespace Vy
 		public:
 			Builder() = default;
 
-			// Builder& debugName(CString name)
-			// {
-			// 	m_Info.DebugName = name; 
-			// 	return *this;
-			// }
+			Builder& name(String strName)
+			{
+				m_Info.DebugName = strName; 
+				return *this;
+			}
 			
 			Builder& width(U32 width)
 			{
@@ -52,12 +52,6 @@ namespace Vy
 			Builder& height(U32 height)
 			{
 				m_Info.Extent.height = height; 
-				return *this; 
-			}
-			
-			Builder& depth(U32 depth)
-			{
-				m_Info.Extent.depth = depth; 
 				return *this; 
 			}
 
@@ -74,6 +68,18 @@ namespace Vy
 		        m_Info.Extent = exent;
 		        return *this;
 		    }
+
+		    Builder& extent(U32 width, U32 height, U32 depth = 1)
+		    {
+		        m_Info.Extent = VkExtent3D{ width, height, depth };
+		        return *this;
+		    }
+
+			Builder& depth(U32 depth)
+			{
+				m_Info.Extent.depth = depth; 
+				return *this; 
+			}
 
 		    Builder& format(VkFormat format)
 			{
@@ -208,8 +214,8 @@ namespace Vy
 
 		void create(const VyImageCreateInfo& desc);
 
-		void copyFrom(VkCommandBuffer cmdBuffer, const VyBuffer& srcBuffer);
-		void copyFrom(const VyBuffer& srcBuffer);
+		void copyFrom(VkCommandBuffer cmdBuffer, const VyBuffer& srcBuffer, bool toShaderReadOnly = true);
+		void copyFrom(const VyBuffer& srcBuffer, bool toShaderReadOnly = true);
 
 		// void resize(VkExtent3D extent, VkImageUsageFlags usage);
 
@@ -217,6 +223,10 @@ namespace Vy
 		void transitionLayout(VkCommandBuffer cmdBuffer, VkImageLayout newLayout);
 		
 		void generateMipmaps(VkCommandBuffer cmdBuffer, VkImageLayout finalLayout);
+		void generateMipmaps(VkImageLayout finalLayout);
+
+		void setName(const String& name) const;
+
 	private:
 
 		void destroy();

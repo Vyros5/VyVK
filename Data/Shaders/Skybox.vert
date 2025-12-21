@@ -2,24 +2,20 @@
 
 // ================================================================================================
 
-struct PointLight
+struct CameraData
 {
-    vec4 Position;  // ignore w
-    vec4 Color;     // w is intensity
+    mat4 Projection;
+    mat4 View;
+    mat4 InverseView;
 };
+
 
 // ================================================================================================
 // Uniforms
 
 layout(set = 0, binding = 0) uniform GlobalUBO 
 {
-    mat4       Projection;
-    mat4       View;
-    mat4       InverseView;
-
-    vec4       AmbientLightColor; // w is intensity
-    PointLight PointLights[10];
-    int        NumPointLights;
+    CameraData       Camera;
 
 } uUbo;
 
@@ -104,10 +100,10 @@ void main()
 
     // Remove translation from the view matrix for the skybox
     // This makes the skybox appear infinitely far away and fixed
-    mat4 rotView = mat4(mat3(uUbo.View));
+    mat4 rotView = mat4(mat3(uUbo.Camera.View));
     
     // Calculate the clip-space position.
-    gl_Position = uUbo.Projection * rotView * vec4(pos, 1.0);
+    gl_Position = uUbo.Camera.Projection * rotView * vec4(pos, 1.0);
 
     // Set z-component to w for max depth (ensures it's drawn behind everything).
     gl_Position.z = gl_Position.w;

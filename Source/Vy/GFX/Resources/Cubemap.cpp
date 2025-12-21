@@ -16,7 +16,6 @@ namespace Vy
     VySkybox::VySkybox(const TArray<String, 6>& paths)
     {
         loadTextures(paths);
-
     }
 
 
@@ -24,7 +23,7 @@ namespace Vy
     {
         m_SkyboxDescriptorSetLayout = VyDescriptorSetLayout::Builder()
             .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-            .buildUnique();
+        .buildUnique();
 
         VyContext::allocateSet(m_SkyboxDescriptorSetLayout->handle(), m_SkyboxDescriptorSet);
 
@@ -33,7 +32,7 @@ namespace Vy
 
         VyDescriptorWriter{ *m_SkyboxDescriptorSetLayout, *VyContext::globalPool() }
             .writeImage(0, &skyboxImageInfo)
-            .update(m_SkyboxDescriptorSet);
+        .update(m_SkyboxDescriptorSet);
     }
 
 
@@ -136,7 +135,7 @@ namespace Vy
         for (int i = 0; i < 6; ++i) 
 		{
             // Write each layer into the buffer.
-            stagingBuffer.write(pixels[i], layerSize, currentOffset);
+            stagingBuffer.writeToBuffer(pixels[i], layerSize, currentOffset);
 
 			// Free CPU-side image data.
             stbi_image_free(pixels[i]);
@@ -154,7 +153,6 @@ namespace Vy
             m_Cubemap->image(),
             format,
             m_Cubemap->image().layout(),
-            // VK_IMAGE_LAYOUT_UNDEFINED,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             0,
             6
@@ -171,7 +169,6 @@ namespace Vy
         VyContext::device().transitionImageLayout(
             m_Cubemap->image(),
             format,
-            // m_Cubemap->image().layout(),
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             0,

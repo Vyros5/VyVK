@@ -1,50 +1,87 @@
 #pragma once
 
-#include <VyLib/Common/Numeric.h>
-#include <VyLib/Common/Math.h>
-#include <VyLib/Common/VyUUID.h>
+#include <VyLib/Core/Assert.h>
+#include <VyLib/Core/Defines.h>
+#include <VyLib/Core/VyLogger.h>
+#include <VyLib/Core/Exceptions.h>
+#include <VyLib/Core/Numeric.h>
+#include <VyLib/Core/Math.h>
+
+#include <VyLib/Common/UUID.h>
 
 #include <VyLib/STL/String.h>
 #include <VyLib/STL/Utility.h>
 #include <VyLib/STL/Pointers.h>
 #include <VyLib/STL/Containers.h>
 
-#include <VyLib/STL/Ref/Ref.h>
+namespace Vy
+{
+#define VY_NON_COPYABLE(class_name)                      \
+	class_name(const class_name&)              = delete; \
+	class_name& operator = (const class_name&) = delete; 
 
-#include <VyLib/Core/Assert.h>
-#include <VyLib/Core/Defines.h>
-#include <VyLib/Core/VyLogger.h>
-#include <VyLib/Core/Exceptions.h>
+#define VY_NON_MOVEABLE(class_name)                      \
+	class_name(class_name&&)                   = delete; \
+	class_name& operator = (class_name&&)      = delete;
+
+}
 
 namespace Vy
 {
-    class NonCopyable 
-    {
-    protected:
-        // Protected default constructor and destructor
-        // Allows instantiation by derived classes, but not directly
-        NonCopyable() = default;
 
-        ~NonCopyable() = default;
+// Utility to enable bitmask operators on enum classes.
+// To use define an enum class with valid bitmask values and an underlying type
+// then use the macro to enable support:
+//  enum class MyBitmask : U32 {
+//    kFoo = 1 << 0,
+//    kBar = 1 << 1,
+//  };
+//  VY_BITMASK(MyBitmask);
+//  MyBitmask value = ~(MyBitmask::kFoo | MyBitmask::kBar);
 
-        // Deleted copy constructor and copy assignment operator
-        NonCopyable(const NonCopyable &) = delete;
+#define VY_ENUM_BITMASK(ENUM_CLASS)                                                                     \
+	inline ENUM_CLASS operator|(ENUM_CLASS lhs, ENUM_CLASS rhs)                                    \
+	{                                                                                              \
+		typedef typename std::underlying_type<ENUM_CLASS>::type enum_type;                         \
+		return static_cast<ENUM_CLASS>(static_cast<enum_type>(lhs) | static_cast<enum_type>(rhs));   \
+	}                                                                                              \
+	inline ENUM_CLASS& operator|=(ENUM_CLASS& lhs, ENUM_CLASS rhs)                                 \
+	{                                                                                              \
+		typedef typename std::underlying_type<ENUM_CLASS>::type enum_type;                         \
+		lhs = static_cast<ENUM_CLASS>(static_cast<enum_type>(lhs) | static_cast<enum_type>(rhs));  \
+		return lhs;                                                                                \
+	}                                                                                              \
+	inline ENUM_CLASS operator&(ENUM_CLASS lhs, ENUM_CLASS rhs)                                    \
+	{                                                                                              \
+		typedef typename std::underlying_type<ENUM_CLASS>::type enum_type;                         \
+		return static_cast<ENUM_CLASS>(static_cast<enum_type>(lhs) & static_cast<enum_type>(rhs)); \
+	}                                                                                              \
+	inline ENUM_CLASS& operator&=(ENUM_CLASS& lhs, ENUM_CLASS rhs)                                 \
+	{                                                                                              \
+		typedef typename std::underlying_type<ENUM_CLASS>::type enum_type;                         \
+		lhs = static_cast<ENUM_CLASS>(static_cast<enum_type>(lhs) & static_cast<enum_type>(rhs));  \
+		return lhs;                                                                                \
+	}                                                                                              \
+	inline ENUM_CLASS operator^(ENUM_CLASS lhs, ENUM_CLASS rhs)                                    \
+	{                                                                                              \
+		typedef typename std::underlying_type<ENUM_CLASS>::type enum_type;                         \
+		return static_cast<ENUM_CLASS>(static_cast<enum_type>(lhs) ^ static_cast<enum_type>(rhs)); \
+	}                                                                                              \
+	inline ENUM_CLASS& operator^=(ENUM_CLASS& lhs, ENUM_CLASS rhs)                                 \
+	{                                                                                              \
+		typedef typename std::underlying_type<ENUM_CLASS>::type enum_type;                         \
+		lhs = static_cast<ENUM_CLASS>(static_cast<enum_type>(lhs) ^ static_cast<enum_type>(rhs));  \
+		return lhs;                                                                                \
+	}                                                                                              \
+	inline ENUM_CLASS operator~(ENUM_CLASS lhs)                                                    \
+	{                                                                                              \
+		typedef typename std::underlying_type<ENUM_CLASS>::type enum_type;                         \
+		return static_cast<ENUM_CLASS>(~static_cast<enum_type>(lhs));                              \
+	}                                                                                              \
+	inline bool any(ENUM_CLASS lhs)                                                                \
+	{                                                                                              \
+		typedef typename std::underlying_type<ENUM_CLASS>::type enum_type;                         \
+		return static_cast<enum_type>(lhs) != 0;                                                   \
+	}                                                                                              
 
-        NonCopyable &operator=(const NonCopyable &) = delete;
-    };
-
-
-#ifdef __cplusplus
-#	define VY_ENUM_CLASS_FLAG(VALUE_TYPE, ENUM_TYPE)																	   \
-	constexpr ENUM_TYPE  operator| (ENUM_TYPE a,  VALUE_TYPE b) { return (ENUM_TYPE)((VALUE_TYPE)(a) | b); }  \
-	constexpr ENUM_TYPE  operator| (ENUM_TYPE a,  ENUM_TYPE  b) { return (ENUM_TYPE)((VALUE_TYPE)(a) | (VALUE_TYPE)(b)); }  \
-	constexpr ENUM_TYPE  operator& (ENUM_TYPE a,  VALUE_TYPE b) { return (ENUM_TYPE)((VALUE_TYPE)(a) & b); }  \
-	constexpr ENUM_TYPE  operator& (ENUM_TYPE a,  ENUM_TYPE  b) { return (ENUM_TYPE)((VALUE_TYPE)(a) & (VALUE_TYPE)(b)); }  \
-	constexpr ENUM_TYPE& operator|=(ENUM_TYPE& a, VALUE_TYPE b) { a = (ENUM_TYPE)((VALUE_TYPE)(a) | b); return a; }  \
-	constexpr ENUM_TYPE& operator|=(ENUM_TYPE& a, ENUM_TYPE  b) { a = (ENUM_TYPE)((VALUE_TYPE)(a) | (VALUE_TYPE)(b)); return a; }   \
-	constexpr ENUM_TYPE& operator&=(ENUM_TYPE& a, VALUE_TYPE b) { a = (ENUM_TYPE)((VALUE_TYPE)(a) & b); return a; }  \
-	constexpr ENUM_TYPE& operator&=(ENUM_TYPE& a, ENUM_TYPE  b) { a = (ENUM_TYPE)((VALUE_TYPE)(a) & (VALUE_TYPE)(b)); return a; } 
-#endif
-
-#define VY_HAS_ENUM_FLAG(VALUE, FLAG) static_cast<bool>((VALUE) & (FLAG))
 }

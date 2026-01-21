@@ -1,6 +1,6 @@
 #pragma once
 
-#include <VyLib/Common/Numeric.h>
+#include <VyLib/Core/Numeric.h>
 #include <VyLib/Core/Defines.h>
 
 #include <array>
@@ -140,7 +140,9 @@ namespace Vy
 
     // --------------------------------------------------------------------------------------------
 
-    using TBlob = TVector<U8>;
+    using TBlob      = TVector<U8>;
+    using TCharBlob  = TVector<char>;
+    using TUCharBlob = TVector<unsigned char>;
 
     //-------------------------------------------------------------------------
     // Simple utility functions to improve syntactic usage of container types

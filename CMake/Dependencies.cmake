@@ -32,15 +32,20 @@ add_subdirectory(Extern/tinygltf)
 find_package(glm CONFIG REQUIRED)
 find_package(tinyobjloader CONFIG REQUIRED)
 # find_package(tinygltf CONFIG REQUIRED)
-
+# find_package(unofficial-spirv-reflect CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 find_package(Stb REQUIRED)
+find_package(KTX CONFIG REQUIRED)
+find_package(mikktspace CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 find_package(cpptrace CONFIG REQUIRED)
 find_package(efsw CONFIG REQUIRED)
 find_package(JsonCpp CONFIG REQUIRED)
 find_package(meshoptimizer CONFIG REQUIRED)
+
+find_package(spirv_cross_core CONFIG REQUIRED)
+find_package(spirv_cross_glsl CONFIG REQUIRED)
 
 # ========================================================================

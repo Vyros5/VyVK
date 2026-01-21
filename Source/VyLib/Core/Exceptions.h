@@ -2,7 +2,7 @@
 
 #include <VyLib/Core/Assert.h>
 #include <VyLib/Core/Defines.h>
-#include <VyLib/Common/Numeric.h>
+#include <VyLib/Core/Numeric.h>
 
 #include <exception>
 
@@ -43,6 +43,6 @@ namespace Vy
         
     private:
         // Store the exception message
-        String m_Message;
+        TString m_Message;
     };
 }

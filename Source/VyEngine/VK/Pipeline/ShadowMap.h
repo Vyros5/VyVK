@@ -1,0 +1,163 @@
+#pragma once
+
+#include <VyEngine/VK/Device/Device.h>
+
+#include <VyEngine/VK/Image/Image.h>
+#include <VyEngine/VK/Image/ImageView.h>
+#include <VyEngine/VK/Image/Sampler.h>
+
+namespace Vy
+{
+    /**
+     * @brief Shadow map for depth-only rendering from light's perspective
+     *
+     * Creates a depth-only framebuffer and render pass for shadow mapping.
+     * Supports directional, point, and spot lights.
+     */
+    class VyShadowMap
+    {
+    public:
+        VyShadowMap(U32 width = 2048, U32 height = 2048);
+        ~VyShadowMap();
+
+        VyShadowMap(const VyShadowMap&)            = delete;
+        VyShadowMap& operator=(const VyShadowMap&) = delete;
+
+        VkRenderPass  renderPass()  const { return m_RenderPass; }
+        VkFramebuffer framebuffer() const { return m_Framebuffer; }
+        VkImageView   imageView()   const { return m_DepthImageView.handle(); }
+        VkSampler     sampler()     const { return m_Sampler.handle(); }
+
+        U32 width()  const { return m_Width;  }
+        U32 height() const { return m_Height; }
+
+        VkDescriptorImageInfo descriptorImageInfo() const
+        {
+            return VkDescriptorImageInfo{
+                .sampler     = m_Sampler       .handle(),
+                .imageView   = m_DepthImageView.handle(),
+                .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+            };
+        }
+
+        /**
+         * @brief Begin shadow map render pass
+         */
+        void beginRenderPass(VkCommandBuffer cmdBuffer);
+
+        /**
+         * @brief End shadow map render pass
+         */
+        void endRenderPass(VkCommandBuffer cmdBuffer);
+
+    private:
+        void createDepthResources();
+        void createRenderPass();
+        void createFramebuffer();
+        void createSampler();
+
+        U32 m_Width;
+        U32 m_Height;
+
+        VyImage        m_DepthImage;
+        VyImageView    m_DepthImageView;
+        VySampler      m_Sampler;
+        VkRenderPass   m_RenderPass  = VK_NULL_HANDLE;
+        VkFramebuffer  m_Framebuffer = VK_NULL_HANDLE;
+        VkFormat       m_DepthFormat = VK_FORMAT_D32_SFLOAT;
+    };
+}
+
+
+namespace Vy
+{
+    /**
+     * @brief Cube shadow map for omnidirectional point light shadows
+     *
+     * Creates a depth cube map (6 faces) for point light shadow mapping.
+     * Each face captures depth from the light's position in one direction.
+     */
+    class VyCubeShadowMap
+    {
+    public:
+        VyCubeShadowMap(U32 size = 1024);
+        ~VyCubeShadowMap();
+
+        VyCubeShadowMap(const VyCubeShadowMap&)            = delete;
+        VyCubeShadowMap& operator=(const VyCubeShadowMap&) = delete;
+
+        VkRenderPass renderPass()    const { return m_RenderPass; }
+        VkImageView  cubeImageView() const { return m_CubeImageView.handle(); }
+        VkSampler    sampler()       const { return m_Sampler.handle(); }
+        U32          size()          const { return m_Size; }
+
+        /**
+         * @brief Get framebuffer for a specific cube face
+         * @param face Face index (0-5: +X, -X, +Y, -Y, +Z, -Z)
+         */
+        VkFramebuffer framebuffer(int face) const { return m_Framebuffers[ face ]; }
+
+        /**
+         * @brief Get view matrix for a specific cube face
+         * @param lightPos Position of the point light
+         * @param face Face index (0-5)
+         */
+        static Mat4 faceViewMatrix(const Vec3& lightPos, int face);
+
+        /**
+         * @brief Get projection matrix for cube shadow map
+         * @param nearPlane Near plane distance
+         * @param farPlane Far plane distance (light range)
+         */
+        static Mat4 projectionMatrix(float nearPlane, float farPlane);
+
+        VkDescriptorImageInfo descriptorImageInfo() const
+        {
+            return VkDescriptorImageInfo{
+                .sampler     = m_Sampler      .handle(),
+                .imageView   = m_CubeImageView.handle(),
+                .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+            };
+        }
+
+        /**
+         * @brief Transition all faces to attachment optimal before rendering
+         * Call this ONCE before rendering all 6 faces
+         */
+        void transitionToAttachmentLayout(VkCommandBuffer cmdBuffer);
+
+        /**
+         * @brief Transition all faces to shader read layout after rendering
+         * Call this ONCE after rendering all 6 faces
+         */
+        void transitionToShaderReadLayout(VkCommandBuffer cmdBuffer);
+
+        /**
+         * @brief Begin render pass for a specific cube face
+         */
+        void beginRenderPass(VkCommandBuffer cmdBuffer, int face);
+
+        /**
+         * @brief End render pass
+         */
+        void endRenderPass(VkCommandBuffer cmdBuffer);
+
+    private:
+        void createDepthResources();
+        void createRenderPass();
+        void createFramebuffers();
+        void createSampler();
+
+        U32 m_Size;
+
+        VyImage        m_DepthImage;
+        VyImageView    m_CubeImageView;   // View for the entire cube
+        VyImageView    m_FaceImageViews[6] = {}; // Views for each face
+        VySampler      m_Sampler;
+        VkRenderPass   m_RenderPass        = VK_NULL_HANDLE;
+        VkFramebuffer  m_Framebuffers[6]   = {VK_NULL_HANDLE};
+        VkFormat       m_DepthFormat       = VK_FORMAT_D32_SFLOAT;
+
+        VkImage getImage() const { return m_DepthImage.handle(); }
+    };
+}

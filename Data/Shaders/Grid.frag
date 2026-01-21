@@ -2,44 +2,11 @@
 
 // ================================================================================================
 
-struct PointLight 
-{
-    vec4 Position; // ignore w
-    vec4 Color;    // w is intensity
-};
-
-// struct CameraData
-// {
-//     mat4 Projection;
-//     mat4 View;
-//     mat4 InverseView;
-// };
-
-// ================================================================================================
-// Uniforms
-
-// layout(set = 0, binding = 0) uniform GlobalUBO 
-// {
-//     CameraData       Camera;
-
-//     // vec4             AmbientLightColor; // rgb = color, a = intensity
-
-//     // PointLight       PointLights      [ MAX_POINT_LIGHTS  ];
-//     // DirectionalLight DirectionalLights[ MAX_DIRECT_LIGHTS ];
-//     // SpotLight        SpotLights       [ MAX_SPOT_LIGHTS   ];
-//     // int              NumPointLights;
-//     // int              NumDirectionalLights;
-//     // int              NumSpotLights;
-
-// } uUbo;
-
-// ================================================================================================
-
 // Input
-layout(location = 1) in  vec3 nearPoint;
-layout(location = 2) in  vec3 farPoint;
-layout(location = 3) in  mat4 fragView;
-layout(location = 7) in  mat4 fragProj;
+layout (location = 1) in vec3 nearPoint;
+layout (location = 2) in vec3 farPoint;
+layout (location = 3) in mat4 fragView;
+layout (location = 7) in mat4 fragProj;
 
 // Output
 layout(location = 0) out vec4 outColor;
@@ -54,7 +21,6 @@ const float NEAR_PLANE     =  0.01f;
 const float FAR_FLANE      =  10.0f;
 
 // ================================================================================================
-
 
 // Grid generation.
 vec4 grid(vec3 fragPos3D, float scale) 
@@ -71,24 +37,28 @@ vec4 grid(vec3 fragPos3D, float scale)
     vec4  color = vec4(0.30f, 0.30f, 0.30f, 1.0f - min(line, 1.0f));
 
     // Z-Axis
-    if(fragPos3D.x > -AXIS_THRESHOLD * minimumX && fragPos3D.x < AXIS_THRESHOLD * minimumX)
+    if(fragPos3D.x > -AXIS_THRESHOLD * minimumX && 
+       fragPos3D.x <  AXIS_THRESHOLD * minimumX)
     {
         // Blue
         color.z = 1.0f; 
     }
     
     // X-Axis
-    if(fragPos3D.z > -AXIS_THRESHOLD * minimumZ && fragPos3D.z < AXIS_THRESHOLD * minimumZ)
+    if(fragPos3D.z > -AXIS_THRESHOLD * minimumZ && 
+       fragPos3D.z <  AXIS_THRESHOLD * minimumZ)
     {
         // Red
         color.x = 1.0f; 
     }
 
     // Reset the color's RGB if its alpha means it is not visible (allows to add grids without whitening the grid color)
-    return color.a >0.01f
+    return color.a > 0.01f
         ? color
         : vec4(0.0f, 0.0f, 0.0f, 0.0f);
 }
+
+// ================================================================================================
 
 // Compute depth in clip space.
 float computeDepth(vec3 pos) 
@@ -98,6 +68,7 @@ float computeDepth(vec3 pos)
     return (clipSpacePos.z / clipSpacePos.w);
 }
 
+// ================================================================================================
 
 // Compute linear depth.
 float computeLinearDepth(vec3 pos) 

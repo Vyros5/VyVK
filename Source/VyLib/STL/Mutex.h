@@ -2,25 +2,31 @@
 
 #include <mutex>
 #include <condition_variable>
+#include <future>
 
 namespace Vy
 {
     // --------------------------------------------------------------------------------------------
 
-    using Mutex = std::mutex;
+    using TMutex = std::mutex;
 
     // --------------------------------------------------------------------------------------------
 
-    template <typename TMutex = Mutex >
-    using LockGuard = std::lock_guard<TMutex>;
+    template <typename mutex_t = TMutex >
+    using TLockGuard = std::lock_guard<mutex_t>;
 
-    template <typename TMutex = Mutex >
-    using UniqueLock = std::unique_lock<TMutex>;
+    template <typename mutex_t = TMutex >
+    using TUniqueLock = std::unique_lock<mutex_t>;
+
+    template <typename mutex_t = TMutex >
+    using TScopedLock = std::scoped_lock<mutex_t>;
 
     // --------------------------------------------------------------------------------------------
 
-    using ConditionVariable = std::condition_variable;
+    using TCondVariable = std::condition_variable;
 
     // --------------------------------------------------------------------------------------------
 
+    template <typename T >
+    using TFuture = std::future<T>;
 }

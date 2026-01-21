@@ -1,26 +1,28 @@
 #version 450
 
-layout(location = 0) out vec3 fragColor;
+// ================================================================================================
 
-struct DirectionalLight
+struct DirectionalLight 
 {
-    vec4 Direction;
-    vec4 Color;
+    vec4 Direction; // xyz = direction, w = unused
+    vec4 Color;     // rgb = color,     a = intensity
 };
+
+// ================================================================================================
+// Uniforms
 
 layout(set = 0, binding = 0) uniform UBO
 {
     mat4             Projection;
     mat4             View;
-    mat4             InverseView;
-
     vec4             AmbientLightColor;
-
-    vec4             pointLights[16 * 2]; // Placeholder
+    vec4             CameraPosition;
+    vec4             PointLights[16 * 2]; // Placeholder
     DirectionalLight DirectionalLights[16];
     // ... rest of UBO
 
 } uUbo;
+
 
 layout(push_constant) uniform Push
 {
@@ -28,6 +30,13 @@ layout(push_constant) uniform Push
     vec4 Color;
 
 } uPush;
+
+// ================================================================================================
+// Output
+
+layout(location = 0) out vec3 fragColor;
+
+// ================================================================================================
 
 vec3 getArrowVertex(int index)
 {
@@ -62,7 +71,7 @@ vec3 getArrowVertex(int index)
 
 void main()
 {
-    vec3 vertexPos = getArrowVertex(gl_VertexIndex);
+    vec3 vertexPos = getArrowVertex( gl_VertexIndex );
 
     vec4 worldPos  = uPush.ModelMatrix * vec4(vertexPos, 1.0);
     

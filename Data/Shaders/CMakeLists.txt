@@ -11,6 +11,12 @@ if(NOT GLSLC_EXE)
     message(FATAL_ERROR "glslc was not found. Make sure glslc is included in the Vulkan SDK")
 endif()
 
+# find_program(GLSLANG_EXE NAMES glslangValidator)
+
+# if (NOT GLSLANG_EXE)
+#     message(FATAL_ERROR "Cannot compile GLSL to SPIR-V as glslangValidator not found!")
+# endif()
+
 # find_program(SLANGC_EXE slangc 
 #     HINTS "$ENV{VULKAN_SDK}/bin" "$ENV{VULKAN_SDK}/Bin"
 #     CACHE FILEPATH "Path to slangc compiler"
@@ -22,7 +28,8 @@ endif()
 
 message("==========================================================================")
 message(STATUS "Using glslc:  ${GLSLC_EXE}")
-message(STATUS "Using slangc: ${SLANGC_EXE}")
+# message(STATUS "Using slangc: ${SLANGC_EXE}")
+# message(STATUS "Using glslang: ${GLSLANG_EXE}")
 
 set(SPIRV_FILES "")
 
@@ -38,6 +45,8 @@ file(GLOB_RECURSE GLSL_SOURCES CONFIGURE_DEPENDS
     "${SHADERS_DIR}/*.task"
     "${SHADERS_DIR}/*.mesh"
 )
+
+
 
 foreach(GLSL ${GLSL_SOURCES})
     file(RELATIVE_PATH REL_PATH ${SHADERS_DIR} ${GLSL})
@@ -58,6 +67,7 @@ foreach(GLSL ${GLSL_SOURCES})
         VERBATIM
         COMMAND_EXPAND_LISTS
     )
+    
 endforeach()
 
 add_custom_target(VyCompileShaders DEPENDS ${SPIRV_FILES})

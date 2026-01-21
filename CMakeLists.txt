@@ -34,24 +34,26 @@ add_definitions(-DBUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 add_compile_definitions(NOMINMAX)
 
 file(GLOB_RECURSE SOURCES
-    ${PROJECT_SOURCE_DIR}/Source/Vy/*cpp
+    ${PROJECT_SOURCE_DIR}/Source/VyEngine/*cpp
+    # ${PROJECT_SOURCE_DIR}/Source/Vy/*cpp
     ${PROJECT_SOURCE_DIR}/Source/VyLib/*cpp
-#     ${PROJECT_SOURCE_DIR}/Runtime/*cpp
+    ${PROJECT_SOURCE_DIR}/Source/VyLib/Include/ufbx/*c
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES})
 
-# find_path(TINYGLTF_INCLUDE_DIR "tiny_gltf.h")
+add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Include and link Vulkan and other submodule libraries
 target_include_directories(${PROJECT_NAME} 
     PUBLIC
         ${PROJECT_SOURCE_DIR}/Source
-        ${PROJECT_SOURCE_DIR}/Source/VyVK
+        ${PROJECT_SOURCE_DIR}/Source/VyEngine
+        ${PROJECT_SOURCE_DIR}/Shared
     PRIVATE 
         ${Stb_INCLUDE_DIR}
         ${Vulkan_INCLUDE_DIRS}
         ${PROJECT_SOURCE_DIR}/Extern/tinygltf
+        ${PROJECT_SOURCE_DIR}/Source/VyLib/Include/ufbx
 )
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
@@ -67,21 +69,25 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     spdlog::spdlog
     EnTT::EnTT
     tinygltf #::tinygltf
+    # ufbx
     # imgui::imgui
     # imguizmo::imguizmo
+    KTX::ktx
     yaml-cpp::yaml-cpp
     cpptrace::cpptrace
     assimp::assimp
     efsw::efsw
     JsonCpp::JsonCpp
+    mikktspace::mikktspace
     meshoptimizer::meshoptimizer
+    # spirv-cross-core
+    # spirv-cross-glsl
+    # unofficial::spirv-reflect::spirv-reflect
 )
-
 
 # target_precompile_headers(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/Source/Vy/VyPCH.h)
 
 add_subdirectory(Data/Shaders)
-
 
 # Print configuration
 message("==========================================================================")
@@ -96,7 +102,6 @@ message(STATUS "Vulkan SDK              ${Vulkan_VERSION}: ${Vulkan_LIBRARY}")
 message(STATUS "Vulkan inc directory:   ${Vulkan_INCLUDE_DIRS}")
 message(STATUS "GLSL Compiler:          ${Vulkan_GLSLC_EXECUTABLE}")
 message("==========================================================================")
-
 
 # set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 # set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)

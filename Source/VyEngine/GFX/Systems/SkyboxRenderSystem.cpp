@@ -1,0 +1,113 @@
+#include <VyEngine/GFX/Systems/SkyboxRenderSystem.h>
+
+#include <VyEngine/VK/Context.h>
+#include <VyEngine/Globals.h>
+
+namespace Vy
+{
+    struct SkyboxPushConstants
+    {
+        Mat4 ViewProjection;
+    };
+
+
+    VySkyboxRenderSystem::VySkyboxRenderSystem(VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
+    {
+        createDescriptorSetLayout();
+
+        createPipeline( renderPass, globalSetLayout );
+    }
+
+
+    VySkyboxRenderSystem::~VySkyboxRenderSystem()
+    {
+    }
+
+
+    void VySkyboxRenderSystem::createDescriptorSetLayout()
+    {
+        m_DescriptorSetLayout = VyDescriptorSetLayout::Builder{}
+            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Skybox Sampler
+            .buildPtr();
+
+        // Create descriptor pool
+        m_DescriptorPool = VyDescriptorPool::Builder{}
+            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<U32>( MAX_FRAMES_IN_FLIGHT ))
+            .setMaxSets (static_cast<U32>( MAX_FRAMES_IN_FLIGHT ))
+            .buildPtr();
+
+        // Allocate descriptor sets.
+        m_DescriptorSets.resize( MAX_FRAMES_IN_FLIGHT );
+
+        m_DescriptorSets = m_DescriptorPool->allocateSets( *m_DescriptorSetLayout, MAX_FRAMES_IN_FLIGHT );
+    }
+
+
+    void VySkyboxRenderSystem::createPipeline(VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
+    {
+            auto setLayouts = TVector{ globalSetLayout, m_DescriptorSetLayout->handle()  };
+
+        auto builder = VyPipeline::GraphicsBuilder{};
+        {
+            builder.setName( "skybox" );
+            
+            builder.addDescriptorSetLayouts( setLayouts );
+            
+            // builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(SkyboxPushConstants));
+            
+            builder.addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   "Sky/Skybox.vert.spv");
+            builder.addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, "Sky/Skybox.frag.spv");
+            
+            // No alpha blending or depth.
+            builder.addColorAttachment( VK_FORMAT_R16G16B16A16_SFLOAT );
+
+            // Draw triangles.
+            builder.setTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+
+            // Disable culling for debugging.
+            builder.setCullMode(VK_CULL_MODE_BACK_BIT);
+
+            // Disable depth test - skybox renders first, everything else will overdraw.
+            builder.setDepthTest(false, false, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+            // Use Counter-Clockwise faces.
+            builder.setFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE);
+
+            // No vertex input - vertices generated in the shader.
+            builder.clearVertexDescriptions();
+            
+            builder.setRenderPass( renderPass );
+        }
+
+        m_Pipeline = builder.buildPtr();
+    }
+
+
+    void VySkyboxRenderSystem::render(VyFrameInfo& frameInfo, VySkybox* pSkybox)
+    {
+        if (pSkybox)
+        {
+            // Update descriptor set with skybox texture.
+            VkDescriptorImageInfo imageInfo = pSkybox->descriptorImageInfo();
+
+            VyDescriptorWriter{ *m_DescriptorSetLayout, *m_DescriptorPool }
+                .writeImage( 0, &imageInfo )
+                .update( m_DescriptorSets[ frameInfo.FrameIndex ] );
+
+            // Bind the skybox pipeline and descriptor sets.
+            m_Pipeline->bind( frameInfo.CommandBuffer );
+
+            // Set 0 - Global UBO
+            // Set 1 - Skybox Sampler
+            m_Pipeline->bindDescriptorSets(frameInfo.CommandBuffer,
+                0, 
+                TVector{ 
+                    frameInfo.GlobalDescriptorSet,           
+                    m_DescriptorSets[ frameInfo.FrameIndex ] 
+                }
+            );
+
+            vkCmdDraw(frameInfo.CommandBuffer, 36, 1, 0, 0);
+        }
+    }
+}

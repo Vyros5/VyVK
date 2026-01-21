@@ -1,6 +1,6 @@
 #pragma once
 
-#include <VyLib/Common/Numeric.h>
+#include <VyLib/Core/Numeric.h>
 #include <VyLib/STL/Pointers.h>
 #include <VyLib/STL/String.h>
 #include <VyLib/STL/Containers.h>
@@ -37,8 +37,8 @@ namespace Vy
 	public:
 		struct TagDetails
 		{
-			bool     enabled     = true;
-			LogLevel levelFilter = LogLevel::Trace;
+			bool     Enabled     = true;
+			LogLevel LevelFilter = LogLevel::Trace;
 		};
 
 	public:
@@ -50,13 +50,13 @@ namespace Vy
 		inline static Shared<spdlog::logger>& getEditorConsoleLogger() { return s_EditorConsoleLogger; }
 
 		static bool 
-        hasTag(const String& tag) 
+        hasTag(const TString& tag) 
         { 
             return s_EnabledTags.contains(tag); 
         }
 		
         
-        static TMap<String, TagDetails>& 
+        static TMap<TString, TagDetails>& 
         enabledTags() 
         { 
             return s_EnabledTags; 
@@ -67,7 +67,7 @@ namespace Vy
         printMessage(
             LogType     type, 
             LogLevel    level, 
-            StringView  tag, 
+            TStringView tag, 
             FormatStr&& format, 
             Args&&...   args
         );
@@ -76,7 +76,7 @@ namespace Vy
 		static void 
         printAssertMessage(
             LogType     type, 
-            StringView  prefix, 
+            TStringView prefix, 
             FormatStr&& format, 
             Args&&...   args
         );
@@ -84,8 +84,8 @@ namespace Vy
 		template<typename... Args>
 		static void 
         printAssertMessage(
-            LogType    type, 
-            StringView prefix
+            LogType     type, 
+            TStringView prefix
         );
 
 	public:
@@ -104,7 +104,7 @@ namespace Vy
 			return "";
 		}
 		
-		static LogLevel levelFromString(StringView string)
+		static LogLevel levelFromString(TStringView string)
 		{
 			if (string == "Trace") return LogLevel::Trace;
 			if (string == "Info" ) return LogLevel::Info;
@@ -121,7 +121,7 @@ namespace Vy
 		static Shared<spdlog::logger> s_ClientLogger;
 		static Shared<spdlog::logger> s_EditorConsoleLogger;
 
-		inline static TMap<String, TagDetails> s_EnabledTags;
+		inline static TMap<TString, TagDetails> s_EnabledTags;
 	};
 
 }
@@ -179,20 +179,20 @@ namespace Vy
     VyLogger::printMessage(
         LogType     type, 
         LogLevel    level, 
-        StringView  tag, 
+        TStringView tag, 
         FormatStr&& format, 
         Args&&...   args)
 	{
-		String formattedMessage;
+		TString formattedMessage;
 		if constexpr (sizeof...(args) == 0)
 		{
-			if constexpr (std::is_convertible_v<FormatStr, CString> || std::is_convertible_v<StringView, FormatStr>)
+			if constexpr (std::is_convertible_v<FormatStr, CString> || std::is_convertible_v<TStringView, FormatStr>)
             {
-                formattedMessage = String(format);
+                formattedMessage = TString(format);
             }
 			else if constexpr (std::is_convertible_v<FormatStr, std::string_view> || std::is_convertible_v<FormatStr, std::string>)
             {
-                formattedMessage = String(format.c_str(), format.size());
+                formattedMessage = TString(format.c_str(), format.size());
             }
 			else
             {
@@ -201,7 +201,7 @@ namespace Vy
 
 		}
 
-		if constexpr (std::is_convertible_v<FormatStr, CString> || std::is_convertible_v<StringView, FormatStr>)
+		if constexpr (std::is_convertible_v<FormatStr, CString> || std::is_convertible_v<TStringView, FormatStr>)
 		{
 			formattedMessage = fmt::vformat(format, fmt::make_format_args(args...));
 		}
@@ -211,15 +211,15 @@ namespace Vy
 		}
 
 
-		auto detail = s_EnabledTags[String(tag)];
+		auto detail = s_EnabledTags[TString(tag)];
 
-		if (detail.enabled && detail.levelFilter <= level)
+		if (detail.Enabled && detail.LevelFilter <= level)
 		{
 			auto logger = (type == LogType::Core) 
 				? getCoreLogger() 
 				: getClientLogger();
 
-			String logString = tag.empty() ? "{0}{1}" : "[{0}] {1}";
+			TString logString = tag.empty() ? "{0}{1}" : "[{0}] {1}";
 
 			switch (level)
 			{
@@ -250,10 +250,10 @@ namespace Vy
 
 	template<typename FormatStr, typename... Args>
 	void VyLogger::printAssertMessage(
-        LogType     type, 
-        StringView  prefix, 
-        FormatStr&& format, 
-        Args&&...   args)
+        LogType      type, 
+        TStringView  prefix, 
+        FormatStr&&  format, 
+        Args&&...    args)
 	{
 		fmt::string_view fmtString;
 
@@ -280,8 +280,8 @@ namespace Vy
 
 	template<typename... Args>
 	inline void VyLogger::printAssertMessage(
-        LogType    type, 
-        StringView prefix
+        LogType     type, 
+        TStringView prefix
     )
 	{
 		auto logger = (type == LogType::Core) ? getCoreLogger() : getClientLogger();

@@ -1,19 +1,19 @@
 #pragma once
 
 #include <atomic>
-#include <VyLib/Common/Numeric.h>
+#include <VyLib/Core/Numeric.h>
 
 namespace Vy
 {
     template <typename T>
-    using Atomic = std::atomic<T>;
+    using TAtomic = std::atomic<T>;
 
-    using AtomicBool = Atomic<Bool>;
-    using AtomicI32  = Atomic<I32>;
-    using AtomicU32  = Atomic<U32>;
-    using AtomicF32  = Atomic<F32>;
+    using TAtomicBool = TAtomic<Bool>;
+    using TAtomicI32  = TAtomic<I32>;
+    using TAtomicU32  = TAtomic<U32>;
+    using TAtomicF32  = TAtomic<F32>;
 
-    using AtomicU16 = std::atomic_uint16_t;
+    using TAtomicU16 = std::atomic_uint16_t;
 
     namespace StdAtomic
     {

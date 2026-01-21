@@ -17,6 +17,14 @@
     "assimp",
     "efsw",
     "jsoncpp",
-    "meshoptimizer"
+    "meshoptimizer",
+    "mikktspace",
+    "shaderc",
+    {
+      "name": "ktx",
+      "features": ["vulkan"]
+    },
+    "spirv-cross"
+    
   ]
 }

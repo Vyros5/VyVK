@@ -1,0 +1,174 @@
+#version 460
+#extension GL_EXT_mesh_shader : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+#extension GL_EXT_scalar_block_layout : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_buffer_reference2 : require
+
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+layout(triangles, max_vertices = 64, max_primitives = 124) out;
+
+struct Meshlet
+{
+    uint VertexOffset;
+    uint TriangleOffset;
+    uint VertexCount;
+    uint TriangleCount;
+
+    float Center[3];
+    float Radius;
+
+    float ConeAxis[3];
+    float ConeCutoff;
+
+    uint _pad[4];
+};
+
+layout(buffer_reference, scalar) readonly buffer MeshletBuffer
+{
+    Meshlet Meshlets[];
+};
+
+layout(buffer_reference, scalar) readonly buffer MeshletVerticesBuffer
+{
+    uint VertexIndices[];
+};
+
+layout(buffer_reference, scalar) readonly buffer MeshletTrianglesBuffer
+{
+    uint8_t TriangleIndices[];
+};
+
+struct Vertex
+{
+    vec3 Position;
+    vec3 Color;
+    vec3 Normal;
+    vec2 UV;
+    int  MaterialId;
+};
+
+layout(buffer_reference, scalar) readonly buffer VertexBuffer
+{
+    Vertex Vertices[];
+};
+
+layout(push_constant) uniform Push
+{
+    mat4 ModelMatrix;
+    mat4 NormalMatrix;
+    uint MeshId;
+
+    uint64_t MeshletBufferAddress;
+    uint64_t MeshletVerticesAddress;
+    uint64_t MeshletTrianglesAddress;
+    uint64_t VertexBufferAddress;
+    uint     MeshletOffset;
+    uint     MeshletCount;
+    vec2     ScreenSize;
+}
+uPush;
+
+struct PointLight
+{
+    vec4 Position;
+    vec4 Color;
+};
+
+struct DirectionalLight
+{
+    vec4 Direction;
+    vec4 Color;
+};
+
+struct SpotLight
+{
+    vec4  Position;
+    vec4  Direction;
+    vec4  Color;
+    float outerCutoff;
+    float constantAtten;
+    float linearAtten;
+    float quadraticAtten;
+};
+
+layout(set = 0, binding = 0) uniform GlobalUbo
+{
+    mat4             Projection;
+    mat4             View;
+    vec4             AmbientLightColor;
+    vec4             CameraPosition;
+    PointLight       PointLights[16];
+    DirectionalLight DirectionalLights[16];
+    SpotLight        SpotLights[16];
+    mat4             LightSpaceMatrices[16];
+    vec4             PointLightShadowData[4];
+    int              PointLightCount;
+    int              DirectionalLightCount;
+    int              SpotLightCount;
+    int              ShadowLightCount;
+    int              CubeShadowLightCount;
+    int              DebugMode;
+    int              _pad0;
+    int              _pad1;
+    vec4             FrustumPlanes[6];
+
+} uUbo;
+
+layout(location = 0) out vec3 outColor[];
+layout(location = 1) out vec3 outWorldPos[];
+layout(location = 2) out vec3 outNormal[];
+layout(location = 3) out vec2 outUV[];
+layout(location = 4) out flat uint outMeshletId[];
+layout(location = 5) out flat vec3 outConeAxis[];
+
+struct TaskPayload
+{
+    uint MeshletIndices[32];
+};
+
+taskPayloadSharedEXT TaskPayload payload;
+
+void main()
+{
+    uint meshletId = payload.MeshletIndices[gl_WorkGroupID.x];
+
+    MeshletBuffer meshletBuffer = MeshletBuffer(uPush.MeshletBufferAddress);
+    Meshlet       meshlet       = meshletBuffer.Meshlets[meshletId];
+
+    SetMeshOutputsEXT(meshlet.VertexCount, meshlet.TriangleCount);
+
+    MeshletVerticesBuffer meshletVertices = MeshletVerticesBuffer(uPush.MeshletVerticesAddress);
+    VertexBuffer          vertexBuffer    = VertexBuffer(uPush.VertexBufferAddress);
+
+    // Calculate Normal matrix
+    mat3 normalMatrix = mat3(uPush.NormalMatrix);
+
+    for (uint i = gl_LocalInvocationIndex; i < meshlet.VertexCount; i += 32)
+    {
+        uint   vertexIndex = meshletVertices.VertexIndices[meshlet.VertexOffset + i];
+        Vertex v           = vertexBuffer.Vertices[vertexIndex];
+
+        gl_MeshVerticesEXT[i].gl_Position = uUbo.Projection * uUbo.View * uPush.ModelMatrix * vec4(v.Position, 1.0);
+
+        outColor[i]     = v.Color;
+        outWorldPos[i]  = (uPush.ModelMatrix * vec4(v.Position, 1.0)).xyz;
+        outNormal[i]    = normalize(normalMatrix * v.Normal);
+        outUV[i]        = v.UV;
+        outMeshletId[i] = meshletId;
+        outConeAxis[i]  = vec3(meshlet.ConeAxis[0], meshlet.ConeAxis[1], meshlet.ConeAxis[2]);
+    }
+
+    MeshletTrianglesBuffer meshletTriangles = MeshletTrianglesBuffer(uPush.MeshletTrianglesAddress);
+
+    for (uint i = gl_LocalInvocationIndex; i < meshlet.TriangleCount; i += 32)
+    {
+        uint    baseTriIndex = meshlet.TriangleOffset + (i * 3);
+        uint8_t index0       = meshletTriangles.TriangleIndices[baseTriIndex + 0];
+        uint8_t index1       = meshletTriangles.TriangleIndices[baseTriIndex + 1];
+        uint8_t index2       = meshletTriangles.TriangleIndices[baseTriIndex + 2];
+
+        gl_PrimitiveTriangleIndicesEXT[i] = uvec3(index0, index1, index2);
+    }
+}

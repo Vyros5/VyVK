@@ -39,6 +39,111 @@ namespace std
     };
 }
 
+// namespace Vy
+// {
+//     Mesh::Mesh(
+//         UniformBuffer<MatrixUbo>* pUbo,
+//         VyDescriptorSetLayout*    pLayout, 
+//         VyDescriptorPool*         pPool,
+//         const RawMeshData&        meshData
+//     ) :
+//         m_Vertices { meshData.Vertices  }, 
+//         m_Indices  { meshData.Indices   }, 
+//         m_Transform{ meshData.Transform }
+//     {
+//         createVertexBuffer();
+//         createIndexBuffer();
+
+//         m_Textures.push_back( VyTexture::createFromFile( meshData.Material.AlbedoPath,   VK_FORMAT_R8G8B8A8_SRGB  ) );
+//         m_Textures.push_back( VyTexture::createFromFile( meshData.Material.NormalPath,   VK_FORMAT_R8G8B8A8_UNORM ) );
+//         m_Textures.push_back( VyTexture::createFromFile( meshData.Material.SpecularPath, VK_FORMAT_R8G8B8A8_UNORM ) );
+
+//         VyDescriptorWriter( *pLayout, *pPool )
+//             .writeImage( 0, &m_Textures[ 0 ]->descriptorImageInfo() )
+//             .writeImage( 1, &m_Textures[ 1 ]->descriptorImageInfo() )
+//             .writeImage( 2, &m_Textures[ 2 ]->descriptorImageInfo() )
+//             .update( m_DescriptorSet );
+//     }
+
+//     // =====================================================================================================================
+
+//     void Mesh::bind(VkCommandBuffer cmdBuffer, VkPipelineLayout pipelineLayout, U16 idx, bool isDepthPass)
+//     {
+//         if (!isDepthPass)
+//         {
+//             vkCmdBindDescriptorSets(
+//                 cmdBuffer,
+//                 VK_PIPELINE_BIND_POINT_GRAPHICS,
+//                 pipelineLayout,
+//                 1,
+//                 1,
+//                 m_DescriptorSet->GetDescriptorSet(idx),
+//                 0,
+//                 nullptr
+//             );
+//         }
+
+//         VkBuffer     buffers[] = { m_VertexBuffer->handle() };
+//         VkDeviceSize offsets[] = { 0 };
+
+//         vkCmdBindVertexBuffers(cmdBuffer, 0, 1, buffers, offsets);
+        
+//         if (m_HasIndexBuffer) 
+//         {
+//             vkCmdBindIndexBuffer(cmdBuffer, m_IndexBuffer->handle(), 0, VK_INDEX_TYPE_UINT32);
+//         }
+//     }
+
+//     // =====================================================================================================================
+
+//     void Mesh::draw(VkCommandBuffer cmdBuffer)
+//     {
+//         if (m_HasIndexBuffer) 
+//         {
+//             vkCmdDrawIndexed(cmdBuffer, m_IndexCount, 1, 0, 0, 0);
+//         } 
+//         else 
+//         {
+//             vkCmdDraw(cmdBuffer, m_VertexCount, 1, 0, 0);
+//         }
+//     }
+
+//     // =====================================================================================================================
+
+//     void Mesh::createVertexBuffer() 
+//     {
+//         m_VertexCount = static_cast<U32>( m_Vertices.size() );
+
+//         VY_ASSERT(m_VertexCount >= 3, "Vertex count must be at least 3");
+        
+//         U32 vertexSize = sizeof(m_Vertices[0]);
+
+//         m_VertexBuffer = MakeUnique<VyBuffer>( VyBuffer::vertexBuffer( "model", vertexSize, m_VertexCount ) );
+        
+//         m_VertexBuffer->upload( m_Vertices );
+//     }
+
+//     // =====================================================================================================================
+
+//     void Mesh::createIndexBuffer() 
+//     {
+//         m_IndexCount     = static_cast<U32>( m_Indices.size() );
+//         m_HasIndexBuffer = m_IndexCount > 0;
+        
+//         if (!m_HasIndexBuffer) { return; }
+
+//         U32 indexSize = sizeof(m_Indices[0]);
+
+//         m_IndexBuffer = MakeUnique<VyBuffer>( VyBuffer::indexBuffer( "model", indexSize, m_IndexCount ) );
+        
+//         m_IndexBuffer->upload( m_Indices );
+//     }
+
+
+
+// }
+
+
 namespace Vy
 {
     /* Static */

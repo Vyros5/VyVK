@@ -279,6 +279,14 @@ namespace Vy
     }
 
     VyImageView::Builder& 
+    VyImageView::Builder::setMapping(VkComponentMapping mapping)
+    {
+        m_Info.components = mapping;
+
+        return *this; 
+    }
+
+    VyImageView::Builder& 
     VyImageView::Builder::setSubresourceRange(VkImageSubresourceRange subRange)
     {
         m_Info.subresourceRange = subRange;

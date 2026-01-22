@@ -9,6 +9,8 @@
 #include <VyEngine/Engine.h>
 #include <VyEngine/Scripting/Scripts/CameraController.h>
 
+#include <VyEngine/VK/Swapchain/Swapchain.h>
+
 namespace Vy
 {
     VyScene::VyScene(const TStringView name) :
@@ -99,7 +101,8 @@ namespace Vy
 			m_MainCamera.add<CameraComponent>().IsMainCamera = true;
 			m_MainCamera.add<CameraController>();
             m_MainCamera.get<TransformComponent>() = TransformComponent{
-                /* Translation */ { 0.0f, -1.0f, -5.0f }, // (5 spaces back, and 1 up)
+                CAMERA_POSITION
+                // /* Translation */ { 0.0f, -1.0f, -5.0f }, // (5 spaces back, and 1 up)
             };
 		}
 

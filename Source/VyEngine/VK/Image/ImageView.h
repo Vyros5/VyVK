@@ -111,6 +111,7 @@ namespace Vy
 
 		Builder& setComponents(VkComponentSwizzle swizzle);
 		Builder& setComponentsRGBA(VkComponentSwizzle r, VkComponentSwizzle g, VkComponentSwizzle b, VkComponentSwizzle a);
+		Builder& setMapping(VkComponentMapping mapping);
 
 		Builder& setSubresourceRange(VkImageSubresourceRange subRange);
 		

@@ -14,9 +14,6 @@ namespace Vy
     {
         recreateSwapchain();
         createCommandBuffers();
-    
-		//Deferred Rendering
-		prepareDeferredRenderFramebuffer();
     }
 
     // =====================================================================================================================
@@ -61,7 +58,7 @@ namespace Vy
 
         m_IsFrameStarted = true;
 
-        auto cmdBuffer = m_CommandBuffers[ m_CurrentFrameIndex ];
+        auto cmdBuffer = this->currentCommandBuffer();
         
         // VK_CHECK_SUCCESS(vkResetCommandBuffer(cmdBuffer, 0), 
         //     "Failed to reset command buffer!");
@@ -283,30 +280,26 @@ namespace Vy
 #pragma region [ Rendering ]
 // =========================================================================================================================
     
-
-    void VyRenderer::beginOffscreenRenderPass(VkCommandBuffer cmdBuffer)
+	void VyRenderer::beginShadowRenderPass(VkCommandBuffer cmdBuffer) 
     {
-        VY_ASSERT(m_IsFrameStarted,                    "Can't begin offscreen render pass when frame is not in progress.");
-        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin offscreen render pass on command buffer from a different frame.");
-
+        VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
+        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
+        
         TArray<VkClearValue, 2> clearValues{};
         {
-            clearValues[ 0 ].color        = { 0.0f, 0.0f, 0.0f, 1.0f }; // color attachment
-            clearValues[ 1 ].depthStencil = { 1.0f, 0 };                // Depths stencil clear value
+            clearValues[0].color = { 0.01f };
+
+            clearValues[1].depthStencil = { 1.0f, 0 };
         }
-        
-		// Record draw commands to each command buffers
+
 		VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
         {
-            renderPassInfo.renderPass        = m_OffscreenPass.RenderPass;
-            renderPassInfo.framebuffer       = m_OffscreenPass.Framebuffer;
+            renderPassInfo.renderPass        = m_Swapchain->shadowRenderPass();
+            renderPassInfo.framebuffer       = m_Swapchain->shadowFrameBuffer( m_CurrentImageIndex );
             
-            renderPassInfo.renderArea.offset = { 0,0 };
-            // Make sure to use the swapchain extent not the window extent
-            // because the swapchain extent may be larger then window extent which is the case in Mac retina display
-            renderPassInfo.renderArea.extent = m_OffscreenPass.Extent;
+            renderPassInfo.renderArea.offset = { 0, 0 };
+            renderPassInfo.renderArea.extent = m_Swapchain->shadowMapExtent();
             
-            // Set the color that the frame buffer 'attachments' will clear to 
             renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
             renderPassInfo.pClearValues      = clearValues.data();
         }
@@ -314,489 +307,661 @@ namespace Vy
 		vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
         // Set viewport and scissor rect.
-        VKCmd::viewport(cmdBuffer, m_OffscreenPass.Extent);
-        VKCmd::scissor (cmdBuffer, m_OffscreenPass.Extent);
-    }
-
-
-	void VyRenderer::setUpOffscreenRenderPass(U32 texW, U32 texH)
-	{
-		createOffscreenRenderPass( texW, texH );
-		createOffscreenFramebuffer();
+        VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
+        VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
 	}
 
 
-	void VyRenderer::createOffscreenRenderPass(U32 texW, U32 texH)
-	{
-		m_OffscreenPass.Extent = { texW, texH };
-
-		// Depth stencil attachment
-		VkFormat fbDepthFormat;
-		bool bValidDepthFormat = VyContext::device().getSupportedDepthsFormat( &fbDepthFormat );
-		
-        assert(bValidDepthFormat);
-
-		createOffscreenColorAttachment();
-		createOffscreenDepthsAttachment( fbDepthFormat );
-
-		TArray<VkAttachmentDescription, 2> attchmentDescriptions{};
-		createOffscreenAttachmentDescriptors( attchmentDescriptions, fbDepthFormat );
-
-		VkAttachmentReference colorReference = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL         };
-		VkAttachmentReference depthReference = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
-
-		VkSubpassDescription subpass{};
-        {
-            subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
-            subpass.colorAttachmentCount    = 1;
-            subpass.pColorAttachments       = &colorReference;
-            subpass.pDepthStencilAttachment = &depthReference;
-        }
-
-		TArray<VkSubpassDependency, 2> dependencies{};
-		createOffscreenSubpassDependencies( dependencies );
-		
-		// Create the actual renderpass
-		VkRenderPassCreateInfo renderPassInfo{ VKInit::renderPassCreateInfo() };
-        {
-            renderPassInfo.attachmentCount = static_cast<U32>(attchmentDescriptions.size());
-            renderPassInfo.pAttachments    = attchmentDescriptions.data();
-
-            renderPassInfo.subpassCount    = 1;
-            renderPassInfo.pSubpasses      = &subpass;
-
-            renderPassInfo.dependencyCount = static_cast<U32>(dependencies.size());
-            renderPassInfo.pDependencies   = dependencies.data();
-        }
-
-		VK_CHECK(vkCreateRenderPass(VyContext::device(), &renderPassInfo, nullptr, &m_OffscreenPass.RenderPass));
-	}
-
-
-    void VyRenderer::createOffscreenColorAttachment()
-	{
-        m_OffscreenPass.Color.Image = VyImage::Builder{}
-			.setName       ("offscreen_color_attachment")
-            .setImageType  (VK_IMAGE_TYPE_2D)
-            .setFormat     (VK_FORMAT_R8G8B8A8_UNORM)
-            .setExtent     (m_OffscreenPass.Extent)
-            .setLevels     (1)
-			.setLayers     (1)
-			.setSamples    (VK_SAMPLE_COUNT_1_BIT)
-            .setTiling     (VK_IMAGE_TILING_OPTIMAL)
-			.setLayout     (VK_IMAGE_LAYOUT_UNDEFINED)
-            .setUsage      (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
-            .setMemoryUsage(VMA_MEMORY_USAGE_AUTO)
-        	.build();
-
-        m_OffscreenPass.Color.View = VyImageView::Builder{}
-            .setName    ("offscreen_color_attachment")
-            .setViewType(VK_IMAGE_VIEW_TYPE_2D)
-            .setFormat  (VK_FORMAT_R8G8B8A8_UNORM)
-            .setAspect  (VK_IMAGE_ASPECT_COLOR_BIT)
-            .setLevels  (0, 1)
-            .setLayers  (0, 1)
-        	.build( m_OffscreenPass.Color.Image );
-
-        // Create sampler to sample from the attachment in the fragment shader
-        m_OffscreenPass.Sampler = VySampler::Builder{}
-            .setName         ("offscreen_color_attachment")
-            .setFilters      (VK_FILTER_LINEAR)
-            .setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
-            .setWrap         (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
-            .setBorder       (VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
-            .setLodRange     (0.0f, 1.0f)
-            .setMipLodBias   (0.0f)
-        	.build();
-	}
-
-
-	void VyRenderer::createOffscreenDepthsAttachment(VkFormat& depthsFormat)
-	{
-        m_OffscreenPass.Depth.Image = VyImage::Builder{}
-			.setName       ("offscreen_depth_attachment")
-            .setImageType  (VK_IMAGE_TYPE_2D)
-            .setFormat     (depthsFormat)
-            .setExtent     (m_OffscreenPass.Extent)
-            .setLevels     (1)
-			.setLayers     (1)
-			.setSamples    (VK_SAMPLE_COUNT_1_BIT)
-            .setTiling     (VK_IMAGE_TILING_OPTIMAL)
-			.setLayout     (VK_IMAGE_LAYOUT_UNDEFINED)
-            .setUsage      (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-            .setMemoryUsage(VMA_MEMORY_USAGE_AUTO)
-        	.build();
-
-        auto viewBuilder = VyImageView::Builder{}
-            .setName    ("offscreen_depth_attachment")
-            .setViewType(VK_IMAGE_VIEW_TYPE_2D)
-            .setFormat  (depthsFormat)
-            .setAspect  (VK_IMAGE_ASPECT_DEPTH_BIT)
-            .setLevels  (0, 1)
-            .setLayers  (0, 1);
-        	
-		if (depthsFormat >= VK_FORMAT_D16_UNORM_S8_UINT) 
-        {
-            viewBuilder.addAspect(VK_IMAGE_ASPECT_STENCIL_BIT);
-		}
-
-        m_OffscreenPass.Depth.View = viewBuilder.build( m_OffscreenPass.Depth.Image );
-	}
-
-
-	void VyRenderer::createOffscreenAttachmentDescriptors(TArray<VkAttachmentDescription, 2>& descriptors, VkFormat& depthsFormat)
-	{
-		// Color attachment
-        {
-            descriptors[ 0 ].format         = VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
-            descriptors[ 0 ].samples        = VK_SAMPLE_COUNT_1_BIT;
-            descriptors[ 0 ].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            descriptors[ 0 ].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-            descriptors[ 0 ].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            descriptors[ 0 ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            descriptors[ 0 ].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-            descriptors[ 0 ].finalLayout    = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        }
-
-        // Depth attachment
-        {
-            descriptors[ 1 ].format         = depthsFormat;
-            descriptors[ 1 ].samples        = VK_SAMPLE_COUNT_1_BIT;
-            descriptors[ 1 ].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            descriptors[ 1 ].storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            descriptors[ 1 ].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            descriptors[ 1 ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            descriptors[ 1 ].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-            descriptors[ 1 ].finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        }
-
-		VkAttachmentReference colorReference = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL         };
-		VkAttachmentReference depthReference = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
-	}
-
-
-	void VyRenderer::createOffscreenSubpassDependencies(TArray<VkSubpassDependency, 2>& dependencies)
-	{
-        {
-            dependencies[ 0 ].srcSubpass      = VK_SUBPASS_EXTERNAL;
-            dependencies[ 0 ].dstSubpass      = 0;
-
-            dependencies[ 0 ].srcStageMask    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            dependencies[ 0 ].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            
-            dependencies[ 0 ].srcAccessMask   = VK_ACCESS_SHADER_READ_BIT;
-            dependencies[ 0 ].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            
-            dependencies[ 0 ].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-        }
-
-        {
-            dependencies[ 1 ].srcSubpass      = 0;
-            dependencies[ 1 ].dstSubpass      = VK_SUBPASS_EXTERNAL;
-            
-            dependencies[ 1 ].srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependencies[ 1 ].dstStageMask    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            
-            dependencies[ 1 ].srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            dependencies[ 1 ].dstAccessMask   = VK_ACCESS_SHADER_READ_BIT;
-            
-            dependencies[ 1 ].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-        }
-	}
-
-
-	void VyRenderer::createOffscreenFramebuffer()
-	{
-		VkImageView attachments[ 2 ];
-        {
-            attachments[ 0 ] = m_OffscreenPass.Color.View.handle();
-            attachments[ 1 ] = m_OffscreenPass.Depth.View.handle();
-        }
-
-		VkFramebufferCreateInfo framebufferInfo{ VKInit::framebufferCreateInfo() };
-        {
-            framebufferInfo.renderPass      = m_OffscreenPass.RenderPass;
-
-            framebufferInfo.attachmentCount = 2;
-            framebufferInfo.pAttachments    = attachments;
-            
-            framebufferInfo.width           = m_OffscreenPass.Extent.width;
-            framebufferInfo.height          = m_OffscreenPass.Extent.height;
-            
-            framebufferInfo.layers          = 1;
-        }
-
-		VK_CHECK(vkCreateFramebuffer(VyContext::device(), &framebufferInfo, nullptr, &m_OffscreenPass.Framebuffer));
-	}
-
-
-	//Deferred rendering
-
-	void VyRenderer::createAttachment(VkFormat format, VkImageUsageFlagBits usage, FrameBufferAttachment* pAttachment)
-	{
-		VkImageAspectFlags aspectMask = 0;
-		VkImageLayout      imageLayout;
-
-		pAttachment->Format = format;
-
-		if (usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
-		{
-			aspectMask  = VK_IMAGE_ASPECT_COLOR_BIT;
-			imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		}
-		if (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-		{
-			aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
-			if (format >= VK_FORMAT_D16_UNORM_S8_UINT)
-            {
-                aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-            }
-
-            imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		}
-
-		assert(aspectMask > 0);
-
-        pAttachment->Image = VyImage::Builder{}
-			.setName       ("deferred_attachment")
-            .setImageType  (VK_IMAGE_TYPE_2D)
-            .setFormat     (format)
-            .setExtent     (m_DeferredRenderFramebuffer.Extent)
-            .setLevels     (1)
-			.setLayers     (1)
-			.setSamples    (VK_SAMPLE_COUNT_1_BIT)
-            .setTiling     (VK_IMAGE_TILING_OPTIMAL)
-			.setLayout     (VK_IMAGE_LAYOUT_UNDEFINED)
-            .setUsage      (usage | VK_IMAGE_USAGE_SAMPLED_BIT)
-            .setMemoryUsage(VMA_MEMORY_USAGE_AUTO)
-        	.build();
-
-        pAttachment->View = VyImageView::Builder{}
-            .setName    ("deferred_attachment")
-            .setViewType(VK_IMAGE_VIEW_TYPE_2D)
-            .setFormat  (format)
-            .setAspect  (aspectMask)
-            .setLevels  (0, 1)
-            .setLayers  (0, 1)
-            .build( pAttachment->Image );
-	}
-
-
-	void VyRenderer::prepareDeferredRenderFramebuffer()
-	{
-		// Note: Instead of using fixed sizes, one could also match the window size and recreate the attachments on resize
-		m_DeferredRenderFramebuffer.Extent = { 2048, 2048 };
-
-		// Color attachments
-
-		// (World space) Positions
-		createAttachment(
-			VK_FORMAT_R16G16B16A16_SFLOAT,
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-			&m_DeferredRenderFramebuffer.Position
-        );
-
-		// (World space) Normals
-		createAttachment(
-			VK_FORMAT_R16G16B16A16_SFLOAT,
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-			&m_DeferredRenderFramebuffer.Normal
-        );
-
-		// Albedo (color)
-		createAttachment(
-			VK_FORMAT_R8G8B8A8_UNORM,
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-			&m_DeferredRenderFramebuffer.Albedo
-        );
-
-		// Depth attachment
-		VkFormat depthFormat = m_Swapchain->findDepthFormat();
-
-		createAttachment(
-			depthFormat,
-			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-			&m_DeferredRenderFramebuffer.Depth
-        );
-
-		// Set up separate renderpass with references to the color and depth attachments
-		TArray<VkAttachmentDescription, 4> attachmentDescs = {};
-        {
-            // Init attachment properties
-            for (U32 i = 0; i < 4; ++i)
-            {
-                attachmentDescs[ i ].samples        = VK_SAMPLE_COUNT_1_BIT;
-                attachmentDescs[ i ].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                attachmentDescs[ i ].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-                attachmentDescs[ i ].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                attachmentDescs[ i ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-
-                if (i == 3) // Depth
-                {
-                    attachmentDescs[ i ].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                    attachmentDescs[ i ].finalLayout   = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                }
-                else // Color
-                {
-                    attachmentDescs[ i ].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                    attachmentDescs[ i ].finalLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                }
-            }
-
-            // Formats
-            attachmentDescs[ 0 ].format = m_DeferredRenderFramebuffer.Position.Format;
-            attachmentDescs[ 1 ].format = m_DeferredRenderFramebuffer.Normal.Format;
-            attachmentDescs[ 2 ].format = m_DeferredRenderFramebuffer.Albedo.Format;
-            attachmentDescs[ 3 ].format = m_DeferredRenderFramebuffer.Depth.Format;
-        }
-
-		TVector<VkAttachmentReference> colorReferences;
-        {
-            colorReferences.push_back({ 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
-            colorReferences.push_back({ 1, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
-            colorReferences.push_back({ 2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
-        }
-
-		VkAttachmentReference depthReference{};
-        {
-            depthReference.attachment = 3;
-            depthReference.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        }
-
-		VkSubpassDescription subpass{};
-        {
-            subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
-            subpass.pColorAttachments       = colorReferences.data();
-            subpass.colorAttachmentCount    = static_cast<U32>(colorReferences.size());
-            subpass.pDepthStencilAttachment = &depthReference;
-        }
-
-		// Use subpass dependencies for attachment layout transitions
-		TArray<VkSubpassDependency, 2> dependencies;
-        {
-            {
-                dependencies[ 0 ].srcSubpass      = VK_SUBPASS_EXTERNAL;
-                dependencies[ 0 ].dstSubpass      = 0;
-                
-                dependencies[ 0 ].srcStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-                dependencies[ 0 ].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                
-                dependencies[ 0 ].srcAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
-                dependencies[ 0 ].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-                
-                dependencies[ 0 ].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-            }
-
-            {
-                dependencies[ 1 ].srcSubpass      = 0;
-                dependencies[ 1 ].dstSubpass      = VK_SUBPASS_EXTERNAL;
-                
-                dependencies[ 1 ].srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                dependencies[ 1 ].dstStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-                
-                dependencies[ 1 ].srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-                dependencies[ 1 ].dstAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
-                
-                dependencies[ 1 ].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-            }
-        }
-
-		VkRenderPassCreateInfo renderPassInfo{ VKInit::renderPassCreateInfo() };
-        {
-            renderPassInfo.pAttachments    = attachmentDescs.data();
-            renderPassInfo.attachmentCount = static_cast<U32>(attachmentDescs.size());
+	void VyRenderer::beginMappingsRenderPass(VkCommandBuffer cmdBuffer) 
+    {
+        VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
+        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
         
-            renderPassInfo.subpassCount    = 1;
-            renderPassInfo.pSubpasses      = &subpass;
-        
-            renderPassInfo.dependencyCount = 2;
-            renderPassInfo.pDependencies   = dependencies.data();
-        }
-
-		VK_CHECK(vkCreateRenderPass(VyContext::device(), &renderPassInfo, nullptr, &m_DeferredRenderFramebuffer.RenderPass));
-
-		TArray<VkImageView, 4> attachments;
+        TArray<VkClearValue, 2> clearValues{};
         {
-            attachments[ 0 ] = m_DeferredRenderFramebuffer.Position.View.handle();
-            attachments[ 1 ] = m_DeferredRenderFramebuffer.Normal.View  .handle();
-            attachments[ 2 ] = m_DeferredRenderFramebuffer.Albedo.View  .handle();
-            attachments[ 3 ] = m_DeferredRenderFramebuffer.Depth.View   .handle();
+            clearValues[0].color = { 0.03f, 0.03f, 0.03f, 0.03f };
+
+            clearValues[1].depthStencil = { 1.0f, 0 };
         }
 
-		VkFramebufferCreateInfo framebufferInfo{ VKInit::framebufferCreateInfo() };
+		VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
         {
-            framebufferInfo.pNext           = nullptr;
+            renderPassInfo.renderPass        = m_Swapchain->mappingsRenderPass();
+            renderPassInfo.framebuffer       = m_Swapchain->mappingsFrameBuffer( m_CurrentImageIndex );
             
-            framebufferInfo.renderPass      = m_DeferredRenderFramebuffer.RenderPass;
+            renderPassInfo.renderArea.offset = { 0, 0 };
+            renderPassInfo.renderArea.extent = m_Swapchain->swapchainExtent();
             
-            framebufferInfo.pAttachments    = attachments.data();
-            framebufferInfo.attachmentCount = static_cast<U32>(attachments.size());
-
-            framebufferInfo.width           = m_DeferredRenderFramebuffer.Extent.width;
-            framebufferInfo.height          = m_DeferredRenderFramebuffer.Extent.height;
-
-            framebufferInfo.layers          = 1;
+            renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
+            renderPassInfo.pClearValues      = clearValues.data();
         }
 
-		VK_CHECK(vkCreateFramebuffer(VyContext::device(), &framebufferInfo, nullptr, &m_DeferredRenderFramebuffer.Framebuffer));
+		vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		// Create sampler to sample from the color attachments
-        m_DeferredRenderFramebuffer.Sampler = VySampler::Builder{}
-            .setName         ("deferred_framebuffer")
-            .setFilters      (VK_FILTER_NEAREST)
-            .setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
-            .setWrap         (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
-            .setBorder       (VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
-            .setLodRange     (0.0f, 1.0f)
-            .setMipLodBias   (0.0f)
-        	.build();
+        // Set viewport and scissor rect.
+        VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
+        VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
 	}
-    
-    // void VyRenderer::endOffscreenRenderPass(VkCommandBuffer cmdBuffer) const
+
+
+	void VyRenderer::beginUVReflectionRenderPass(VkCommandBuffer cmdBuffer) 
+    {
+        VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
+        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
+        
+		TArray<VkClearValue, 2> clearValues{};
+        {
+            clearValues[0].color = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+            clearValues[1].depthStencil = { 1.0f, 0 };
+        }
+
+		VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
+        {
+            renderPassInfo.renderPass        = m_Swapchain->uvReflectionRenderPass();
+            renderPassInfo.framebuffer       = m_Swapchain->uvReflectionFrameBuffer( m_CurrentImageIndex );
+            
+            renderPassInfo.renderArea.offset = { 0, 0 };
+            renderPassInfo.renderArea.extent = m_Swapchain->swapchainExtent();
+            
+            renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
+            renderPassInfo.pClearValues      = clearValues.data();
+        }
+
+		vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        // Set viewport and scissor rect.
+        VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
+        VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
+	}
+
+
+	void VyRenderer::beginLightingRenderPass(VkCommandBuffer cmdBuffer) 
+    {
+        VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
+        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
+
+		TArray<VkClearValue, 4> clearValues{};
+        {
+            clearValues[0].color = { 0.02f, 0.01f, 0.01f, 1.0f };
+            clearValues[1].color = { 0.02f, 0.01f, 0.01f, 1.0f };
+            clearValues[2].color = { 0.02f, 0.01f, 0.01f, 1.0f };
+
+            clearValues[3].depthStencil = { 1.0f, 0 };
+        }
+
+		VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
+        {
+            renderPassInfo.renderPass        = m_Swapchain->lightingRenderPass();
+            renderPassInfo.framebuffer       = m_Swapchain->lightingFrameBuffer( m_CurrentImageIndex );
+            
+            renderPassInfo.renderArea.offset = { 0, 0 };
+            renderPassInfo.renderArea.extent = m_Swapchain->swapchainExtent();
+            
+            renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
+            renderPassInfo.pClearValues      = clearValues.data();
+        }
+
+		vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        // Set viewport and scissor rect.
+        VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
+        VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
+	}
+
+
+	void VyRenderer::beginPostProcessingRenderPass(VkCommandBuffer cmdBuffer) 
+    {
+        VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
+        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
+        
+		TArray<VkClearValue, 1> clearValues{};
+        {
+            clearValues[0].color = { 0.05f, 0.05f, 0.05f, 1.0f };
+        }
+
+		VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
+        {
+            renderPassInfo.renderPass        = m_Swapchain->postProcessingRenderPass();
+            renderPassInfo.framebuffer       = m_Swapchain->postProcessingFrameBuffer( m_CurrentImageIndex );
+            
+            renderPassInfo.renderArea.offset = { 0, 0 };
+            renderPassInfo.renderArea.extent = m_Swapchain->swapchainExtent();
+
+            renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
+            renderPassInfo.pClearValues      = clearValues.data();
+        }
+
+		vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        // Set viewport and scissor rect.
+        VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
+        VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
+	}
+
+
+	void VyRenderer::endRenderPass(VkCommandBuffer cmdBuffer) 
+    {
+        VY_ASSERT(m_IsFrameStarted,                    "Can't end the render pass when frame is not in progress.");
+        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't end the render pass on command buffer from a different frame.");
+	
+        vkCmdEndRenderPass(cmdBuffer);
+	}
+
+
+    // void VyRenderer::beginOffscreenRenderPass(VkCommandBuffer cmdBuffer)
     // {
-    //     VY_ASSERT(m_IsFrameStarted,                    "Can't end offscreen render pass when frame is not in progress.");
-    //     VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't end offscreen render pass on command buffer from a different frame.");
+    //     VY_ASSERT(m_IsFrameStarted,                    "Can't begin offscreen render pass when frame is not in progress.");
+    //     VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin offscreen render pass on command buffer from a different frame.");
 
-    //     m_OffscreenFramebuffer->endRenderPass(cmdBuffer);
-    // }
-
-    // // =====================================================================================================================
-
-    // VkDescriptorImageInfo VyRenderer::offscreenDescriptionImageInfo(int index) const
-    // {
-    //     return m_OffscreenFramebuffer->descriptorImageInfo(index);
-    // }
-
-
-    // VkDescriptorImageInfo VyRenderer::depthDescriptionImageInfo(int index) const
-    // {
-    //     VkDescriptorImageInfo info{};
+    //     TArray<VkClearValue, 2> clearValues{};
     //     {
-    //         info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    //         info.imageView   = m_OffscreenFramebuffer->depthImageView(index);
-    //         info.sampler     = m_OffscreenFramebuffer->depthSampler();
+    //         clearValues[ 0 ].color        = { 0.0f, 0.0f, 0.0f, 1.0f }; // color attachment
+    //         clearValues[ 1 ].depthStencil = { 1.0f, 0 };                // Depths stencil clear value
+    //     }
+        
+	// 	// Record draw commands to each command buffers
+	// 	VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
+    //     {
+    //         renderPassInfo.renderPass        = m_OffscreenPass.RenderPass;
+    //         renderPassInfo.framebuffer       = m_OffscreenPass.Framebuffer;
+            
+    //         renderPassInfo.renderArea.offset = { 0,0 };
+    //         // Make sure to use the swapchain extent not the window extent
+    //         // because the swapchain extent may be larger then window extent which is the case in Mac retina display
+    //         renderPassInfo.renderArea.extent = m_OffscreenPass.Extent;
+            
+    //         // Set the color that the frame buffer 'attachments' will clear to 
+    //         renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
+    //         renderPassInfo.pClearValues      = clearValues.data();
     //     }
 
-    //     return info;
+	// 	vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    //     // Set viewport and scissor rect.
+    //     VKCmd::viewport(cmdBuffer, m_OffscreenPass.Extent);
+    //     VKCmd::scissor (cmdBuffer, m_OffscreenPass.Extent);
     // }
 
-    // // =====================================================================================================================
-    
-    // void VyRenderer::createOffscreenResources()
-    // {
-    //     m_OffscreenFramebuffer = MakeUnique<VyFramebuffer>(
-    //         m_Swapchain->swapchainExtent(), 
-    //         MAX_FRAMES_IN_FLIGHT, 
-    //         true /* Use Mipmaps */
+
+	// void VyRenderer::setUpOffscreenRenderPass(U32 texW, U32 texH)
+	// {
+	// 	createOffscreenRenderPass( texW, texH );
+	// 	createOffscreenFramebuffer();
+	// }
+
+
+	// void VyRenderer::createOffscreenRenderPass(U32 texW, U32 texH)
+	// {
+	// 	m_OffscreenPass.Extent = { texW, texH };
+
+	// 	// Depth stencil attachment
+	// 	VkFormat fbDepthFormat;
+	// 	bool bValidDepthFormat = VyContext::device().getSupportedDepthsFormat( &fbDepthFormat );
+		
+    //     assert(bValidDepthFormat);
+
+	// 	createOffscreenColorAttachment();
+	// 	createOffscreenDepthsAttachment( fbDepthFormat );
+
+	// 	TArray<VkAttachmentDescription, 2> attchmentDescriptions{};
+	// 	createOffscreenAttachmentDescriptors( attchmentDescriptions, fbDepthFormat );
+
+	// 	VkAttachmentReference colorReference = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL         };
+	// 	VkAttachmentReference depthReference = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
+
+	// 	VkSubpassDescription subpass{};
+    //     {
+    //         subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    //         subpass.colorAttachmentCount    = 1;
+    //         subpass.pColorAttachments       = &colorReference;
+    //         subpass.pDepthStencilAttachment = &depthReference;
+    //     }
+
+	// 	TArray<VkSubpassDependency, 2> dependencies{};
+	// 	createOffscreenSubpassDependencies( dependencies );
+		
+	// 	// Create the actual renderpass
+	// 	VkRenderPassCreateInfo renderPassInfo{ VKInit::renderPassCreateInfo() };
+    //     {
+    //         renderPassInfo.attachmentCount = static_cast<U32>(attchmentDescriptions.size());
+    //         renderPassInfo.pAttachments    = attchmentDescriptions.data();
+
+    //         renderPassInfo.subpassCount    = 1;
+    //         renderPassInfo.pSubpasses      = &subpass;
+
+    //         renderPassInfo.dependencyCount = static_cast<U32>(dependencies.size());
+    //         renderPassInfo.pDependencies   = dependencies.data();
+    //     }
+
+	// 	VK_CHECK(vkCreateRenderPass(VyContext::device(), &renderPassInfo, nullptr, &m_OffscreenPass.RenderPass));
+	// }
+
+
+    // void VyRenderer::createOffscreenColorAttachment()
+	// {
+    //     m_OffscreenPass.Color.Image = VyImage::Builder{}
+	// 		.setName       ("offscreen_color_attachment")
+    //         .setImageType  (VK_IMAGE_TYPE_2D)
+    //         .setFormat     (VK_FORMAT_R8G8B8A8_UNORM)
+    //         .setExtent     (m_OffscreenPass.Extent)
+    //         .setLevels     (1)
+	// 		.setLayers     (1)
+	// 		.setSamples    (VK_SAMPLE_COUNT_1_BIT)
+    //         .setTiling     (VK_IMAGE_TILING_OPTIMAL)
+	// 		.setLayout     (VK_IMAGE_LAYOUT_UNDEFINED)
+    //         .setUsage      (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
+    //         .setMemoryUsage(VMA_MEMORY_USAGE_AUTO)
+    //     	.build();
+
+    //     m_OffscreenPass.Color.View = VyImageView::Builder{}
+    //         .setName    ("offscreen_color_attachment")
+    //         .setViewType(VK_IMAGE_VIEW_TYPE_2D)
+    //         .setFormat  (VK_FORMAT_R8G8B8A8_UNORM)
+    //         .setAspect  (VK_IMAGE_ASPECT_COLOR_BIT)
+    //         .setLevels  (0, 1)
+    //         .setLayers  (0, 1)
+    //     	.build( m_OffscreenPass.Color.Image );
+
+    //     // Create sampler to sample from the attachment in the fragment shader
+    //     m_OffscreenPass.Sampler = VySampler::Builder{}
+    //         .setName         ("offscreen_color_attachment")
+    //         .setFilters      (VK_FILTER_LINEAR)
+    //         .setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
+    //         .setWrap         (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
+    //         .setBorder       (VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
+    //         .setLodRange     (0.0f, 1.0f)
+    //         .setMipLodBias   (0.0f)
+    //     	.build();
+	// }
+
+
+	// void VyRenderer::createOffscreenDepthsAttachment(VkFormat& depthsFormat)
+	// {
+    //     m_OffscreenPass.Depth.Image = VyImage::Builder{}
+	// 		.setName       ("offscreen_depth_attachment")
+    //         .setImageType  (VK_IMAGE_TYPE_2D)
+    //         .setFormat     (depthsFormat)
+    //         .setExtent     (m_OffscreenPass.Extent)
+    //         .setLevels     (1)
+	// 		.setLayers     (1)
+	// 		.setSamples    (VK_SAMPLE_COUNT_1_BIT)
+    //         .setTiling     (VK_IMAGE_TILING_OPTIMAL)
+	// 		.setLayout     (VK_IMAGE_LAYOUT_UNDEFINED)
+    //         .setUsage      (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+    //         .setMemoryUsage(VMA_MEMORY_USAGE_AUTO)
+    //     	.build();
+
+    //     auto viewBuilder = VyImageView::Builder{}
+    //         .setName    ("offscreen_depth_attachment")
+    //         .setViewType(VK_IMAGE_VIEW_TYPE_2D)
+    //         .setFormat  (depthsFormat)
+    //         .setAspect  (VK_IMAGE_ASPECT_DEPTH_BIT)
+    //         .setLevels  (0, 1)
+    //         .setLayers  (0, 1);
+        	
+	// 	if (depthsFormat >= VK_FORMAT_D16_UNORM_S8_UINT) 
+    //     {
+    //         viewBuilder.addAspect(VK_IMAGE_ASPECT_STENCIL_BIT);
+	// 	}
+
+    //     m_OffscreenPass.Depth.View = viewBuilder.build( m_OffscreenPass.Depth.Image );
+	// }
+
+
+	// void VyRenderer::createOffscreenAttachmentDescriptors(TArray<VkAttachmentDescription, 2>& descriptors, VkFormat& depthsFormat)
+	// {
+	// 	// Color attachment
+    //     {
+    //         descriptors[ 0 ].format         = VkFormat::VK_FORMAT_R8G8B8A8_UNORM;
+    //         descriptors[ 0 ].samples        = VK_SAMPLE_COUNT_1_BIT;
+    //         descriptors[ 0 ].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    //         descriptors[ 0 ].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+    //         descriptors[ 0 ].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    //         descriptors[ 0 ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    //         descriptors[ 0 ].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+    //         descriptors[ 0 ].finalLayout    = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //     }
+
+    //     // Depth attachment
+    //     {
+    //         descriptors[ 1 ].format         = depthsFormat;
+    //         descriptors[ 1 ].samples        = VK_SAMPLE_COUNT_1_BIT;
+    //         descriptors[ 1 ].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    //         descriptors[ 1 ].storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    //         descriptors[ 1 ].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    //         descriptors[ 1 ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    //         descriptors[ 1 ].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+    //         descriptors[ 1 ].finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    //     }
+
+	// 	VkAttachmentReference colorReference = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL         };
+	// 	VkAttachmentReference depthReference = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
+	// }
+
+
+	// void VyRenderer::createOffscreenSubpassDependencies(TArray<VkSubpassDependency, 2>& dependencies)
+	// {
+    //     {
+    //         dependencies[ 0 ].srcSubpass      = VK_SUBPASS_EXTERNAL;
+    //         dependencies[ 0 ].dstSubpass      = 0;
+
+    //         dependencies[ 0 ].srcStageMask    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    //         dependencies[ 0 ].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            
+    //         dependencies[ 0 ].srcAccessMask   = VK_ACCESS_SHADER_READ_BIT;
+    //         dependencies[ 0 ].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            
+    //         dependencies[ 0 ].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    //     }
+
+    //     {
+    //         dependencies[ 1 ].srcSubpass      = 0;
+    //         dependencies[ 1 ].dstSubpass      = VK_SUBPASS_EXTERNAL;
+            
+    //         dependencies[ 1 ].srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    //         dependencies[ 1 ].dstStageMask    = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            
+    //         dependencies[ 1 ].srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    //         dependencies[ 1 ].dstAccessMask   = VK_ACCESS_SHADER_READ_BIT;
+            
+    //         dependencies[ 1 ].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    //     }
+	// }
+
+
+	// void VyRenderer::createOffscreenFramebuffer()
+	// {
+	// 	VkImageView attachments[ 2 ];
+    //     {
+    //         attachments[ 0 ] = m_OffscreenPass.Color.View.handle();
+    //         attachments[ 1 ] = m_OffscreenPass.Depth.View.handle();
+    //     }
+
+	// 	VkFramebufferCreateInfo framebufferInfo{ VKInit::framebufferCreateInfo() };
+    //     {
+    //         framebufferInfo.renderPass      = m_OffscreenPass.RenderPass;
+
+    //         framebufferInfo.attachmentCount = 2;
+    //         framebufferInfo.pAttachments    = attachments;
+            
+    //         framebufferInfo.width           = m_OffscreenPass.Extent.width;
+    //         framebufferInfo.height          = m_OffscreenPass.Extent.height;
+            
+    //         framebufferInfo.layers          = 1;
+    //     }
+
+	// 	VK_CHECK(vkCreateFramebuffer(VyContext::device(), &framebufferInfo, nullptr, &m_OffscreenPass.Framebuffer));
+	// }
+
+
+	// //Deferred rendering
+
+	// void VyRenderer::createAttachment(VkFormat format, VkImageUsageFlagBits usage, FrameBufferAttachment* pAttachment)
+	// {
+	// 	VkImageAspectFlags aspectMask = 0;
+	// 	VkImageLayout      imageLayout;
+
+	// 	pAttachment->Format = format;
+
+	// 	if (usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+	// 	{
+	// 		aspectMask  = VK_IMAGE_ASPECT_COLOR_BIT;
+	// 		imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	// 	}
+	// 	if (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+	// 	{
+	// 		aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+	// 		if (format >= VK_FORMAT_D16_UNORM_S8_UINT)
+    //         {
+    //             aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    //         }
+
+    //         imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	// 	}
+
+	// 	assert(aspectMask > 0);
+
+    //     pAttachment->Image = VyImage::Builder{}
+	// 		.setName       ("deferred_attachment")
+    //         .setImageType  (VK_IMAGE_TYPE_2D)
+    //         .setFormat     (format)
+    //         .setExtent     (m_DeferredRenderFramebuffer.Extent)
+    //         .setLevels     (1)
+	// 		.setLayers     (1)
+	// 		.setSamples    (VK_SAMPLE_COUNT_1_BIT)
+    //         .setTiling     (VK_IMAGE_TILING_OPTIMAL)
+	// 		.setLayout     (VK_IMAGE_LAYOUT_UNDEFINED)
+    //         .setUsage      (usage | VK_IMAGE_USAGE_SAMPLED_BIT)
+    //         .setMemoryUsage(VMA_MEMORY_USAGE_AUTO)
+    //     	.build();
+
+    //     pAttachment->View = VyImageView::Builder{}
+    //         .setName    ("deferred_attachment")
+    //         .setViewType(VK_IMAGE_VIEW_TYPE_2D)
+    //         .setFormat  (format)
+    //         .setAspect  (aspectMask)
+    //         .setLevels  (0, 1)
+    //         .setLayers  (0, 1)
+    //         .build( pAttachment->Image );
+	// }
+
+
+	// void VyRenderer::prepareDeferredRenderFramebuffer()
+	// {
+	// 	// Note: Instead of using fixed sizes, one could also match the window size and recreate the attachments on resize
+	// 	m_DeferredRenderFramebuffer.Extent = { 2048, 2048 };
+
+	// 	// Color attachments
+
+	// 	// (World space) Positions
+	// 	createAttachment(
+	// 		VK_FORMAT_R16G16B16A16_SFLOAT,
+	// 		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+	// 		&m_DeferredRenderFramebuffer.Position
     //     );
-    // }
+
+	// 	// (World space) Normals
+	// 	createAttachment(
+	// 		VK_FORMAT_R16G16B16A16_SFLOAT,
+	// 		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+	// 		&m_DeferredRenderFramebuffer.Normal
+    //     );
+
+	// 	// Albedo (color)
+	// 	createAttachment(
+	// 		VK_FORMAT_R8G8B8A8_UNORM,
+	// 		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+	// 		&m_DeferredRenderFramebuffer.Albedo
+    //     );
+
+	// 	// Depth attachment
+	// 	VkFormat depthFormat = m_Swapchain->findDepthFormat();
+
+	// 	createAttachment(
+	// 		depthFormat,
+	// 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+	// 		&m_DeferredRenderFramebuffer.Depth
+    //     );
+
+	// 	// Set up separate renderpass with references to the color and depth attachments
+	// 	TArray<VkAttachmentDescription, 4> attachmentDescs = {};
+    //     {
+    //         // Init attachment properties
+    //         for (U32 i = 0; i < 4; ++i)
+    //         {
+    //             attachmentDescs[ i ].samples        = VK_SAMPLE_COUNT_1_BIT;
+    //             attachmentDescs[ i ].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    //             attachmentDescs[ i ].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+    //             attachmentDescs[ i ].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    //             attachmentDescs[ i ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+    //             if (i == 3) // Depth
+    //             {
+    //                 attachmentDescs[ i ].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    //                 attachmentDescs[ i ].finalLayout   = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    //             }
+    //             else // Color
+    //             {
+    //                 attachmentDescs[ i ].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    //                 attachmentDescs[ i ].finalLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //             }
+    //         }
+
+    //         // Formats
+    //         attachmentDescs[ 0 ].format = m_DeferredRenderFramebuffer.Position.Format;
+    //         attachmentDescs[ 1 ].format = m_DeferredRenderFramebuffer.Normal.Format;
+    //         attachmentDescs[ 2 ].format = m_DeferredRenderFramebuffer.Albedo.Format;
+    //         attachmentDescs[ 3 ].format = m_DeferredRenderFramebuffer.Depth.Format;
+    //     }
+
+	// 	TVector<VkAttachmentReference> colorReferences;
+    //     {
+    //         colorReferences.push_back({ 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
+    //         colorReferences.push_back({ 1, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
+    //         colorReferences.push_back({ 2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
+    //     }
+
+	// 	VkAttachmentReference depthReference{};
+    //     {
+    //         depthReference.attachment = 3;
+    //         depthReference.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    //     }
+
+	// 	VkSubpassDescription subpass{};
+    //     {
+    //         subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    //         subpass.pColorAttachments       = colorReferences.data();
+    //         subpass.colorAttachmentCount    = static_cast<U32>(colorReferences.size());
+    //         subpass.pDepthStencilAttachment = &depthReference;
+    //     }
+
+	// 	// Use subpass dependencies for attachment layout transitions
+	// 	TArray<VkSubpassDependency, 2> dependencies;
+    //     {
+    //         {
+    //             dependencies[ 0 ].srcSubpass      = VK_SUBPASS_EXTERNAL;
+    //             dependencies[ 0 ].dstSubpass      = 0;
+                
+    //             dependencies[ 0 ].srcStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    //             dependencies[ 0 ].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                
+    //             dependencies[ 0 ].srcAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
+    //             dependencies[ 0 ].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                
+    //             dependencies[ 0 ].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    //         }
+
+    //         {
+    //             dependencies[ 1 ].srcSubpass      = 0;
+    //             dependencies[ 1 ].dstSubpass      = VK_SUBPASS_EXTERNAL;
+                
+    //             dependencies[ 1 ].srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    //             dependencies[ 1 ].dstStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+                
+    //             dependencies[ 1 ].srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    //             dependencies[ 1 ].dstAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
+                
+    //             dependencies[ 1 ].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    //         }
+    //     }
+
+	// 	VkRenderPassCreateInfo renderPassInfo{ VKInit::renderPassCreateInfo() };
+    //     {
+    //         renderPassInfo.pAttachments    = attachmentDescs.data();
+    //         renderPassInfo.attachmentCount = static_cast<U32>(attachmentDescs.size());
+        
+    //         renderPassInfo.subpassCount    = 1;
+    //         renderPassInfo.pSubpasses      = &subpass;
+        
+    //         renderPassInfo.dependencyCount = 2;
+    //         renderPassInfo.pDependencies   = dependencies.data();
+    //     }
+
+	// 	VK_CHECK(vkCreateRenderPass(VyContext::device(), &renderPassInfo, nullptr, &m_DeferredRenderFramebuffer.RenderPass));
+
+	// 	TArray<VkImageView, 4> attachments;
+    //     {
+    //         attachments[ 0 ] = m_DeferredRenderFramebuffer.Position.View.handle();
+    //         attachments[ 1 ] = m_DeferredRenderFramebuffer.Normal.View  .handle();
+    //         attachments[ 2 ] = m_DeferredRenderFramebuffer.Albedo.View  .handle();
+    //         attachments[ 3 ] = m_DeferredRenderFramebuffer.Depth.View   .handle();
+    //     }
+
+	// 	VkFramebufferCreateInfo framebufferInfo{ VKInit::framebufferCreateInfo() };
+    //     {
+    //         framebufferInfo.pNext           = nullptr;
+            
+    //         framebufferInfo.renderPass      = m_DeferredRenderFramebuffer.RenderPass;
+            
+    //         framebufferInfo.pAttachments    = attachments.data();
+    //         framebufferInfo.attachmentCount = static_cast<U32>(attachments.size());
+
+    //         framebufferInfo.width           = m_DeferredRenderFramebuffer.Extent.width;
+    //         framebufferInfo.height          = m_DeferredRenderFramebuffer.Extent.height;
+
+    //         framebufferInfo.layers          = 1;
+    //     }
+
+	// 	VK_CHECK(vkCreateFramebuffer(VyContext::device(), &framebufferInfo, nullptr, &m_DeferredRenderFramebuffer.Framebuffer));
+
+	// 	// Create sampler to sample from the color attachments
+    //     m_DeferredRenderFramebuffer.Sampler = VySampler::Builder{}
+    //         .setName         ("deferred_framebuffer")
+    //         .setFilters      (VK_FILTER_NEAREST)
+    //         .setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
+    //         .setWrap         (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
+    //         .setBorder       (VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
+    //         .setLodRange     (0.0f, 1.0f)
+    //         .setMipLodBias   (0.0f)
+    //     	.build();
+	// }
+    
+    // // void VyRenderer::endOffscreenRenderPass(VkCommandBuffer cmdBuffer) const
+    // // {
+    // //     VY_ASSERT(m_IsFrameStarted,                    "Can't end offscreen render pass when frame is not in progress.");
+    // //     VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't end offscreen render pass on command buffer from a different frame.");
+
+    // //     m_OffscreenFramebuffer->endRenderPass(cmdBuffer);
+    // // }
+
+    // // // =====================================================================================================================
+
+    // // VkDescriptorImageInfo VyRenderer::offscreenDescriptionImageInfo(int index) const
+    // // {
+    // //     return m_OffscreenFramebuffer->descriptorImageInfo(index);
+    // // }
 
 
-    // void VyRenderer::generateOffscreenMipmaps(VkCommandBuffer cmdBuffer)
-    // {
-    //     m_OffscreenFramebuffer->generateMipmaps(cmdBuffer, m_CurrentFrameIndex);
-    // }
+    // // VkDescriptorImageInfo VyRenderer::depthDescriptionImageInfo(int index) const
+    // // {
+    // //     VkDescriptorImageInfo info{};
+    // //     {
+    // //         info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    // //         info.imageView   = m_OffscreenFramebuffer->depthImageView(index);
+    // //         info.sampler     = m_OffscreenFramebuffer->depthSampler();
+    // //     }
+
+    // //     return info;
+    // // }
+
+    // // // =====================================================================================================================
+    
+    // // void VyRenderer::createOffscreenResources()
+    // // {
+    // //     m_OffscreenFramebuffer = MakeUnique<VyFramebuffer>(
+    // //         m_Swapchain->swapchainExtent(), 
+    // //         MAX_FRAMES_IN_FLIGHT, 
+    // //         true /* Use Mipmaps */
+    // //     );
+    // // }
+
+
+    // // void VyRenderer::generateOffscreenMipmaps(VkCommandBuffer cmdBuffer)
+    // // {
+    // //     m_OffscreenFramebuffer->generateMipmaps(cmdBuffer, m_CurrentFrameIndex);
+    // // }
 
 #pragma endregion Rendering
 }

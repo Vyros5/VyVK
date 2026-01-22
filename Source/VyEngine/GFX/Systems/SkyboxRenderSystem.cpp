@@ -53,8 +53,6 @@ namespace Vy
             
             builder.addDescriptorSetLayouts( setLayouts );
             
-            // builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(SkyboxPushConstants));
-            
             builder.addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   "Sky/Skybox.vert.spv");
             builder.addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, "Sky/Skybox.frag.spv");
             
@@ -102,7 +100,7 @@ namespace Vy
             m_Pipeline->bindDescriptorSets(frameInfo.CommandBuffer,
                 0, 
                 TVector{ 
-                    frameInfo.GlobalDescriptorSet,           
+                    frameInfo.GlobalSet,           
                     m_DescriptorSets[ frameInfo.FrameIndex ] 
                 }
             );

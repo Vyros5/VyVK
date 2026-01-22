@@ -283,7 +283,7 @@ namespace Vy
         const VkDescriptorSet& skeletonDescriptorSet = mesh.SkeletonDescriptorSet;
 
         TVector<VkDescriptorSet> descriptorSets = {
-            frameInfo.GlobalDescriptorSet, 
+            frameInfo.GlobalSet, 
             materialDescriptorSet, 
             skeletonDescriptorSet 
         };

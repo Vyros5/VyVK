@@ -232,6 +232,14 @@ namespace Vy::VKInit
         return ret;
     }
 
+	inline VkRenderPassMultiviewCreateInfo renderPassMultiviewCreateInfo()
+	{
+        VkRenderPassMultiviewCreateInfo ret{};
+        ret.sType = VK_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_CREATE_INFO;
+
+        return ret;
+	}
+
     inline VkFramebufferCreateInfo framebufferCreateInfo() 
     {
         VkFramebufferCreateInfo ret{};

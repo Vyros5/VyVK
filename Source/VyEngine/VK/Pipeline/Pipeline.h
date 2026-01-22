@@ -288,8 +288,9 @@ namespace Vy
         GraphicsBuilder& setRasterizationSamples(VkSampleCountFlagBits samples);
 
         // Color Blending
-        GraphicsBuilder& addColorAttachment(VkFormat colorFormat, bool alphaBlending = false);
+        GraphicsBuilder& addColorAttachment(VkFormat colorFormat, bool bAlphaBlending = false);
         GraphicsBuilder& addColorAttachment(const VkPipelineColorBlendAttachmentState& attachment);
+        GraphicsBuilder& addColorAttachments(VkFormat colorFormat, U32 count, bool bAlphaBlending = false);
         GraphicsBuilder& clearColorAttachments();
 
         // Depth Stencil

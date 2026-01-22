@@ -128,7 +128,7 @@ namespace Vy
 	VyPipeline::GraphicsBuilder& 
 	VyPipeline::GraphicsBuilder::addColorAttachment(
 		VkFormat colorFormat, 
-		bool     alphaBlending)
+		bool     bAlphaBlending)
 	{
 		// https://docs.vulkan.org/spec/latest/chapters/pipelines.html#VkPipelineRenderingCreateInfo
 
@@ -153,7 +153,7 @@ namespace Vy
 				VK_COLOR_COMPONENT_A_BIT 
 			};
 			
-			if (alphaBlending)
+			if (bAlphaBlending)
 			{
 				colorBlendAttachment.blendEnable         = VK_TRUE;
 				colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -164,6 +164,50 @@ namespace Vy
 		m_GraphicsConfig.ColorBlendAttachments.emplace_back( colorBlendAttachment );
 
 		m_GraphicsConfig.ColorBlendInfo.attachmentCount = m_GraphicsConfig.RenderingInfo.colorAttachmentCount;
+		m_GraphicsConfig.ColorBlendInfo.pAttachments    = m_GraphicsConfig.ColorBlendAttachments.data();
+
+		return *this;
+	}
+
+
+	VyPipeline::GraphicsBuilder& 
+	VyPipeline::GraphicsBuilder::addColorAttachments(VkFormat colorFormat, U32 count, bool bAlphaBlending)
+	{
+		for (U32 i = 0; i < count; i++)
+		{
+			m_GraphicsConfig.ColorAttachmentFormats.emplace_back( colorFormat );
+
+			VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+			{
+				colorBlendAttachment.blendEnable         = VK_FALSE;
+				colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+				colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+				colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
+				colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+				colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+				colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
+				colorBlendAttachment.colorWriteMask      = { 
+					VK_COLOR_COMPONENT_R_BIT | 
+					VK_COLOR_COMPONENT_G_BIT | 
+					VK_COLOR_COMPONENT_B_BIT | 
+					VK_COLOR_COMPONENT_A_BIT 
+				};
+
+				if (bAlphaBlending)
+				{
+					colorBlendAttachment.blendEnable         = VK_TRUE;
+					colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+					colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+				}
+			}
+
+			m_GraphicsConfig.ColorBlendAttachments.emplace_back( colorBlendAttachment );
+		}
+
+		m_GraphicsConfig.RenderingInfo.colorAttachmentCount    = static_cast<U32>(m_GraphicsConfig.ColorAttachmentFormats.size());
+		m_GraphicsConfig.RenderingInfo.pColorAttachmentFormats = m_GraphicsConfig.ColorAttachmentFormats.data();
+
+		m_GraphicsConfig.ColorBlendInfo.attachmentCount = static_cast<U32>(m_GraphicsConfig.ColorBlendAttachments.size());//m_GraphicsConfig.RenderingInfo.colorAttachmentCount;
 		m_GraphicsConfig.ColorBlendInfo.pAttachments    = m_GraphicsConfig.ColorBlendAttachments.data();
 
 		return *this;

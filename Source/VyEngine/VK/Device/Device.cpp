@@ -558,6 +558,15 @@ namespace Vy
 
 		// pNextFeatureChain.inject( meshShaderFeatures );
 
+
+		VkPhysicalDeviceMultiviewFeaturesKHR multiviewFeatures{};
+		{
+			multiviewFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES_KHR;
+
+			multiviewFeatures.multiview = VK_TRUE;
+		}
+
+		pNextFeatureChain.inject( multiviewFeatures );
 		
 		VkPhysicalDeviceFeatures2 deviceFeatures2{};
 		{

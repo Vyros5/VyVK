@@ -22,8 +22,19 @@
 #include <VyEngine/GFX/Systems/GridSystem.h>
 #include <VyEngine/GFX/Systems/SkyboxRenderSystem.h>
 
+#include <VyEngine/GFX/Systems/ReflectionRenderSystem.h>
+#include <VyEngine/GFX/Systems/ShadowRenderSystem.h>
+#include <VyEngine/GFX/Systems/SceneRenderSystem.h>
+#include <VyEngine/GFX/Systems/PointLightSystem.h>
+
 namespace Vy
 {
+		static constexpr float LIGHT_NEAR_PLANE = 0.1f;
+		static constexpr float LIGHT_FAR_PLANE = 50.0f;
+
+		static constexpr float CAMERA_NEAR_PLANE = 0.1f;
+		static constexpr float CAMERA_FAR_PLANE = 50.0f;
+
     class VyEngine
     {
     public:
@@ -67,7 +78,14 @@ namespace Vy
         Unique<VySkybox>            m_Skybox;
         // Shared<VyMaterialSystem>    m_MaterialSystem{};
 
+        Unique<VySceneRenderSystem> m_SceneSystem;
+        Unique<VyShadowRenderSystem> m_ShadowSystem;
+        Unique<VyReflectionRenderSystem> m_ReflectionSystem;
+        Unique<VyPointLightSystem> m_PointLightSystem; 
+
         Shared<VyScene> m_Scene;
+
+        VyEntity m_LightEntity;
 
         // Singleton
 		static VyEngine* s_Instance;
@@ -87,5 +105,6 @@ namespace Vy
         
 
         bool m_Running;
+        U32 m_FrameCount{ 0 };
     };
 }

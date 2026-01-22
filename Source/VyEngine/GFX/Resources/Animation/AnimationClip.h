@@ -74,6 +74,7 @@ namespace Vy
             float         TimeBegin;
             float         Framerate;
             size_t        FrameCount;
+            
             TVector<Quat> Rot;
             TVector<Vec3> Pos;
             TVector<Vec3> Scl;

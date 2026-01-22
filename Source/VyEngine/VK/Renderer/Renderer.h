@@ -17,58 +17,58 @@ namespace Vy
     // Declarations
     class VyContext;
 
-	struct FrameBufferAttachment 
-    {
-		VyImage     Image;
-		VyImageView View;
-		VkFormat    Format;
+	// struct FrameBufferAttachment 
+    // {
+	// 	VyImage     Image;
+	// 	VyImageView View;
+	// 	VkFormat    Format;
 
-        const FrameBufferAttachment operator=(const FrameBufferAttachment&) = delete;
-	};
+    //     const FrameBufferAttachment operator=(const FrameBufferAttachment&) = delete;
+	// };
 
 
-	struct FrameBuffer 
-    {
-        VkExtent2D    Extent;
-		VkFramebuffer Framebuffer;
-		VkRenderPass  RenderPass;
-		VySampler     Sampler;
+	// struct FrameBuffer 
+    // {
+    //     VkExtent2D    Extent;
+	// 	VkFramebuffer Framebuffer;
+	// 	VkRenderPass  RenderPass;
+	// 	VySampler     Sampler;
 
-		// One attachment for every component required for a deferred rendering setup
-		FrameBufferAttachment Position;
-        FrameBufferAttachment Normal;
-        FrameBufferAttachment Albedo;
-		FrameBufferAttachment Depth;
+	// 	// One attachment for every component required for a deferred rendering setup
+	// 	FrameBufferAttachment Position;
+    //     FrameBufferAttachment Normal;
+    //     FrameBufferAttachment Albedo;
+	// 	FrameBufferAttachment Depth;
 
-		const FrameBuffer operator=(const FrameBuffer&) = delete;
+	// 	const FrameBuffer operator=(const FrameBuffer&) = delete;
 		
-        ~FrameBuffer() 
-        {
-			std::cout << "Destroying FrameBuffer\n";
-			vkDestroyFramebuffer(VyContext::device(), Framebuffer, nullptr);
-			vkDestroyRenderPass(VyContext::device(), RenderPass, nullptr);
-		}
-	};
+    //     ~FrameBuffer() 
+    //     {
+	// 		std::cout << "Destroying FrameBuffer\n";
+	// 		vkDestroyFramebuffer(VyContext::device(), Framebuffer, nullptr);
+	// 		vkDestroyRenderPass(VyContext::device(), RenderPass, nullptr);
+	// 	}
+	// };
 
 
-	struct OffscreenPass 
-    {
-        VkExtent2D            Extent;
-		VkFramebuffer         Framebuffer;
-		FrameBufferAttachment Color{};
-		FrameBufferAttachment Depth{};
-		VkRenderPass          RenderPass;
-		VySampler             Sampler;
-		U32                   RenderTargetHandle;
-		VkDescriptorImageInfo ColorImageInfo;
+	// struct OffscreenPass 
+    // {
+    //     VkExtent2D            Extent;
+	// 	VkFramebuffer         Framebuffer;
+	// 	FrameBufferAttachment Color{};
+	// 	FrameBufferAttachment Depth{};
+	// 	VkRenderPass          RenderPass;
+	// 	VySampler             Sampler;
+	// 	U32                   RenderTargetHandle;
+	// 	VkDescriptorImageInfo ColorImageInfo;
 		
-        ~OffscreenPass() 
-        {
-			std::cout << "Destroying OffscreenPass\n";
-			vkDestroyRenderPass(VyContext::device(), RenderPass, nullptr);
-			vkDestroyFramebuffer(VyContext::device(), Framebuffer, nullptr);
-		}
-	};
+    //     ~OffscreenPass() 
+    //     {
+	// 		std::cout << "Destroying OffscreenPass\n";
+	// 		vkDestroyRenderPass(VyContext::device(), RenderPass, nullptr);
+	// 		vkDestroyFramebuffer(VyContext::device(), Framebuffer, nullptr);
+	// 	}
+	// };
 
 
     /**
@@ -263,9 +263,42 @@ namespace Vy
 
         // void generateOffscreenMipmaps(VkCommandBuffer cmdBuffer);
 
-		void setUpOffscreenRenderPass(U32 texW, U32 texH);
-		void createOffscreenRenderPass(U32 texW, U32 texH);
-		void beginOffscreenRenderPass(VkCommandBuffer cmdBuffer);
+		// void setUpOffscreenRenderPass(U32 texW, U32 texH);
+		// void createOffscreenRenderPass(U32 texW, U32 texH);
+		// void beginOffscreenRenderPass(VkCommandBuffer cmdBuffer);
+        float shadowAspectRatio() const { return m_Swapchain->shadowExtentAspectRatio(); };
+
+		VkRenderPass shadowRenderPass()         const { return m_Swapchain->shadowRenderPass(); }
+		VkRenderPass mappingsRenderPass()       const { return m_Swapchain->mappingsRenderPass(); }
+		VkRenderPass uvReflectionRenderPass()   const { return m_Swapchain->uvReflectionRenderPass(); }
+		VkRenderPass lightingRenderPass()       const { return m_Swapchain->lightingRenderPass(); }
+		VkRenderPass postProcessingRenderPass() const { return m_Swapchain->postProcessingRenderPass(); }
+
+		void beginShadowRenderPass(VkCommandBuffer commandBuffer);
+		void beginMappingsRenderPass(VkCommandBuffer commandBuffer);
+		void beginUVReflectionRenderPass(VkCommandBuffer commandBuffer);
+		void beginLightingRenderPass(VkCommandBuffer commandBuffer);
+		void beginPostProcessingRenderPass(VkCommandBuffer commandBuffer);
+		void endRenderPass(VkCommandBuffer commandBuffer);
+
+		VkDescriptorSetLayout shadowSetLayout()         const { return m_Swapchain->shadowSetLayout(); };
+		VkDescriptorSetLayout mappingsSetLayout()       const { return m_Swapchain->mappingsSetLayout(); };
+		VkDescriptorSetLayout uvReflectionSetLayout()   const { return m_Swapchain->uvReflectionSetLayout(); };
+		VkDescriptorSetLayout gBufferSetLayout()        const { return m_Swapchain->gBufferSetLayout(); };
+		VkDescriptorSetLayout compositionSetLayout()    const { return m_Swapchain->compositionSetLayout(); };
+		VkDescriptorSetLayout postProcessingSetLayout() const { return m_Swapchain->postProcessingSetLayout(); };
+		VkDescriptorSet currentShadowSet()               { return m_Swapchain->currentShadowSet( m_CurrentImageIndex ); };
+		VkDescriptorSet currentMappingsSet()             { return m_Swapchain->currentMappingsSet( m_CurrentImageIndex ); };
+		VkDescriptorSet currentUVReflectionSet()         { return m_Swapchain->currentUVReflectionSet( m_CurrentImageIndex ); };
+		VkDescriptorSet currentGBufferSet()              { return m_Swapchain->currentGBufferSet( m_CurrentImageIndex ); };
+		VkDescriptorSet currentCompositionSet()          { return m_Swapchain->currentCompositionSet( m_CurrentImageIndex );};
+		VkDescriptorSet currentPostProcessingSet()       { return m_Swapchain->currentPostProcessingSet( m_CurrentImageIndex ); };
+		void updateCurrentShadowUbo(void* pData)         { return m_Swapchain->updateCurrentShadowUbo(pData, m_CurrentImageIndex ); };
+		void updateCurrentMappingsUbo(void* pData)       { return m_Swapchain->updateCurrentMappingsUbo(pData, m_CurrentImageIndex ); };
+		void updateCurrentUVReflectionUbo(void* pData)   { return m_Swapchain->updateCurrentUVReflectionUbo(pData, m_CurrentImageIndex ); };
+		void updateCurrentGBufferUbo(void* pData)        { return m_Swapchain->updateCurrentGBufferUbo(pData, m_CurrentImageIndex ); };
+		void updateCurrentCompositionUbo(void* pData)    { return m_Swapchain->updateCurrentCompositionUbo(pData, m_CurrentImageIndex ); };
+		void updateCurrentPostProcessingUbo(void* pData) { return m_Swapchain->updateCurrentPostProcessingUbo(pData, m_CurrentImageIndex ); };
 
     private:
 
@@ -288,17 +321,17 @@ namespace Vy
          */
         void recreateSwapchain();
 
-        void createOffscreenResources();
+        // void createOffscreenResources();
 
 		//Offscreen Render tasks
-		void createOffscreenColorAttachment();
-		void createOffscreenDepthsAttachment(VkFormat& depthsFormat);
-		void createOffscreenAttachmentDescriptors(TArray<VkAttachmentDescription,2>& descriptors, VkFormat& depthsFormat);
-		void createOffscreenSubpassDependencies(TArray<VkSubpassDependency, 2>& dependencies);
-		void createOffscreenFramebuffer();
+		// void createOffscreenColorAttachment();
+		// void createOffscreenDepthsAttachment(VkFormat& depthsFormat);
+		// void createOffscreenAttachmentDescriptors(TArray<VkAttachmentDescription,2>& descriptors, VkFormat& depthsFormat);
+		// void createOffscreenSubpassDependencies(TArray<VkSubpassDependency, 2>& dependencies);
+		// void createOffscreenFramebuffer();
 
-		void createAttachment(VkFormat format, VkImageUsageFlagBits usage, FrameBufferAttachment* pAttachment);
-		void prepareDeferredRenderFramebuffer();
+		// void createAttachment(VkFormat format, VkImageUsageFlagBits usage, FrameBufferAttachment* pAttachment);
+		// void prepareDeferredRenderFramebuffer();
 
     private:
 
@@ -313,9 +346,9 @@ namespace Vy
         bool                       m_IsFrameStarted    { false };
         bool                       m_SwapchainRecreated{ false };
 
-		OffscreenPass   m_OffscreenPass{};
-		VkCommandBuffer m_DeferredCmdBuffer;
-		FrameBuffer     m_DeferredRenderFramebuffer{};
+		// OffscreenPass   m_OffscreenPass{};
+		// VkCommandBuffer m_DeferredCmdBuffer;
+		// FrameBuffer     m_DeferredRenderFramebuffer{};
 
         // Unique<VyFramebuffer>      m_OffscreenFramebuffer{ nullptr };
 

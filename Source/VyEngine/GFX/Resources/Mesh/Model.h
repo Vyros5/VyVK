@@ -15,6 +15,78 @@ enum aiTextureType;
 
 namespace Vy
 {
+	// struct MatrixUbo
+	// {
+	// 	alignas(16) glm::mat4 view;
+	// 	alignas(16) glm::mat4 proj;
+	// };
+
+	// template<typename T>
+	// class UniformBuffer final
+	// {
+	// public:
+	// 	UniformBuffer(U32 count = MAX_FRAMES_IN_FLIGHT)
+	// 	{
+	// 		VkDeviceSize bufferSize = sizeof(T);
+
+	// 		m_UniformBuffers.resize( count );
+	// 		m_BufferInfos   .resize( count );
+
+	// 		for (U32 i = 0; i < count; ++i)
+	// 		{
+	// 			m_UniformBuffers[i] = std::make_unique<VyBuffer>( VyBuffer::uniformBuffer("template", bufferSize ) ):
+
+	// 			m_BufferInfos[i] = m_UniformBuffers[i]->descriptorBufferInfo();
+	// 		}
+	// 	}
+
+    //     ~UniformBuffer()
+	// 	{
+	// 	}
+
+	// 	UniformBuffer(const UniformBuffer&) = delete;
+	// 	UniformBuffer& operator=(const UniformBuffer&) = delete;
+	// 	UniformBuffer(UniformBuffer&&) = delete;
+	// 	UniformBuffer& operator=(UniformBuffer&&) = delete;
+
+	// 	// Methods
+	// 	//--------------------
+	// 	void update(U32 frameIndex, T& data)
+	// 	{
+	// 		m_UniformBuffers[ frameIndex ]->write( &data, sizeof(T), 0 );
+	// 	}
+
+	// 	// Getters & Setters
+	// 	VkBuffer getBuffer(U16 idx) const 
+    //     { 
+    //         return m_UniformBuffers[idx]->handle(); 
+    //     }
+		
+    //     TVector<VkBuffer> getBuffers()const
+	// 	{
+	// 		TVector<VkBuffer> buffers;
+	// 		for (const auto& buffer : m_UniformBuffers)
+	// 		{
+	// 			buffers.push_back( buffer->handle() );
+	// 		}
+
+	// 		return buffers;
+	// 	}
+
+	// 	const TVector<VkDescriptorBufferInfo>& descriptorBufferInfos() const
+	// 	{
+	// 		return m_BufferInfos;
+	// 	}
+
+	// private:
+
+	// 	TVector<Unique<VyBuffer>>       m_UniformBuffers;
+	// 	TVector<VkDescriptorBufferInfo> m_BufferInfos;
+
+	// };
+
+
+
     struct alignas( 16 ) MaterialUbo 
     {
         Mat4 ModelMatrix;
@@ -96,6 +168,85 @@ namespace Vy
         VyMaterialSet()  = default;
         ~VyMaterialSet() = default;
     };
+
+
+
+    // class Mesh final
+    // {
+    // public:
+
+    //     struct Material
+    //     {
+    //         TString AlbedoPath;
+    //         TString NormalPath;
+    //         TString SpecularPath;
+
+    //         const int Amount = 3;
+    //     };
+
+
+    //     struct RawMeshData
+    //     {
+    //         TVector<VyVertex> Vertices;
+    //         TVector<U32>      Indices;
+    //         Mesh::Material    Material;
+    //         Mat4              Transform;
+    //         bool              IsOpaque = true;
+    //     };
+
+    //     Mesh(
+    //         UniformBuffer<MatrixUbo>* pUbo,
+    //         VyDescriptorSetLayout*    pLayout, 
+    //         VyDescriptorPool*         pPool,
+    //         const RawMeshData&        meshData
+    //     );
+
+    //     ~Mesh();
+
+    //     Mesh(const Mesh&)            = delete;
+    //     Mesh& operator=(const Mesh&) = delete;
+    //     Mesh(Mesh&&)                 = delete;
+    //     Mesh& operator=(Mesh&&)      = delete;
+
+    //     // Methods
+    //     //--------------------
+    //     void draw(VkCommandBuffer cmdBuffer);
+        
+    //     void bind(VkCommandBuffer cmdBuffer, VkPipelineLayout pipelineLayout, U16 idx, bool isDepthPass);
+
+    //     // Getters & Setters
+    //     VkBuffer vertexBuffer() const { return m_VertexBuffer->handle(); }
+    //     VkBuffer indexBuffer()  const { return m_IndexBuffer->handle(); }
+
+    //     TVector<VyVertex> vertices() const { return m_Vertices; }
+    //     TVector<U32>      indices()  const { return m_Indices;  }
+
+    //     const Mat4& transform() const { return m_Transform; }
+
+
+    // private:
+    //     void createVertexBuffer();
+    //     void createIndexBuffer();
+
+    //     VkDescriptorSet   m_DescriptorSet;
+
+    //     TVector<VyVertex> m_Vertices;
+    //     Unique<VyBuffer>  m_VertexBuffer;
+    //     U32               m_VertexCount     { 0 };
+    //     U32               m_VertexBufferSize{ 0 };
+
+    //     TVector<U32>      m_Indices;
+    //     Unique<VyBuffer>  m_IndexBuffer;
+    //     U32               m_IndexCount      { 0 };
+    //     U32               m_IndexBufferSize { 0 };
+        
+    //     bool              m_HasIndexBuffer = false;
+
+    //     TVector<Unique<VyTexture>> m_Textures;
+
+    //     const Mat4 m_Transform = Mat4( 1.0f );
+
+    // };
 
 
     class VyModel 

@@ -1,5 +1,5 @@
-// #include <VyEngine/GFX/Resources/Texture/TextureSystem.h>
-// #include <VyEngine/VK/Context.h>
+#include <VyEngine/GFX/Resources/Texture/TextureSystem.h>
+#include <VyEngine/VK/Context.h>
 
 // #include <VyEngine/Globals.h>
 // #include <VyLib/Util/String.h>
@@ -9,7 +9,126 @@
 
 // #include <iostream>
 
-// namespace Vy
+namespace Vy
+{
+    VyTextureManager::VyTextureManager(U32 maxTextures) : 
+        m_MaxTextures( maxTextures ) 
+    {
+        m_TexturePool = VyDescriptorPool::Builder()
+            .setMaxSets (1)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_MaxTextures)
+            .buildPtr();
+
+        m_TextureSetLayout = VyDescriptorSetLayout::Builder()
+            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, m_MaxTextures)
+            .buildPtr();
+
+        VyDescriptorWriter(*m_TextureSetLayout, *m_TexturePool)
+            .build(m_TextureDescriptorSet);
+
+        createDefaultAlbedoTexture();
+        createDefaultNormalTexture();
+        initializeDescriptorSet();
+    }
+
+
+    VyTextureManager::~VyTextureManager() 
+    { 
+    }
+
+
+    void VyTextureManager::createDefaultAlbedoTexture() 
+    {
+        const TString path = "assets\\models\\checkerboard\\tiles_0059_color_1k.jpg";
+        TString key = path;
+        std::replace(key.begin(), key.end(), '\\', '/');
+
+        m_DefaultAlbedoTexture = std::make_shared<VyTexture>(key, VK_FORMAT_R8G8B8A8_SRGB);
+        m_Textures.push_back(m_DefaultAlbedoTexture);
+        m_DefaultAlbedoIndex = static_cast<int>(m_Textures.size()) - 1;
+
+        m_TexturesIndexMap[key] = m_DefaultAlbedoIndex;
+    }
+
+    
+    void VyTextureManager::createDefaultNormalTexture() 
+    {
+        const TString path = "assets\\models\\checkerboard\\tiles_0059_normal_direct_1k.png";
+        TString key = path;
+        std::replace(key.begin(), key.end(), '\\', '/');
+
+        m_DefaultNormalTexture = std::make_shared<VyTexture>(key, VK_FORMAT_R8G8B8A8_UNORM);
+        m_Textures.push_back(m_DefaultNormalTexture);
+        m_DefaultNormalIndex = static_cast<int>(m_Textures.size()) - 1;
+
+        m_TexturesIndexMap[key] = m_DefaultNormalIndex;
+    }
+
+    
+    void VyTextureManager::initializeDescriptorSet() 
+    {
+        m_ImageInfos.resize(m_MaxTextures);
+
+        for (U32 i = 0; i < m_MaxTextures; i++) 
+        {
+            m_ImageInfos[i] = m_DefaultAlbedoTexture->descriptorImageInfo();
+        }
+
+        m_ImageInfos[ m_DefaultAlbedoIndex ] = m_DefaultAlbedoTexture->descriptorImageInfo();
+        m_ImageInfos[ m_DefaultNormalIndex ] = m_DefaultNormalTexture->descriptorImageInfo();
+
+        updateDescriptorSet();
+    }
+
+    
+    int VyTextureManager::getOrLoadTexture(const TString& path, TextureSemantic semantic) 
+    {
+        // Normalize path
+        TString key = path;
+        std::replace(key.begin(), key.end(), '\\', '/');
+        auto it = m_TexturesIndexMap.find(key);
+        if (it != m_TexturesIndexMap.end()) 
+        {
+            return it->second; // Texture has already been loaded
+        }
+
+        VkFormat imgFormat{};
+
+        if (semantic == TextureSemantic::BaseColor) 
+        { 
+            imgFormat = VK_FORMAT_R8G8B8A8_SRGB; 
+        }
+        else if (semantic == TextureSemantic::Normal) 
+        { 
+            imgFormat = VK_FORMAT_R8G8B8A8_UNORM; 
+        }
+        else 
+        { 
+            VY_THROW_INVALID_ARGUMENT("Unknown semantic");
+        }
+
+        auto tex = std::make_shared<VyTexture>(key, imgFormat);
+        m_Textures.push_back(tex);
+
+        int index = static_cast<int>(m_Textures.size()) - 1;
+        m_TexturesIndexMap[ key ] = index;
+        m_ImageInfos[ index ] = tex->descriptorImageInfo();
+
+        updateDescriptorSet();
+        return index;
+    }
+
+    
+    void VyTextureManager::updateDescriptorSet() 
+    {
+        VyDescriptorWriter( *m_TextureSetLayout, *m_TexturePool )
+            .writeImages( 0, m_ImageInfos.data(), m_ImageInfos.size() )
+            .update( m_TextureDescriptorSet );
+    }
+}
+
+
+
 // {
 //     const TextureSystem::DefaultTextureType TextureSystem::NormalTexture =
 //     {

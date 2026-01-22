@@ -51,10 +51,10 @@ namespace Vy
     {
         m_Pipeline->bind( frameInfo.CommandBuffer );
 
-        // Set: 0 - Global Descriptor Set
+        // Set: 0 - Global Set
         m_Pipeline->bindDescriptorSet(frameInfo.CommandBuffer, 
             0, 
-            frameInfo.GlobalDescriptorSet
+            frameInfo.GlobalSet
         );
 
         // Draw grid (assuming full-screen quad).

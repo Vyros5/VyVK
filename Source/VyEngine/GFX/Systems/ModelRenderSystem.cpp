@@ -66,7 +66,7 @@ namespace Vy
         // Set: 0 - Global Descriptor Set (Current Frame UBO)
         m_Pipeline->bindDescriptorSet(frameInfo.CommandBuffer, 
             0, 
-            frameInfo.GlobalDescriptorSet
+            frameInfo.GlobalSet
         );
 
         auto view = frameInfo.Scene->registry().view<ModelComponent, TransformComponent>();

@@ -314,10 +314,10 @@ namespace Vy
         // Render point lights.
         m_PointPipeline->bind( frameInfo.CommandBuffer );
 
-        // Set: 0 - Global Descriptor Set
+        // Set: 0 - Global Set
         m_PointPipeline->bindDescriptorSet(frameInfo.CommandBuffer, 
             0, 
-            frameInfo.GlobalDescriptorSet
+            frameInfo.GlobalSet
         );
 
 		// Create push-constant data and send it to the device and draw.
@@ -342,7 +342,9 @@ namespace Vy
 
             m_PointPipeline->pushConstants(frameInfo.CommandBuffer, 
                 VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 
-                &push, sizeof(PointLightPushConstantData), 0
+                &push, 
+                sizeof(PointLightPushConstantData), 
+                0
             );
 
             // Inefficient to draw a quad for each light, but okay for demo purposes.
@@ -354,10 +356,10 @@ namespace Vy
         // // Render directional lights as arrows.
         // m_DirectionalPipeline->bind(frameInfo.CommandBuffer);
 
-        // // Set: 0 - Global Descriptor Set
+        // // Set: 0 - Global Set
         // m_DirectionalPipeline->bindDescriptorSet(frameInfo.CommandBuffer, 
         //     0, 
-        //     frameInfo.GlobalDescriptorSet
+        //     frameInfo.GlobalSet
         // );
 
         // auto dirView = registry.view<DirectionalLightComponent, TransformComponent>();
@@ -393,10 +395,10 @@ namespace Vy
         // // Render spot lights as cones.
         // m_SpotPipeline->bind(frameInfo.CommandBuffer);
 
-        // // Set: 0 - Global Descriptor Set
+        // // Set: 0 - Global Set
         // m_SpotPipeline->bindDescriptorSet(frameInfo.CommandBuffer, 
         //     0, 
-        //     frameInfo.GlobalDescriptorSet
+        //     frameInfo.GlobalSet
         // );
 
         // auto spotView = registry.view<SpotLightComponent, TransformComponent>();

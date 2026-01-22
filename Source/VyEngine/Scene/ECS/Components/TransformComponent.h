@@ -52,6 +52,11 @@ namespace Vy
 			};
 		}
 
+		inline void resetRotation() 
+		{
+			Rotation = { 0.0f, 0.0f, 0.0f };
+		}
+
 		// Set rotation to look at a target point (in world space)
 		inline void lookAt(const Vec3& target)
 		{

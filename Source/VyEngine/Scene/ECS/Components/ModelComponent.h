@@ -2,22 +2,24 @@
 
 #include <VyEngine/GFX/Resources/Model/Model.h>
 #include <VyEngine/GFX/Resources/Mesh/Model.h>
+#include <VyEngine/GFX/Resources/GLTF/Model.h>
+
 namespace Vy
 {
 	struct ModelComponent 
     {
-		Shared<VyModel> Model;
+		Shared<VyGLTFModel> Model;
 
 		ModelComponent() = delete;
 		ModelComponent(const ModelComponent&) = default;
 
-		ModelComponent(const Shared<VyModel>& model) : 
+		ModelComponent(const Shared<VyGLTFModel>& model) : 
 			Model( model ) 
 		{
 		}
 
-		ModelComponent(const TPath& filepath)
-			: Model( VyModel::loadFromFile( filepath ) ) 
+		ModelComponent(const TString& filepath, VyDescriptorSetLayout& materialSetLayout, VyDescriptorPool& descriptorPool)
+			: Model( VyGLTFModel::createFromFile(filepath, materialSetLayout, descriptorPool) ) 
 		{
 		}
 	};

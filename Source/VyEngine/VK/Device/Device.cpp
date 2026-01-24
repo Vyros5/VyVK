@@ -427,16 +427,16 @@ namespace Vy
 
 		VY_ASSERT(m_PhysicalDevice != VK_NULL_HANDLE, "Failed to find a suitable GPU");
 		
-		m_MsaaSamples = getMaxUsableSampleCount();
-
 		vkGetPhysicalDeviceProperties(m_PhysicalDevice, &m_Properties);
 		U32 major = VK_VERSION_MAJOR(m_Properties.apiVersion);
 		U32 minor = VK_VERSION_MINOR(m_Properties.apiVersion);
 		U32 patch = VK_VERSION_PATCH(m_Properties.apiVersion);
 		
 		VY_INFO_TAG("VyDevice", "Selected GPU: {} (Vulkan {}.{}.{})", m_Properties.deviceName, major, minor, patch);
+		
+		m_MsaaSamples = getMaxUsableSampleCount();
 
-		// VY_INFO_TAG("VyDevice", "Max MSAA Samples: {}", STR_VK_SAMPLE_COUNT_FLAG_BITS(m_MsaaSamples));
+		VY_INFO_TAG("VyDevice", "Max MSAA Samples: {}", STR_VK_SAMPLE_COUNT_FLAG_BITS(m_MsaaSamples));
     }
 
 	// --------------------------------------------------------------------------------------------

@@ -157,7 +157,7 @@ namespace Vy
         }
 
         // Clear light counts.
-        ubo.LightCount = 0;
+        ubo.PointLightsCount = 0;
 
         // ----------------------------------------------------------------------------------------
         // [ Process Point Lights ]
@@ -178,14 +178,14 @@ namespace Vy
 
             // Copy light to UBO.
             {
-                ubo.PointLights[ ubo.LightCount ].Position = Vec4( transform.Translation, 1.0f );
-                ubo.PointLights[ ubo.LightCount ].Color    = Vec4( pointLight.Color, pointLight.Intensity );
+                ubo.PointLights[ ubo.PointLightsCount ].Position = Vec4( transform.Translation, 1.0f );
+                ubo.PointLights[ ubo.PointLightsCount ].Color    = Vec4( pointLight.Color, pointLight.Intensity );
             }
 
             lightIndex++;
         }
 
-        ubo.LightCount = lightIndex;
+        ubo.PointLightsCount = lightIndex;
 
         // for (auto&& [ entity, pointLight, transform ] : pointView.each())
         // {

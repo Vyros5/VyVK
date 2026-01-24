@@ -275,207 +275,207 @@ namespace Vy
 }
 
 
-namespace Vy
-{
-    void VyDeferredRenderer::CreateGBufferRenderPass()
-    {
-        m_GBufferPass = std::make_unique<VyRenderPass>("G-Buffer Render Pass");
+// namespace Vy
+// {
+//     void VyDeferredRenderer::CreateGBufferRenderPass()
+//     {
+//         m_GBufferPass = std::make_unique<VyRenderPass>("G-Buffer Render Pass");
 
-        // Position attachment
-        m_GBufferPass->addAttachment({
-            .Type          = AttachmentType::Color,
-            .Format        = VK_FORMAT_R16G16B16A16_SFLOAT,
-            .Samples       = VK_SAMPLE_COUNT_1_BIT,
-            .LoadOp        = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .StoreOp       = VK_ATTACHMENT_STORE_OP_STORE,
-            .InitialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .FinalLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            .ClearValue    = {.color = {0.0f, 0.0f, 0.0f, 1.0f}}
-        });
+//         // Position attachment
+//         m_GBufferPass->addAttachment({
+//             .Type          = AttachmentType::Color,
+//             .Format        = VK_FORMAT_R16G16B16A16_SFLOAT,
+//             .Samples       = VK_SAMPLE_COUNT_1_BIT,
+//             .LoadOp        = VK_ATTACHMENT_LOAD_OP_CLEAR,
+//             .StoreOp       = VK_ATTACHMENT_STORE_OP_STORE,
+//             .InitialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+//             .FinalLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+//             .ClearValue    = {.color = {0.0f, 0.0f, 0.0f, 1.0f}}
+//         });
 
-        // Normal attachment
-        m_GBufferPass->addAttachment({
-            .Type          = AttachmentType::Color,
-            .Format        = VK_FORMAT_R16G16B16A16_SFLOAT,
-            .Samples       = VK_SAMPLE_COUNT_1_BIT,
-            .LoadOp        = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .StoreOp       = VK_ATTACHMENT_STORE_OP_STORE,
-            .InitialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .FinalLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            .ClearValue    = {.color = {0.0f, 0.0f, 0.0f, 1.0f}}
-        });
+//         // Normal attachment
+//         m_GBufferPass->addAttachment({
+//             .Type          = AttachmentType::Color,
+//             .Format        = VK_FORMAT_R16G16B16A16_SFLOAT,
+//             .Samples       = VK_SAMPLE_COUNT_1_BIT,
+//             .LoadOp        = VK_ATTACHMENT_LOAD_OP_CLEAR,
+//             .StoreOp       = VK_ATTACHMENT_STORE_OP_STORE,
+//             .InitialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+//             .FinalLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+//             .ClearValue    = {.color = {0.0f, 0.0f, 0.0f, 1.0f}}
+//         });
 
-        // Albedo attachment
-        m_GBufferPass->addAttachment({
-            .Type          = AttachmentType::Color,
-            .Format        = VK_FORMAT_R8G8B8A8_UNORM,
-            .Samples       = VK_SAMPLE_COUNT_1_BIT,
-            .LoadOp        = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .StoreOp       = VK_ATTACHMENT_STORE_OP_STORE,
-            .InitialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .FinalLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            .ClearValue    = {.color = {0.0f, 0.0f, 0.0f, 1.0f}}
-        });
+//         // Albedo attachment
+//         m_GBufferPass->addAttachment({
+//             .Type          = AttachmentType::Color,
+//             .Format        = VK_FORMAT_R8G8B8A8_UNORM,
+//             .Samples       = VK_SAMPLE_COUNT_1_BIT,
+//             .LoadOp        = VK_ATTACHMENT_LOAD_OP_CLEAR,
+//             .StoreOp       = VK_ATTACHMENT_STORE_OP_STORE,
+//             .InitialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+//             .FinalLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+//             .ClearValue    = {.color = {0.0f, 0.0f, 0.0f, 1.0f}}
+//         });
 
-        // Depth attachment
-        m_GBufferPass->addAttachment({
-            .Type          = AttachmentType::Depth,
-            .Format        = VK_FORMAT_D32_SFLOAT,
-            .Samples       = VK_SAMPLE_COUNT_1_BIT,
-            .LoadOp        = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .StoreOp       = VK_ATTACHMENT_STORE_OP_STORE,
-            .InitialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .FinalLayout   = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-            .ClearValue    = {.depthStencil = {1.0f, 0}}
-        });
+//         // Depth attachment
+//         m_GBufferPass->addAttachment({
+//             .Type          = AttachmentType::Depth,
+//             .Format        = VK_FORMAT_D32_SFLOAT,
+//             .Samples       = VK_SAMPLE_COUNT_1_BIT,
+//             .LoadOp        = VK_ATTACHMENT_LOAD_OP_CLEAR,
+//             .StoreOp       = VK_ATTACHMENT_STORE_OP_STORE,
+//             .InitialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+//             .FinalLayout   = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+//             .ClearValue    = {.depthStencil = {1.0f, 0}}
+//         });
 
-        // Set up subpass
-        SubpassDescription subpass;
-        {
-            subpass.ColorAttachments       = { 0, 1, 2 }; // Position, Normal, Albedo
-            subpass.DepthStencilAttachment = 3;           // Depth
-        }
+//         // Set up subpass
+//         SubpassDescription subpass;
+//         {
+//             subpass.ColorAttachments       = { 0, 1, 2 }; // Position, Normal, Albedo
+//             subpass.DepthStencilAttachment = 3;           // Depth
+//         }
 
-        m_GBufferPass->addSubpass( subpass );
+//         m_GBufferPass->addSubpass( subpass );
 
-        /*
-        * External -> G-Buffer Color Attachments Writes
-        *
-        * The latest stage that worked on the color attachments of the G-Buffer that must be waited on is either the FRAGMENT_SHADER
-        * (read by lighting pass) or BOTTOM_OF_THE_PIPE (? is this really necessary though ?) as a catch-all for the first frame
-        * where nothing worked on the attachments to begin with.  Once the src work is completed, the earliest stage that this pass
-        * will work on the attachment is in the COLOR_ATTACHMENT_OUTPUT stage where it will write to the attachment.
-        */
-        m_GBufferPass->addDependency(
-            VK_SUBPASS_EXTERNAL, 
-            0, 
+//         /*
+//         * External -> G-Buffer Color Attachments Writes
+//         *
+//         * The latest stage that worked on the color attachments of the G-Buffer that must be waited on is either the FRAGMENT_SHADER
+//         * (read by lighting pass) or BOTTOM_OF_THE_PIPE (? is this really necessary though ?) as a catch-all for the first frame
+//         * where nothing worked on the attachments to begin with.  Once the src work is completed, the earliest stage that this pass
+//         * will work on the attachment is in the COLOR_ATTACHMENT_OUTPUT stage where it will write to the attachment.
+//         */
+//         m_GBufferPass->addDependency(
+//             VK_SUBPASS_EXTERNAL, 
+//             0, 
             
-            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 
+//             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+//             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 
             
-            VK_ACCESS_MEMORY_READ_BIT, 
-            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+//             VK_ACCESS_MEMORY_READ_BIT, 
+//             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
             
-            VK_DEPENDENCY_BY_REGION_BIT
-        );
+//             VK_DEPENDENCY_BY_REGION_BIT
+//         );
 
-        /*
-        * External -> G-Buffer Depth/Stencil Attachment Dependency
-        *
-        * The latest stage that worked on the depth/stencil attachment of the G-Buffer that must be waited on is the early/late
-        * fragment stage tests where the attachments were written to.
-        * Once the src work is completed, the earliest stage that this pass will work on the depth/stencil is in the same part of the
-        * pipeline (early/late fragment tests) where the attachment could either be read from or written to.
-        */
-        m_GBufferPass->addDependency(
-            VK_SUBPASS_EXTERNAL, 
-            0,
+//         /*
+//         * External -> G-Buffer Depth/Stencil Attachment Dependency
+//         *
+//         * The latest stage that worked on the depth/stencil attachment of the G-Buffer that must be waited on is the early/late
+//         * fragment stage tests where the attachments were written to.
+//         * Once the src work is completed, the earliest stage that this pass will work on the depth/stencil is in the same part of the
+//         * pipeline (early/late fragment tests) where the attachment could either be read from or written to.
+//         */
+//         m_GBufferPass->addDependency(
+//             VK_SUBPASS_EXTERNAL, 
+//             0,
             
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+//             VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+//             VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
             
-            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT, 
+//             VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+//             VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT, 
             
-            VK_DEPENDENCY_BY_REGION_BIT
-        );
+//             VK_DEPENDENCY_BY_REGION_BIT
+//         );
 
-        /*
-        * G-Buffer Color Attachment Writes -> G-Buffer Color Attachment Reads
-        *
-        * The latest stage that worked on the depth/stencil attachment of the G-Buffer that must be waited on is the early/late
-        * fragment stage tests where the attachments were written to.
-        * Once the src work is completed, the earliest stage that this pass will work on the depth/stencil is in the same part of the
-        * pipeline (early/late fragment tests) where the attachment could either be read from or written to.
-        */
-        m_GBufferPass->addDependency(
-            0, 
-            VK_SUBPASS_EXTERNAL, 
+//         /*
+//         * G-Buffer Color Attachment Writes -> G-Buffer Color Attachment Reads
+//         *
+//         * The latest stage that worked on the depth/stencil attachment of the G-Buffer that must be waited on is the early/late
+//         * fragment stage tests where the attachments were written to.
+//         * Once the src work is completed, the earliest stage that this pass will work on the depth/stencil is in the same part of the
+//         * pipeline (early/late fragment tests) where the attachment could either be read from or written to.
+//         */
+//         m_GBufferPass->addDependency(
+//             0, 
+//             VK_SUBPASS_EXTERNAL, 
             
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 
+//             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+//             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 
             
-            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 
-            VK_ACCESS_SHADER_READ_BIT,
+//             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 
+//             VK_ACCESS_SHADER_READ_BIT,
             
-            VK_DEPENDENCY_BY_REGION_BIT
-        );
+//             VK_DEPENDENCY_BY_REGION_BIT
+//         );
 
-        m_GBufferPass->build();
-    }
+//         m_GBufferPass->build();
+//     }
 
 
 
-    void VyDeferredRenderer::CreateCompositionRenderPass()
-    {
-        m_CompositionPass = std::make_unique<VyRenderPass>("Composition Render Pass");
+//     void VyDeferredRenderer::CreateCompositionRenderPass()
+//     {
+//         m_CompositionPass = std::make_unique<VyRenderPass>("Composition Render Pass");
 
-        // Final color attachment (swapchain image)
-        m_CompositionPass->addAttachment({
-            .Type = AttachmentType::Color,
-            // .Format =  ImageUtils::VyFormatToImageFormat(m_Renderer->VySwapchain().SwapchainImageFormat()),
-            .Samples = VK_SAMPLE_COUNT_1_BIT,
-            .LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .StoreOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .InitialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .FinalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-            .ClearValue = {.color = {0.0f, 0.0f, 0.0f, 1.0f}}
-        });
+//         // Final color attachment (swapchain image)
+//         m_CompositionPass->addAttachment({
+//             .Type = AttachmentType::Color,
+//             // .Format =  ImageUtils::VyFormatToImageFormat(m_Renderer->VySwapchain().SwapchainImageFormat()),
+//             .Samples = VK_SAMPLE_COUNT_1_BIT,
+//             .LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+//             .StoreOp = VK_ATTACHMENT_STORE_OP_STORE,
+//             .InitialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+//             .FinalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+//             .ClearValue = {.color = {0.0f, 0.0f, 0.0f, 1.0f}}
+//         });
 
-        // Set up subpass
-        SubpassDescription subpass;
-        subpass.ColorAttachments = {0};	   // Final color output
-        m_CompositionPass->addSubpass(subpass);
+//         // Set up subpass
+//         SubpassDescription subpass;
+//         subpass.ColorAttachments = {0};	   // Final color output
+//         m_CompositionPass->addSubpass(subpass);
 
-        /*
-            Source Stage (srcStageMask):
-                This says: "We need to wait for the src stage to finish working on this attachment (if it was being worked on)."
-            Destination Stage (dstStageMask):
-                This says: "The earliest pipeline stage in our render pass where we will start working on this attachment is the dst
-        stage."
-        */
+//         /*
+//             Source Stage (srcStageMask):
+//                 This says: "We need to wait for the src stage to finish working on this attachment (if it was being worked on)."
+//             Destination Stage (dstStageMask):
+//                 This says: "The earliest pipeline stage in our render pass where we will start working on this attachment is the dst
+//         stage."
+//         */
 
-        /*
-        * External -> Swapchain Color Attachment Writes
-        *
-        * The latest stage that worked on the swapchain image that must be waited on is BOTTOM OF THE PIPE(?) stage.
-        * Once the src work is completed (swapchain image acquired(?)), the earliest stage that this pass will
-        * work on the attachment is in the COLOR_ATTACHMENT_OUTPUT stage where it will write to the swapchain image.
-        */
-        m_CompositionPass->addDependency(
-            VK_SUBPASS_EXTERNAL, 
-            0, 
+//         /*
+//         * External -> Swapchain Color Attachment Writes
+//         *
+//         * The latest stage that worked on the swapchain image that must be waited on is BOTTOM OF THE PIPE(?) stage.
+//         * Once the src work is completed (swapchain image acquired(?)), the earliest stage that this pass will
+//         * work on the attachment is in the COLOR_ATTACHMENT_OUTPUT stage where it will write to the swapchain image.
+//         */
+//         m_CompositionPass->addDependency(
+//             VK_SUBPASS_EXTERNAL, 
+//             0, 
             
-            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 
+//             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+//             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 
             
-            0, 
-            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 
+//             0, 
+//             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 
             
-            VK_DEPENDENCY_BY_REGION_BIT
-        );
+//             VK_DEPENDENCY_BY_REGION_BIT
+//         );
 
-        /*
-        * Swapchain Color Attachment Writes -> Bottom of the Pipe (presentation)
-        *
-        * Wait on the color attachment writes to the swapchain image from the previous dependency.
-        * Once the writes are complete, this pass will prepare the swapchain image for presentation,
-        * which to my knowledge, is conservatively done by using VK_PIPELINE_STAGE_BOTTOM_OF_PIPE as the dst stage
-        * with 0 as the dst access mask.
-        */
-        m_CompositionPass->addDependency(
-            0, 
-            VK_SUBPASS_EXTERNAL, 
+//         /*
+//         * Swapchain Color Attachment Writes -> Bottom of the Pipe (presentation)
+//         *
+//         * Wait on the color attachment writes to the swapchain image from the previous dependency.
+//         * Once the writes are complete, this pass will prepare the swapchain image for presentation,
+//         * which to my knowledge, is conservatively done by using VK_PIPELINE_STAGE_BOTTOM_OF_PIPE as the dst stage
+//         * with 0 as the dst access mask.
+//         */
+//         m_CompositionPass->addDependency(
+//             0, 
+//             VK_SUBPASS_EXTERNAL, 
             
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 
+//             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+//             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 
             
-            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 
-            0, 
+//             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 
+//             0, 
             
-            VK_DEPENDENCY_BY_REGION_BIT
-        );
+//             VK_DEPENDENCY_BY_REGION_BIT
+//         );
 
-        m_CompositionPass->build();
-    }
-}
+//         m_CompositionPass->build();
+//     }
+// }

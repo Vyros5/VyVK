@@ -1,0 +1,10 @@
+
+
+VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT: 
+    This stage involves operations like color blending, writing to color attachments, and subpass store operations. 
+    This is commonly used in synchronization when transitioning image layouts before or after rendering to a swapchain image.
+
+VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT: 
+    This stage is where depth and stencil tests are performed, potentially before the fragment shader executes (hence "early"). 
+    This is relevant for synchronization related to depth/stencil attachments.
+

@@ -55,41 +55,49 @@ namespace Vy
         m_Scene->reset();
 
         // Load builtin entities for the current scene. 
-        loadEntities();
+        // loadEntities();
 
-        m_Skybox = VySkybox::loadFromFolder(TString(CUBEMAP_DIR) + "Yokohama", "jpg");
+        // m_Skybox = VySkybox::loadFromFolder(TString(CUBEMAP_DIR) + "Yokohama", "jpg");
 
-
-		m_ShadowSystem = MakeUnique<VyShadowRenderSystem>(
-            m_Renderer.shadowRenderPass(), 
-            m_Renderer.shadowSetLayout() 
-        );
-        m_ReflectionSystem = MakeUnique<VyReflectionRenderSystem>(
-            m_Renderer.mappingsRenderPass(), 
-            m_Renderer.mappingsSetLayout(), 
-            m_Renderer.uvReflectionRenderPass(), 
-            m_Renderer.uvReflectionSetLayout()
-        );
-        m_SceneSystem = MakeUnique<VySceneRenderSystem>(
-			m_Renderer.lightingRenderPass(), 
-			m_Renderer.gBufferSetLayout(), 
-			m_Renderer.compositionSetLayout(),
-			m_Renderer.postProcessingRenderPass(),
-			m_Renderer.postProcessingSetLayout()
-        );
-
-        m_PointLightSystem = MakeUnique<VyPointLightSystem>(
-			m_Renderer.lightingRenderPass(), 
-			m_Renderer.gBufferSetLayout(), 
-			m_Renderer.compositionSetLayout()
-        );
-
-
-        m_GlobalPool = VyDescriptorPool::Builder{}
+        m_GlobalPool = VyDescriptorPool::Builder()
             .setName    ("global")
-            .setMaxSets (MAX_FRAMES_IN_FLIGHT)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT)
+            .setMaxSets (1000)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1000)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000)
             .buildPtr();
+
+
+		// m_ShadowSystem = MakeUnique<VyShadowRenderSystem>(
+        //     m_Renderer.shadowRenderPass(), 
+        //     m_Renderer.shadowSetLayout() 
+        // );
+        // m_ReflectionSystem = MakeUnique<VyReflectionRenderSystem>(
+        //     m_Renderer.mappingsRenderPass(), 
+        //     m_Renderer.mappingsSetLayout(), 
+        //     m_Renderer.uvReflectionRenderPass(), 
+        //     m_Renderer.uvReflectionSetLayout()
+        // );
+        // m_SceneSystem = MakeUnique<VySceneRenderSystem>(
+		// 	m_Renderer.lightingRenderPass(), 
+		// 	m_Renderer.gBufferSetLayout(), 
+		// 	m_Renderer.compositionSetLayout(),
+		// 	m_Renderer.postProcessingRenderPass(),
+		// 	m_Renderer.postProcessingSetLayout()
+        // );
+
+        // m_PointLightSystem = MakeUnique<VyPointLightSystem>(
+		// 	m_Renderer.lightingRenderPass(), 
+		// 	m_Renderer.gBufferSetLayout(), 
+		// 	m_Renderer.compositionSetLayout()
+        // );
+
+
+        // m_GlobalPool = VyDescriptorPool::Builder{}
+        //     .setName    ("global")
+        //     .setMaxSets (MAX_FRAMES_IN_FLIGHT)
+        //     .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT)
+        //     .buildPtr();
 
         // Create the global uniform buffers (One per frame). 
         for (int i = 0; i < m_UniformBuffers.size(); i++) 
@@ -97,10 +105,23 @@ namespace Vy
             m_UniformBuffers[ i ] = MakeUnique<VyBuffer>( VyBuffer::uniformBuffer("global", sizeof(GlobalUbo)) );
         }
 
+        m_TempGroundTexture = VyTexture::createFromFilepath(TEXTURE_DIR "Ground.png");
+
+        VkDescriptorImageInfo imageInfo = m_TempGroundTexture->descriptorImageInfo();
+
         m_GlobalSetLayout = VyDescriptorSetLayout::Builder{}
             .setName   ("global")
-            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
+            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_ALL_GRAPHICS)
+            .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // ground texture
             .buildPtr();
+
+        m_MaterialSetLayout = VyDescriptorSetLayout::Builder{}
+            .setName   ("material")
+            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .buildPtr();
+
 
         for (U32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
         {
@@ -108,33 +129,47 @@ namespace Vy
 
             VyDescriptorWriter( *m_GlobalSetLayout, *m_GlobalPool )
                 .writeBuffer( 0, &bufferInfo )
+                .writeImage ( 1, &imageInfo  )
                 .build( m_GlobalSets[ i ] );
         }
 
-        TVector<VkDescriptorSetLayout> setLayouts = {
-            m_GlobalSetLayout->handle(),
-        };
+        m_Models.push_back( VyGLTFModel::createFromFile( MODELS_DIR "Cube/Cube.gltf",   *m_MaterialSetLayout, *m_GlobalPool) );
+        m_Models.push_back( VyGLTFModel::createFromFile( MODELS_DIR "Plane/Plane.gltf", *m_MaterialSetLayout, *m_GlobalPool) );
+        // m_Models.push_back( VyGLTFModel::createFromFile( MODELS_DIR "Sponza/Sponza.gltf", *m_MaterialSetLayout, *m_GlobalPool) );
+
+        m_SetLayouts.push_back(m_GlobalSetLayout->handle());
+        m_SetLayouts.push_back(m_MaterialSetLayout->handle());
+
+        m_RenderSystem     = MakeUnique<VyRenderSystem>    (m_Renderer.swapchainRenderPass(), m_SetLayouts, *m_GlobalPool);
+        m_PointLightSystem = MakeUnique<VyPointLightSystem>(m_Renderer.swapchainRenderPass(), m_GlobalSetLayout->handle());
+
+        loadEntities();
+
+
+        // TVector<VkDescriptorSetLayout> setLayouts = {
+        //     m_GlobalSetLayout->handle(),
+        // };
 
         // [ Initialize Rendering Systems ]
-        m_ModelSystem = MakeUnique<VyModelRenderSystem>( 
-            m_Renderer.swapchainRenderPass(), 
-            setLayouts 
-        );
+        // m_ModelSystem = MakeUnique<VyModelRenderSystem>( 
+        //     m_Renderer.swapchainRenderPass(), 
+        //     setLayouts 
+        // );
         
-        m_LightSystem = MakeUnique<VyLightSystem>( 
-            m_Renderer.swapchainRenderPass(), 
-            m_GlobalSetLayout->handle()
-        );
+        // m_LightSystem = MakeUnique<VyLightSystem>( 
+        //     m_Renderer.swapchainRenderPass(), 
+        //     m_GlobalSetLayout->handle()
+        // );
 
-        m_GridSystem = MakeUnique<VyGridSystem>( 
-            m_Renderer.swapchainRenderPass(), 
-            m_GlobalSetLayout->handle()
-        );
+        // m_GridSystem = MakeUnique<VyGridSystem>( 
+        //     m_Renderer.swapchainRenderPass(), 
+        //     m_GlobalSetLayout->handle()
+        // );
 
-        m_SkyboxSystem = MakeUnique<VySkyboxRenderSystem>(
-            m_Renderer.swapchainRenderPass(),
-            m_GlobalSetLayout->handle()
-        );
+        // m_SkyboxSystem = MakeUnique<VySkyboxRenderSystem>(
+        //     m_Renderer.swapchainRenderPass(),
+        //     m_GlobalSetLayout->handle()
+        // );
 
         auto view = m_Scene->registry().view<TagComponent>();
 
@@ -182,61 +217,58 @@ namespace Vy
         // Active Camera Object.
         VyCamera camera{};
 
-        VyCamera light{};
+        // VyCamera light{};
 
-		ShadowUbo         shadowUbo{};
-		GBufferUbo        gBufferUbo{};
-		CompositionUbo    compositionUbo{};
-		MappingsUbo       mappingsUbo{};
-		UVReflectionUbo   uvReflectionUbo{};
-		PostProcessingUbo postProcessingUbo{};
+		// ShadowUbo         shadowUbo{};
+		// GBufferUbo        gBufferUbo{};
+		// CompositionUbo    compositionUbo{};
+		// MappingsUbo       mappingsUbo{};
+		// UVReflectionUbo   uvReflectionUbo{};
+		// PostProcessingUbo postProcessingUbo{};
 
-		// viewerObject.transform.Translation = Vk3dSwapChain::CAMERA_POSITION;
-		// viewerObject.transform.Rotation.x = glm::radians(-45.0f);
-		
-        m_LightEntity = m_Scene->createEntity("light-camera");
-        auto lightTransform = m_LightEntity.get<TransformComponent>();
-		lightTransform.Translation = LIGHT_POSITION;
+        // m_LightEntity = m_Scene->createEntity("light-camera");
+        // auto lightTransform = m_LightEntity.get<TransformComponent>();
+		// lightTransform.Translation = LIGHT_POSITION;
 
-		float aspect = m_Renderer.shadowAspectRatio();
-		light.setPerspectiveParams(glm::radians(90.0f), LIGHT_NEAR_PLANE, LIGHT_FAR_PLANE);
-        light.setPerspective(aspect);
+		// float aspect = m_Renderer.shadowAspectRatio();
+		// light.setPerspectiveParams(glm::radians(90.0f), LIGHT_NEAR_PLANE, LIGHT_FAR_PLANE);
+        // light.setPerspective(aspect);
 
-		for (int faceIndex = 0; faceIndex < NUM_CUBE_FACES; faceIndex++) 
-        {
-            lightTransform.resetRotation();
+		// for (int faceIndex = 0; faceIndex < NUM_CUBE_FACES; faceIndex++) 
+        // {
+        //     lightTransform.resetRotation();
 
-			switch (faceIndex)
-			{
-			case 0: // POSITIVE_X
-				lightTransform.Rotation.y = glm::radians(90.0f);
-				break;
+		// 	switch (faceIndex)
+		// 	{
+		// 	case 0: // POSITIVE_X
+		// 		lightTransform.Rotation.y = glm::radians(90.0f);
+		// 		break;
 
-			case 1:	// NEGATIVE_X
-				lightTransform.Rotation.y = glm::radians(-90.0f);
-				break;
+		// 	case 1:	// NEGATIVE_X
+		// 		lightTransform.Rotation.y = glm::radians(-90.0f);
+		// 		break;
 
-			case 2:	// POSITIVE_Y
-				lightTransform.Rotation.x = glm::radians(90.0f);
-				break;
+		// 	case 2:	// POSITIVE_Y
+		// 		lightTransform.Rotation.x = glm::radians(90.0f);
+		// 		break;
 
-			case 3:	// NEGATIVE_Y
-				lightTransform.Rotation.x = glm::radians(-90.0f);
-				break;
+		// 	case 3:	// NEGATIVE_Y
+		// 		lightTransform.Rotation.x = glm::radians(-90.0f);
+		// 		break;
 
-			case 4:	// POSITIVE_Z
+		// 	case 4:	// POSITIVE_Z
 
-				break;
+		// 		break;
 
-			case 5:	// NEGATIVE_Z
-				lightTransform.Rotation.y = glm::radians(180.0f);
-				break;
-			}
+		// 	case 5:	// NEGATIVE_Z
+		// 		lightTransform.Rotation.y = glm::radians(180.0f);
+		// 		break;
+		// 	}
 
-			light.setView(lightTransform.Translation, lightTransform.Rotation);
+		// 	light.setView(lightTransform.Translation, lightTransform.Rotation);
 
-			shadowUbo.projectionView[ faceIndex ] = light.projection() * light.view();
-		}
+		// 	shadowUbo.projectionView[ faceIndex ] = light.projection() * light.view();
+		// }
 
 
         // [ Initialize FrameRate Controller (60 FPS) ]
@@ -279,13 +311,13 @@ namespace Vy
                         previousExtent = currentExtent;
                     }
 
-                    invResolution = Vec2(
-                        1.0f / currentExtent.width, 
-                        1.0f / currentExtent.height
-                    );
+                    // invResolution = Vec2(
+                    //     1.0f / currentExtent.width, 
+                    //     1.0f / currentExtent.height
+                    // );
                     
-                    uvReflectionUbo  .invResolution = invResolution;
-                    postProcessingUbo.invResolution = invResolution;
+                    // uvReflectionUbo  .InvResolution = invResolution;
+                    // postProcessingUbo.InvResolution = invResolution;
                 }
 
                 // Update Frame Info.
@@ -296,108 +328,148 @@ namespace Vy
                     .FrameTime           = deltaTime,                  // Time between frames.
                     .CommandBuffer       = cmdBuffer,                  // Main command buffer.
                     .GlobalSet           = m_GlobalSets[ frameIndex ], // Global descriptor set for the current frame.
-                    .ShadowSet           = m_Renderer.currentShadowSet(),
-                    .MappingsSet         = m_Renderer.currentMappingsSet(),
-                    .UVReflectionSet     = m_Renderer.currentUVReflectionSet(),
-                    .GBufferSet          = m_Renderer.currentGBufferSet(),
-                    .CompositionSet      = m_Renderer.currentCompositionSet(),
-                    .PostProcessingSet   = m_Renderer.currentPostProcessingSet(),
+                    // .ShadowSet           = m_Renderer.currentShadowSet(),
+                    // .MappingsSet         = m_Renderer.currentMappingsSet(),
+                    // .UVReflectionSet     = m_Renderer.currentUVReflectionSet(),
+                    // .GBufferSet          = m_Renderer.currentGBufferSet(),
+                    // .CompositionSet      = m_Renderer.currentCompositionSet(),
+                    // .PostProcessingSet   = m_Renderer.currentPostProcessingSet(),
                     .Scene               = m_Scene,                    // Active scene.
                     .Camera              = camera                      // Active camera to update the UBOs.
                 };
 
+                GlobalUbo ubo{};
+
+                // [ Update ]
+                {
+                    // [ Update UBO Data ]
+                    {
+                        ubo.CameraData.Projection  = frameInfo.Camera.projection();
+                        ubo.CameraData.View        = frameInfo.Camera.view();
+                        ubo.CameraData.InverseView = frameInfo.Camera.inverseView();
+                    }
+
+                    // Update light values into UBO.
+                    m_PointLightSystem->update( frameInfo, ubo );
+
+                    // Write global uniform buffers.
+                    m_UniformBuffers[ frameInfo.FrameIndex ]->write( &ubo, sizeof(GlobalUbo), 0 );
+
+
+                    m_RenderSystem->renderCascadedShadowPass(frameInfo, ubo);
+                    m_RenderSystem->renderPointShadowPass   (frameInfo, ubo);
+                    m_RenderSystem->renderSpotShadowPass    (frameInfo, ubo);
+                }
+
+                // [ Render ]
+                {
+                    m_Renderer.beginSwapchainRenderPass( cmdBuffer );
+                    {
+                        // order matters
+                        // solid objects first, then transparent
+                        m_RenderSystem->renderMainPass( frameInfo );
+                        m_PointLightSystem->render( frameInfo, ubo );
+                    }
+                    m_Renderer.endRenderPass( cmdBuffer );
+                }
+
                 // [ Update ]
                 // {
-                //     GlobalUbo ubo{};
-
-                //     // [ Update UBO Data ]
+                //     m_Renderer.updateCurrentShadowUbo(&shadowUbo);
+                    
                 //     {
-                //         ubo.Projection  = frameInfo.Camera.projection();
-                //         ubo.View        = frameInfo.Camera.view();
-                //         ubo.InverseView = frameInfo.Camera.inverseView();
+                //         gBufferUbo.projection = camera.projection();
+                //         gBufferUbo.view       = camera.view();
+                        
+                //         m_Renderer.updateCurrentGBufferUbo(&gBufferUbo);
                 //     }
 
-                //     // Update light values into UBO.
-                //     m_LightSystem->update( frameInfo, ubo );
+                //     {
+                //         mappingsUbo.projection = camera.projection();
+                //         mappingsUbo.view       = camera.view();
+                        
+                //         m_Renderer.updateCurrentMappingsUbo(&mappingsUbo);
+                //     }
 
-                //     // Write global uniform buffers.
-                //     m_UniformBuffers[ frameInfo.FrameIndex ]->write( &ubo, sizeof(GlobalUbo), 0 );
+                //     {
+                //         uvReflectionUbo.viewPos    = camera.position();
+                //         uvReflectionUbo.projection = camera.projection();
+                //         uvReflectionUbo.view       = camera.view();
+                        
+                //         m_Renderer.updateCurrentUVReflectionUbo(&uvReflectionUbo);
+                //     }
+
+                //     {
+                //         compositionUbo.viewPos = camera.position();
+                        
+                //         m_Renderer.updateCurrentCompositionUbo(&compositionUbo);
+                //     }
+                    
+                //     m_Renderer.updateCurrentPostProcessingUbo(&postProcessingUbo);
                 // }
+                    
+                // // [ Render ]
+                // {
+                //     // render shadows
+                //     {
+                //         m_Renderer.beginShadowRenderPass( cmdBuffer );
+                //         {
+                //             m_ShadowSystem->render( frameInfo );
+                //         }
+                //         m_Renderer.endRenderPass( cmdBuffer );
+                //     }
 
+                //     // render mappings
+                //     {
+                //         m_Renderer.beginMappingsRenderPass( cmdBuffer );
+                //         {
+                //             m_ReflectionSystem->renderMappings( frameInfo );
+                //         }
+                //         m_Renderer.endRenderPass( cmdBuffer );
+                //     }
 
-				m_Renderer.updateCurrentShadowUbo(&shadowUbo);
-				
-				gBufferUbo.projection = camera.projection();
-				gBufferUbo.view = camera.view();
+                //     // render reflection map
+                //     {
+                //         m_Renderer.beginUVReflectionRenderPass( cmdBuffer );
+                //         {
+                //             m_ReflectionSystem->renderUVReflectionMap( frameInfo );
+                //         }
+                //         m_Renderer.endRenderPass( cmdBuffer );
+                //     }
 
-				m_Renderer.updateCurrentGBufferUbo(&gBufferUbo);
-
-				mappingsUbo.projection = camera.projection();
-				mappingsUbo.view = camera.view();
-
-				m_Renderer.updateCurrentMappingsUbo(&mappingsUbo);
-
-				uvReflectionUbo.viewPos    = camera.position();
-				uvReflectionUbo.projection = camera.projection();
-				uvReflectionUbo.view       = camera.view();
-
-				m_Renderer.updateCurrentUVReflectionUbo(&uvReflectionUbo);
-
-				compositionUbo.viewPos = camera.position();
-
-				m_Renderer.updateCurrentCompositionUbo(&compositionUbo);
-
-				m_Renderer.updateCurrentPostProcessingUbo(&postProcessingUbo);
-
-				// render shadows
-				m_Renderer.beginShadowRenderPass(cmdBuffer);
-                {
-                    m_ShadowSystem->render( frameInfo );
-                }
-				m_Renderer.endRenderPass(cmdBuffer);
-
-				// render mappings
-				m_Renderer.beginMappingsRenderPass(cmdBuffer);
-                {
-                    m_ReflectionSystem->renderMappings(frameInfo);
-                }
-				m_Renderer.endRenderPass(cmdBuffer);
-
-				// render reflection map
-				m_Renderer.beginUVReflectionRenderPass(cmdBuffer);
-                {
-                    m_ReflectionSystem->renderUVReflectionMap(frameInfo);
-                }
-				m_Renderer.endRenderPass(cmdBuffer);
-
-				// render swap chain
-				m_Renderer.beginLightingRenderPass(cmdBuffer);
-                {
-                    m_SceneSystem->render(frameInfo, glm::inverse(camera.projection() * camera.view()), invResolution);
-                    m_PointLightSystem->render(frameInfo);
-                }
-				m_Renderer.endRenderPass(cmdBuffer);
-
-				m_Renderer.beginPostProcessingRenderPass(cmdBuffer);
-				{
-                    m_SceneSystem->renderPostProcessing(frameInfo);
-                }
-				m_Renderer.endRenderPass(cmdBuffer);
-
+                //     // render swapchain
+                //     {
+                //         m_Renderer.beginLightingRenderPass( cmdBuffer );
+                //         {
+                //             Mat4 invVP = glm::inverse( camera.projection() * camera.view() );
+                            
+                //             m_SceneSystem->render( frameInfo, invVP, invResolution );
+                            
+                //             m_PointLightSystem->render( frameInfo );
+                //         }
+                //         m_Renderer.endRenderPass( cmdBuffer );
+                        
+                //         m_Renderer.beginPostProcessingRenderPass( cmdBuffer );
+                //         {
+                //             m_SceneSystem->renderPostProcessing( frameInfo );
+                //         }
+                //         m_Renderer.endRenderPass( cmdBuffer );
+                //     }
+                // }
 
                 // [ Render ]
                 // {
-                //     m_Renderer.beginSwapchainRenderPass( cmdBuffer );
-                //     {
-                //         m_SkyboxSystem->render( frameInfo, m_Skybox.get() );
+                    // m_Renderer.beginSwapchainRenderPass( cmdBuffer );
+                    // {
+                    //     m_SkyboxSystem->render( frameInfo, m_Skybox.get() );
                         
-                //         m_ModelSystem ->render( frameInfo );
+                    //     m_ModelSystem ->render( frameInfo );
 
-                //         m_LightSystem ->render( frameInfo );
+                    //     m_LightSystem ->render( frameInfo );
 
-                //         m_GridSystem  ->render( frameInfo );
-                //     }
-                //     m_Renderer.endCurrentRenderPass( cmdBuffer );
+                    //     m_GridSystem  ->render( frameInfo );
+                    // }
+                    // m_Renderer.endCurrentRenderPass( cmdBuffer );
                 // }
 
                 m_Renderer.endFrame();
@@ -416,23 +488,54 @@ namespace Vy
 
     void VyEngine::loadEntities()
     {
-        Shared<VyModel> pModel;
+        const float kGroundSize = 40.0f;
 
-        pModel = VyModel::loadFromFile( MODELS_DIR "smooth_vase.obj" );
-
-        auto vase = m_Scene->createEntity( "vase" );
+        auto ground = m_Scene->createEntity( "ground" );
         {
-            vase.add<ModelComponent>( pModel );
-            vase.get<TransformComponent>().Translation = Vec3(0.0f, -0.01f, 0.0f);
+            ground.add<ModelComponent>( m_Models[ 0 ] );
+            ground.get<TransformComponent>() = TransformComponent{
+                Vec3(0.0f, 0.0f, 0.0f),
+                Vec3(1.0f * kGroundSize, 0.05f, 1.0f * kGroundSize)
+            };
         }
 
-        pModel = VyModel::loadFromFile( MODELS_DIR "plane.obj" );
+        // auto cube = m_Scene->createEntity( "cube" );
+        // {
+        //     cube.add<ModelComponent>( m_Models[ 0 ] );
+        //     cube.get<TransformComponent>().Translation = Vec3(0.0f, 0.0f, 0.0f);
+        // }
 
-        auto plane = m_Scene->createEntity( "plane" );
-        {
-            plane.add<ModelComponent>( pModel );
-            plane.get<TransformComponent>().Translation = Vec3(0.0f, -0.01f, 0.0f);
-        }
+        // Shared<VyModel> pModel;
+
+        // pModel = VyModel::loadFromFile( MODELS_DIR "smooth_vase.obj" );
+
+        // auto vase = m_Scene->createEntity( "vase" );
+        // {
+        //     vase.add<ModelComponent>( pModel );
+        //     vase.get<TransformComponent>().Translation = Vec3(0.0f, -0.01f, 0.0f);
+        // }
+
+        // pModel = VyModel::loadFromFile( MODELS_DIR "colored_cube.obj" );
+
+        // auto cube = m_Scene->createEntity( "cube" );
+        // {
+        //     cube.add<ModelComponent>( pModel );
+        //     cube.get<TransformComponent>() = TransformComponent{ 
+        //         Vec3(-0.6f, -0.21f, 0.6f),
+        //         Vec3(0.2f, 0.2f, 0.2f)
+        //     };
+        // }
+
+        // pModel = VyModel::loadFromFile( MODELS_DIR "plane.obj" );
+
+        // auto plane = m_Scene->createEntity( "plane" );
+        // {
+        //     plane.add<ModelComponent>( pModel );
+        //     plane.get<TransformComponent>() = TransformComponent{ 
+        //         Vec3(0.0f, -0.01f, 0.0f),
+        //         Vec3(1.0f, 1.0f, 1.0f)
+        //     };
+        // }
 
         TVector<Vec3> lightColors{
             { 1.0f, 0.1f, 0.1f }, // Red
@@ -452,7 +555,7 @@ namespace Vy
 
             auto pointLight = m_Scene->createEntity("point_light_" + std::to_string( i ));
             {
-                pointLight.add<PointLightComponent>( lightColors[ i ], 0.5f );
+                pointLight.add<LightComponent>( LightComponent::pointLight( lightColors[ i ], 0.5f, 0.2f ) );
                 pointLight.get<TransformComponent>() = TransformComponent{
                     rotateLight * Vec4(-1.0f, -1.0f, -1.0f, 1.0f)//,
                     // { 0.2f, 0.2f, 0.2f }

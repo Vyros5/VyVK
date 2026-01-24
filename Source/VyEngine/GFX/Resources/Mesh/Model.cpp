@@ -31,7 +31,7 @@ namespace std
                 , vertex.Normal
                 , vertex.UV
                 , vertex.Tangent
-                , vertex.Bitangent
+                // , vertex.Bitangent
             );
             
             return seed;
@@ -400,16 +400,16 @@ namespace Vy
                 }
 
                 // [ Tangents & Bitangents ]
-                if (pMesh->HasTangentsAndBitangents()) 
-                {
-                    vertex.Tangent   = Utils::AiToGlm( pMesh->mTangents  [ v ] );
-                    vertex.Bitangent = Utils::AiToGlm( pMesh->mBitangents[ v ] );
-                }
-                else {
-                    // you can orthonormalize later in the shader or generate here
-                    vertex.Tangent   = { 1.0f, 0.0f, 0.0f };
-                    vertex.Bitangent = { 0.0f, 1.0f, 0.0f };
-                }
+                // if (pMesh->HasTangentsAndBitangents()) 
+                // {
+                //     vertex.Tangent   = Utils::AiToGlm( pMesh->mTangents  [ v ] );
+                //     vertex.Bitangent = Utils::AiToGlm( pMesh->mBitangents[ v ] );
+                // }
+                // else {
+                //     // you can orthonormalize later in the shader or generate here
+                //     vertex.Tangent   = { 1.0f, 0.0f, 0.0f };
+                //     vertex.Bitangent = { 0.0f, 1.0f, 0.0f };
+                // }
 
 				Vertices.push_back( vertex );
 			}

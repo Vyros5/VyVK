@@ -19,7 +19,7 @@
 #define SCENES_DIR ASSETS_DIR  "Scenes/"
 #define MODELS_DIR ASSETS_DIR  "Models/"
 #define CUBEMAP_DIR ASSETS_DIR "Cubemap/"
-
+#define TEXTURE_DIR ASSETS_DIR "Textures/"
 
 namespace Vy
 { // C:\dev\Engine\Vy\Source\Vy\Globals.h

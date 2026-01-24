@@ -27,19 +27,20 @@ namespace Vy
         Vec4  Position    {}; // xyz = position,   w = unused
         Vec4  Direction   {}; // xyz = direction,  w = unused
         Vec4  Color       {}; // rgb = color,      a = intensity
-        float OuterCutoff {}; // cos of outer angle
-        // float InnerCutoff {}; // cos of inner angle
-        float ConstantAtten {}; // Constant attenuation
-        float LinearAtten   {}; // Linear attenuation
-        float QuadraticAtten{}; // Quadratic attenuation
+        Vec4  Cutoffs     {}; // CutOffs x=innerCutoff y=outerCutoff
+        // float OuterCutoff {}; // cos of outer angle
+        // // float InnerCutoff {}; // cos of inner angle
+        // float ConstantAtten {}; // Constant attenuation
+        // float LinearAtten   {}; // Linear attenuation
+        // float QuadraticAtten{}; // Quadratic attenuation
     };
 
-    // struct CameraDataUBO
-    // {
-    //     Mat4 Projection   { 1.0f };
-    //     Mat4 View         { 1.0f };
-    //     Mat4 InverseView  { 1.0f };
-    // };
+    struct CameraDataUBO
+    {
+        Mat4 Projection   { 1.0f };
+        Mat4 View         { 1.0f };
+        Mat4 InverseView  { 1.0f };
+    };
 
     // struct GlobalUBO 
     // {
@@ -61,16 +62,19 @@ namespace Vy
     //     int                 NumSpotLights       { 0 };
     // };
 
-    constexpr size_t kMaxLightCount = 128;
-
     struct GlobalUbo
     {
-        Mat4 Projection   { 1.0f };
-        Mat4 View         { 1.0f };
-        Mat4 InverseView  { 1.0f };
+        CameraDataUBO       CameraData{};
+
         Vec4                LightAmbient{1.0f, 1.0f, 1.0f, 0.02f};
-        PointLightUBO       PointLights[kMaxLightCount];
-        DirectionalLightUBO DirectLight;
-        int                 LightCount{ 0 };
+        
+        DirectionalLightUBO DirectionalLight{};
+        
+        PointLightUBO       PointLights[ MAX_POINT_LIGHTS ];
+        SpotLightUBO        SpotLights [ MAX_SPOT_LIGHTS ];
+
+        alignas(4) int      PointLightsCount;
+        alignas(4) int      SpotLightsCount;
+
     };
 }

@@ -112,7 +112,7 @@ namespace Vy
 		
         VY_NODISCARD const VkPhysicalDeviceLimits&     limits()               const { return m_Properties.limits;  }
 		VY_NODISCARD const VKFeatures&                 features()             const { return m_Features;    }
-		VY_NODISCARD       VkSampleCountFlagBits       supportedSampleCount()       { return m_MsaaSamples; }
+		VY_NODISCARD       VkSampleCountFlagBits       msaaSampleCountFlagBits()    { return m_MsaaSamples; }
 		VY_NODISCARD       bool                        supportsPresentId()    const { return m_PresentIdSupported; }
 
 #pragma endregion Accessors

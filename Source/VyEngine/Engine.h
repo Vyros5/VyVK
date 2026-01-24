@@ -27,6 +27,9 @@
 #include <VyEngine/GFX/Systems/SceneRenderSystem.h>
 #include <VyEngine/GFX/Systems/PointLightSystem.h>
 
+#include <VyEngine/GFX/Systems/PointLightSystem.h>
+#include <VyEngine/GFX/Systems/RenderSystem.h>
+
 namespace Vy
 {
 		static constexpr float LIGHT_NEAR_PLANE = 0.1f;
@@ -71,38 +74,44 @@ namespace Vy
 
         Unique<VyTexture> m_Texture;
 
-        Unique<VyModelRenderSystem> m_ModelSystem;
-        Unique<VyLightSystem>       m_LightSystem;
-        Unique<VyGridSystem>        m_GridSystem;
-        Unique<VySkyboxRenderSystem> m_SkyboxSystem;
+        // Unique<VyModelRenderSystem> m_ModelSystem;
+        // Unique<VyLightSystem>       m_LightSystem;
+        // Unique<VyGridSystem>        m_GridSystem;
+        // Unique<VySkyboxRenderSystem> m_SkyboxSystem;
         Unique<VySkybox>            m_Skybox;
         // Shared<VyMaterialSystem>    m_MaterialSystem{};
 
-        Unique<VySceneRenderSystem> m_SceneSystem;
-        Unique<VyShadowRenderSystem> m_ShadowSystem;
-        Unique<VyReflectionRenderSystem> m_ReflectionSystem;
+        // Unique<VySceneRenderSystem> m_SceneSystem;
+        // Unique<VyShadowRenderSystem> m_ShadowSystem;
+        // Unique<VyReflectionRenderSystem> m_ReflectionSystem;
         Unique<VyPointLightSystem> m_PointLightSystem; 
+        Unique<VyRenderSystem>     m_RenderSystem;
 
         Shared<VyScene> m_Scene;
 
-        VyEntity m_LightEntity;
+        // VyEntity m_LightEntity;
 
         // Singleton
 		static VyEngine* s_Instance;
 		static bool      s_bInstanceFlag;
 
         Unique<VyDescriptorPool>      m_GlobalPool{};
-        Unique<VyDescriptorSetLayout> m_ModelSetLayout;
+        // Unique<VyDescriptorSetLayout> m_ModelSetLayout;
+        TVector<VkDescriptorSetLayout> m_SetLayouts;
+        TVector<Shared<VyGLTFModel>>   m_Models;
+
+        Vec3 m_LightDir {-30.0f, 30.0f, 10.0f};
 
         TVector<VkDescriptorSet>      m_GlobalSets     { MAX_FRAMES_IN_FLIGHT };
         Shared<VyDescriptorSetLayout> m_GlobalSetLayout{};
 
-        Unique<VyDescriptorPool>      m_MaterialPool{};
+        // Unique<VyDescriptorPool>      m_MaterialPool{};
         Unique<VyDescriptorSetLayout> m_MaterialSetLayout{};
 
         // UBO Buffers
         TVector<Unique<VyBuffer>> m_UniformBuffers{ MAX_FRAMES_IN_FLIGHT };
         
+        Shared<VyTexture> m_TempGroundTexture;
 
         bool m_Running;
         U32 m_FrameCount{ 0 };

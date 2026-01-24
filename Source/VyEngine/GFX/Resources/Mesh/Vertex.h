@@ -10,8 +10,9 @@ namespace Vy
         Vec3 Color    { 1.0f };
         Vec3 Normal   {      };
         Vec2 UV       {      };
-        Vec3 Tangent  {      };
-        Vec3 Bitangent{      };
+        Vec4 Tangent  {      }; // w component stores handedness
+        // Vec3 Tangent  {      };
+        // Vec3 Bitangent{      };
 
         static TVector<VkVertexInputBindingDescription>   bindingDescriptions();
         static TVector<VkVertexInputAttributeDescription> attributeDescriptions();
@@ -23,7 +24,7 @@ namespace Vy
                 && Normal    == other.Normal
                 && UV        == other.UV 
                 && Tangent   == other.Tangent
-                && Bitangent == other.Bitangent
+                // && Bitangent == other.Bitangent
             ;
         }
     };

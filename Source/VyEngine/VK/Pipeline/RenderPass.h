@@ -84,98 +84,98 @@ namespace Vy
     };
 
 
-class VyDeferredRenderer //: public IRenderer
-{
-public:
-    explicit VyDeferredRenderer();// VyRenderer* renderer
-    ~VyDeferredRenderer() = default;
+// class VyDeferredRenderer //: public IRenderer
+// {
+// public:
+//     explicit VyDeferredRenderer();// VyRenderer* renderer
+//     ~VyDeferredRenderer() = default;
 
-    void Initialize();
-    void Shutdown();
-    void Render(VyFrameInfo& frameInfo);
-    void Resize(uint32_t width, uint32_t height);
-    // void RegisterGameObject(GameObject& gameObjectRef);
+//     void Initialize();
+//     void Shutdown();
+//     void Render(VyFrameInfo& frameInfo);
+//     void Resize(uint32_t width, uint32_t height);
+//     // void RegisterGameObject(GameObject& gameObjectRef);
 
-private:
-	void RecordGBufferCommandBuffer(VyFrameInfo& frameInfo);
-	void RecordLightingPassCommandBuffer(VyFrameInfo& frameInfo);
-	void RecordCompositionPassCommandBuffer(VyFrameInfo& frameInfo);
-	void SubmitRenderPasses(uint32_t frameIndex);
+// private:
+// 	void RecordGBufferCommandBuffer(VyFrameInfo& frameInfo);
+// 	void RecordLightingPassCommandBuffer(VyFrameInfo& frameInfo);
+// 	void RecordCompositionPassCommandBuffer(VyFrameInfo& frameInfo);
+// 	void SubmitRenderPasses(uint32_t frameIndex);
 
-    void InvalidateGBufferPass();
-    void CreateGBufferTextures();
-    void CreateGBufferRenderPass();
-    void CreateGBufferPipeline();
-    void CreateGBufferFramebuffers();
+//     void InvalidateGBufferPass();
+//     void CreateGBufferTextures();
+//     void CreateGBufferRenderPass();
+//     void CreateGBufferPipeline();
+//     void CreateGBufferFramebuffers();
 
-    void InvalidateLightingPass();
-    void CreateLightingTextures();
-    void CreateLightingRenderPass();
-    void CreateLightingPipeline();
-    void CreateLightingFramebuffers();
+//     void InvalidateLightingPass();
+//     void CreateLightingTextures();
+//     void CreateLightingRenderPass();
+//     void CreateLightingPipeline();
+//     void CreateLightingFramebuffers();
 
-    void InvalidateCompositionPass();
-    void CreateCompositionRenderPass();
-    void CreateCompositionPipeline();
-    void CreateCompositionFramebuffers();
+//     void InvalidateCompositionPass();
+//     void CreateCompositionRenderPass();
+//     void CreateCompositionPipeline();
+//     void CreateCompositionFramebuffers();
 
-	void CreateCommandBuffers();
-	void CreateSynchronizationPrimitives();
-	void CreateShaders();
-	void CreateMaterials();
-	void CreateAttachmentTextures();
+// 	void CreateCommandBuffers();
+// 	void CreateSynchronizationPrimitives();
+// 	void CreateShaders();
+// 	void CreateMaterials();
+// 	void CreateAttachmentTextures();
 
-private:
-    // VyRenderer *m_Renderer;
+// private:
+//     // VyRenderer *m_Renderer;
 
-    /*
-     * Per Frame Resources - Double/Triple Buffered
-     */
-    // std::vector<std::vector<std::shared_ptr<VyTexture2D>>> m_GBufferTextures{VySwapchain::MAX_FRAMES_IN_FLIGHT};
-    // std::vector<std::shared_ptr<VyTexture2D>> m_LightingTextures{VySwapchain::MAX_FRAMES_IN_FLIGHT};
+//     /*
+//      * Per Frame Resources - Double/Triple Buffered
+//      */
+//     // std::vector<std::vector<std::shared_ptr<VyTexture2D>>> m_GBufferTextures{VySwapchain::MAX_FRAMES_IN_FLIGHT};
+//     // std::vector<std::shared_ptr<VyTexture2D>> m_LightingTextures{VySwapchain::MAX_FRAMES_IN_FLIGHT};
 
-	std::vector<VkCommandBuffer> m_GBufferCommandBuffers;
-	std::vector<VkCommandBuffer> m_LightingCommandBuffers;
+// 	std::vector<VkCommandBuffer> m_GBufferCommandBuffers;
+// 	std::vector<VkCommandBuffer> m_LightingCommandBuffers;
 
-	std::vector<VkSemaphore> m_GBufferCompleteSemaphores;
-	std::vector<VkSemaphore> m_LightingCompleteSemaphores;
-	std::vector<VkSemaphore> m_CompositionRenderCompleteSemaphores;
+// 	std::vector<VkSemaphore> m_GBufferCompleteSemaphores;
+// 	std::vector<VkSemaphore> m_LightingCompleteSemaphores;
+// 	std::vector<VkSemaphore> m_CompositionRenderCompleteSemaphores;
 
-    // These framebuffers will be resized on creation or resize.
-    // std::vector<std::unique_ptr<VyFramebuffer>> m_GBufferFramebuffers;
-    // std::vector<std::unique_ptr<VyFramebuffer>> m_LightingFramebuffers;
-    /*
-     * Needs to be allocated based on the number swapchain images - NOT the number of frames in flight
-     */
-    // std::vector<std::unique_ptr<VyFramebuffer>> m_CompositionFramebuffers;
+//     // These framebuffers will be resized on creation or resize.
+//     // std::vector<std::unique_ptr<VyFramebuffer>> m_GBufferFramebuffers;
+//     // std::vector<std::unique_ptr<VyFramebuffer>> m_LightingFramebuffers;
+//     /*
+//      * Needs to be allocated based on the number swapchain images - NOT the number of frames in flight
+//      */
+//     // std::vector<std::unique_ptr<VyFramebuffer>> m_CompositionFramebuffers;
 
-    /*
-     * Single Use Resources
-    */
-    std::unique_ptr<VyRenderPass> m_GBufferPass;
-    std::unique_ptr<VyRenderPass> m_LightingPass;
-    std::unique_ptr<VyRenderPass> m_CompositionPass;
+//     /*
+//      * Single Use Resources
+//     */
+//     std::unique_ptr<VyRenderPass> m_GBufferPass;
+//     std::unique_ptr<VyRenderPass> m_LightingPass;
+//     std::unique_ptr<VyRenderPass> m_CompositionPass;
 
-    // std::unique_ptr<VyGraphicsPipeline> m_GBufferPipeline;
-    // std::unique_ptr<VyGraphicsPipeline> m_LightingPipeline;
-    // std::unique_ptr<VyGraphicsPipeline> m_CompositionPipeline;
+//     // std::unique_ptr<VyGraphicsPipeline> m_GBufferPipeline;
+//     // std::unique_ptr<VyGraphicsPipeline> m_LightingPipeline;
+//     // std::unique_ptr<VyGraphicsPipeline> m_CompositionPipeline;
 
-    // std::shared_ptr<VyShader> m_GBufferVertexShader;
-    // std::shared_ptr<VyShader> m_GBufferFragmentShader;
+//     // std::shared_ptr<VyShader> m_GBufferVertexShader;
+//     // std::shared_ptr<VyShader> m_GBufferFragmentShader;
 
-    // std::shared_ptr<VyShader> m_FullScreenQuadVertexShader;
-    // std::shared_ptr<VyShader> m_LightingFragmentShader;
-    // std::shared_ptr<VyShader> m_CompositionFragmentShader;
+//     // std::shared_ptr<VyShader> m_FullScreenQuadVertexShader;
+//     // std::shared_ptr<VyShader> m_LightingFragmentShader;
+//     // std::shared_ptr<VyShader> m_CompositionFragmentShader;
 
-    // std::shared_ptr<VyMaterialLayout> m_GBufferMaterialLayout;
-    // std::shared_ptr<VyMaterial> m_GBufferBaseMaterial;
+//     // std::shared_ptr<VyMaterialLayout> m_GBufferMaterialLayout;
+//     // std::shared_ptr<VyMaterial> m_GBufferBaseMaterial;
 
-    // std::shared_ptr<VyMaterialLayout> m_LightingMaterialLayout;
-    // std::shared_ptr<VyMaterial> m_LightingMaterial;
+//     // std::shared_ptr<VyMaterialLayout> m_LightingMaterialLayout;
+//     // std::shared_ptr<VyMaterial> m_LightingMaterial;
 
-    // std::shared_ptr<VyMaterialLayout> m_CompositionMaterialLayout;
-    // std::shared_ptr<VyMaterial> m_CompositionMaterial;
+//     // std::shared_ptr<VyMaterialLayout> m_CompositionMaterialLayout;
+//     // std::shared_ptr<VyMaterial> m_CompositionMaterial;
 
-	// std::shared_ptr<VyTexture2D> m_SimpleTextureA;
-};
+// 	// std::shared_ptr<VyTexture2D> m_SimpleTextureA;
+// };
 }

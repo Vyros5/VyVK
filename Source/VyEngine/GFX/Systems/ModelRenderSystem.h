@@ -1,27 +1,27 @@
-#pragma once
+// #pragma once
 
-#include <VyEngine/GFX/Data/FrameInfo.h>
+// #include <VyEngine/GFX/Data/FrameInfo.h>
 
-#include <VyEngine/VK/Pipeline/Pipeline.h>
-#include <VyEngine/VK/Descriptors/Descriptors.h>
+// #include <VyEngine/VK/Pipeline/Pipeline.h>
+// #include <VyEngine/VK/Descriptors/Descriptors.h>
 
-namespace Vy
-{
-    class VyModelRenderSystem 
-    {
-    public:
-        VyModelRenderSystem(VkRenderPass renderPass, TVector<VkDescriptorSetLayout> globalSetLayouts);
+// namespace Vy
+// {
+//     class VyModelRenderSystem 
+//     {
+//     public:
+//         VyModelRenderSystem(VkRenderPass renderPass, TVector<VkDescriptorSetLayout> globalSetLayouts);
         
-        VyModelRenderSystem(const VyModelRenderSystem&)            = delete;
-        VyModelRenderSystem& operator=(const VyModelRenderSystem&) = delete;
+//         VyModelRenderSystem(const VyModelRenderSystem&)            = delete;
+//         VyModelRenderSystem& operator=(const VyModelRenderSystem&) = delete;
         
-        ~VyModelRenderSystem();
+//         ~VyModelRenderSystem();
         
-        void render(VyFrameInfo& frameInfo);
+//         void render(VyFrameInfo& frameInfo);
 
-    private:
-        void createPipeline(VkRenderPass renderPass, TVector<VkDescriptorSetLayout> globalSetLayouts);
+//     private:
+//         void createPipeline(VkRenderPass renderPass, TVector<VkDescriptorSetLayout> globalSetLayouts);
 
-        Unique<VyPipeline> m_Pipeline;
-    };
-}
+//         Unique<VyPipeline> m_Pipeline;
+//     };
+// }

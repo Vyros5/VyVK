@@ -20,7 +20,7 @@ namespace std
                 , vertex.Normal
                 , vertex.UV
                 , vertex.Tangent
-                , vertex.Bitangent
+                // , vertex.Bitangent
             );
             
             return seed;
@@ -51,6 +51,7 @@ namespace Vy
             attributeDescriptions.push_back( { 1, 0, VK_FORMAT_R32G32B32_SFLOAT,    offsetof(VyVertex, Color    ) } );
             attributeDescriptions.push_back( { 2, 0, VK_FORMAT_R32G32B32_SFLOAT,    offsetof(VyVertex, Normal   ) } );
             attributeDescriptions.push_back( { 3, 0, VK_FORMAT_R32G32_SFLOAT,       offsetof(VyVertex, UV       ) } );
+            attributeDescriptions.push_back( { 4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(VyVertex, Tangent  ) } );
             // attributeDescriptions.push_back( { 4, 0, VK_FORMAT_R32G32B32_SFLOAT,    offsetof(VyVertex, Tangent  ) } );
             // attributeDescriptions.push_back( { 5, 0, VK_FORMAT_R32G32B32_SFLOAT,    offsetof(VyVertex, Bitangent) } );
         }

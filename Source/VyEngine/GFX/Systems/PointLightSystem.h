@@ -7,30 +7,56 @@
 
 namespace Vy
 {
-    class VyPointLightSystem 
+    class VyPointLightSystem
     {
     public:
-        VyPointLightSystem(
-            VkRenderPass          renderPass, 
-            VkDescriptorSetLayout gBufferSetLayout, 
-            VkDescriptorSetLayout compositionSetLayout
-        );
-        
-        VyPointLightSystem(const VyPointLightSystem&)            = delete;
-        VyPointLightSystem& operator=(const VyPointLightSystem&) = delete;
-        
+        VyPointLightSystem(VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
         ~VyPointLightSystem();
 
-        // void update(VyFrameInfo& frameInfo, GlobalUbo& ubo);
-        void render(VyFrameInfo& frameInfo);
+        VyPointLightSystem(const VyPointLightSystem&) = delete;
+        VyPointLightSystem& operator=(const VyPointLightSystem&) = delete;
 
+        void update(VyFrameInfo& frameInfo, GlobalUbo& globalUBO);
+        void render(VyFrameInfo& frameInfo, GlobalUbo& globalUBO);
+
+        Vec3 Point = { 1.0f, -6.0f, 0.0f };
     private:
-        void createPointLightPipeline(
+        void createPipeline(
             VkRenderPass          renderPass, 
-            VkDescriptorSetLayout gBufferSetLayout, 
-            VkDescriptorSetLayout compositionSetLayout
+            VkDescriptorSetLayout globalSetLayout
         );
 
-        Unique<VyPipeline> m_PointPipeline;
+        Unique<VyPipeline>        m_Pipeline;
+        TMap<float, EntityHandle> m_SortedLights;
     };
 }
+
+// namespace Vy
+// {
+//     class VyPointLightSystem 
+//     {
+//     public:
+//         VyPointLightSystem(
+//             VkRenderPass          renderPass, 
+//             VkDescriptorSetLayout gBufferSetLayout, 
+//             VkDescriptorSetLayout compositionSetLayout
+//         );
+        
+//         VyPointLightSystem(const VyPointLightSystem&)            = delete;
+//         VyPointLightSystem& operator=(const VyPointLightSystem&) = delete;
+        
+//         ~VyPointLightSystem();
+
+//         // void update(VyFrameInfo& frameInfo, GlobalUbo& ubo);
+//         void render(VyFrameInfo& frameInfo);
+
+//     private:
+//         void createPointLightPipeline(
+//             VkRenderPass          renderPass, 
+//             VkDescriptorSetLayout gBufferSetLayout, 
+//             VkDescriptorSetLayout compositionSetLayout
+//         );
+
+//         Unique<VyPipeline> m_Pipeline;
+//     };
+// }

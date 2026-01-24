@@ -15,12 +15,12 @@ namespace Vy
         float            FrameTime          { 0.0f };           // Time between frames.
         VkCommandBuffer  CommandBuffer      { VK_NULL_HANDLE }; // Main command buffer.
         VkDescriptorSet  GlobalSet          { VK_NULL_HANDLE }; // Global descriptor set for the current frame.
-        VkDescriptorSet  ShadowSet          { VK_NULL_HANDLE };
-        VkDescriptorSet  MappingsSet        { VK_NULL_HANDLE };
-        VkDescriptorSet  UVReflectionSet    { VK_NULL_HANDLE };
-        VkDescriptorSet  GBufferSet         { VK_NULL_HANDLE };
-        VkDescriptorSet  CompositionSet     { VK_NULL_HANDLE };
-        VkDescriptorSet  PostProcessingSet  { VK_NULL_HANDLE };
+        // VkDescriptorSet  ShadowSet          { VK_NULL_HANDLE };
+        // VkDescriptorSet  MappingsSet        { VK_NULL_HANDLE };
+        // VkDescriptorSet  UVReflectionSet    { VK_NULL_HANDLE };
+        // VkDescriptorSet  GBufferSet         { VK_NULL_HANDLE };
+        // VkDescriptorSet  CompositionSet     { VK_NULL_HANDLE };
+        // VkDescriptorSet  PostProcessingSet  { VK_NULL_HANDLE };
         Shared<VyScene>& Scene              ;        // Active Scene.
         VyCamera&        Camera;                                // Active Camera to update the UBOs.
         // U32              SelectedObjectId; // ID of currently selected object (0 = camera)

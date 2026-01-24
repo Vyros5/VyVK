@@ -15,6 +15,7 @@
 #include <VyEngine/Scene/ECS/Components/LightComponent.h>
 #include <VyEngine/Scene/ECS/Components/ColorComponent.h>
 #include <VyEngine/Scene/ECS/Components/AnimationComponent.h>
+#include <VyEngine/Scene/ECS/Components/ReflectionComponent.h>
 
 namespace Vy
 {

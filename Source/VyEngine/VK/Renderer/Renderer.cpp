@@ -265,7 +265,7 @@ namespace Vy
     // =====================================================================================================================
 
     // End the render pass when commands have been recorded.
-    void VyRenderer::endCurrentRenderPass(VkCommandBuffer cmdBuffer) const
+    void VyRenderer::endRenderPass(VkCommandBuffer cmdBuffer)
     {
         VY_ASSERT(m_IsFrameStarted,                    "Can't end the current render pass when frame is not in progress.");
         VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't end the current render pass on command buffer from a different frame.");
@@ -280,173 +280,189 @@ namespace Vy
 #pragma region [ Rendering ]
 // =========================================================================================================================
     
-	void VyRenderer::beginShadowRenderPass(VkCommandBuffer cmdBuffer) 
-    {
-        VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
-        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
+	// void VyRenderer::beginShadowRenderPass(VkCommandBuffer cmdBuffer) 
+    // {
+    //     VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
+    //     VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
         
-        TArray<VkClearValue, 2> clearValues{};
-        {
-            clearValues[0].color = { 0.01f };
+    //     TArray<VkClearValue, 2> clearValues{};
+    //     {
+    //         clearValues[0].color = { 0.01f };
 
-            clearValues[1].depthStencil = { 1.0f, 0 };
-        }
+    //         clearValues[1].depthStencil = { 1.0f, 0 };
+    //     }
 
-		VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
-        {
-            renderPassInfo.renderPass        = m_Swapchain->shadowRenderPass();
-            renderPassInfo.framebuffer       = m_Swapchain->shadowFrameBuffer( m_CurrentImageIndex );
+	// 	VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
+    //     {
+    //         renderPassInfo.renderPass        = m_Swapchain->shadowRenderPass();
+    //         renderPassInfo.framebuffer       = m_Swapchain->shadowFrameBuffer( m_CurrentImageIndex );
             
-            renderPassInfo.renderArea.offset = { 0, 0 };
-            renderPassInfo.renderArea.extent = m_Swapchain->shadowMapExtent();
+    //         renderPassInfo.renderArea.offset = { 0, 0 };
+    //         renderPassInfo.renderArea.extent = m_Swapchain->shadowMapExtent();
             
-            renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
-            renderPassInfo.pClearValues      = clearValues.data();
-        }
+    //         renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
+    //         renderPassInfo.pClearValues      = clearValues.data();
+    //     }
 
-		vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	// 	vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        // Set viewport and scissor rect.
-        VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
-        VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
-	}
+    //     // Set viewport and scissor rect.
+    //     VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
+    //     VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
+	// }
 
 
-	void VyRenderer::beginMappingsRenderPass(VkCommandBuffer cmdBuffer) 
-    {
-        VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
-        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
+	// void VyRenderer::beginMappingsRenderPass(VkCommandBuffer cmdBuffer) 
+    // {
+    //     VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
+    //     VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
         
-        TArray<VkClearValue, 2> clearValues{};
-        {
-            clearValues[0].color = { 0.03f, 0.03f, 0.03f, 0.03f };
+    //     TArray<VkClearValue, 2> clearValues{};
+    //     {
+    //         clearValues[0].color = { 0.03f, 0.03f, 0.03f, 0.03f };
 
-            clearValues[1].depthStencil = { 1.0f, 0 };
-        }
+    //         clearValues[1].depthStencil = { 1.0f, 0 };
+    //     }
 
-		VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
-        {
-            renderPassInfo.renderPass        = m_Swapchain->mappingsRenderPass();
-            renderPassInfo.framebuffer       = m_Swapchain->mappingsFrameBuffer( m_CurrentImageIndex );
+	// 	VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
+    //     {
+    //         renderPassInfo.renderPass        = m_Swapchain->mappingsRenderPass();
+    //         renderPassInfo.framebuffer       = m_Swapchain->mappingsFrameBuffer( m_CurrentImageIndex );
             
-            renderPassInfo.renderArea.offset = { 0, 0 };
-            renderPassInfo.renderArea.extent = m_Swapchain->swapchainExtent();
+    //         renderPassInfo.renderArea.offset = { 0, 0 };
+    //         renderPassInfo.renderArea.extent = m_Swapchain->swapchainExtent();
             
-            renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
-            renderPassInfo.pClearValues      = clearValues.data();
-        }
+    //         renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
+    //         renderPassInfo.pClearValues      = clearValues.data();
+    //     }
 
-		vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	// 	vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        // Set viewport and scissor rect.
-        VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
-        VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
-	}
+    //     // Set viewport and scissor rect.
+    //     VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
+    //     VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
+	// }
 
 
-	void VyRenderer::beginUVReflectionRenderPass(VkCommandBuffer cmdBuffer) 
-    {
-        VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
-        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
+	// void VyRenderer::beginUVReflectionRenderPass(VkCommandBuffer cmdBuffer) 
+    // {
+    //     VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
+    //     VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
         
-		TArray<VkClearValue, 2> clearValues{};
-        {
-            clearValues[0].color = { 0.0f, 0.0f, 0.0f, 0.0f };
+	// 	TArray<VkClearValue, 2> clearValues{};
+    //     {
+    //         clearValues[0].color = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-            clearValues[1].depthStencil = { 1.0f, 0 };
-        }
+    //         clearValues[1].depthStencil = { 1.0f, 0 };
+    //     }
 
-		VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
-        {
-            renderPassInfo.renderPass        = m_Swapchain->uvReflectionRenderPass();
-            renderPassInfo.framebuffer       = m_Swapchain->uvReflectionFrameBuffer( m_CurrentImageIndex );
+	// 	VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
+    //     {
+    //         renderPassInfo.renderPass        = m_Swapchain->uvReflectionRenderPass();
+    //         renderPassInfo.framebuffer       = m_Swapchain->uvReflectionFrameBuffer( m_CurrentImageIndex );
             
-            renderPassInfo.renderArea.offset = { 0, 0 };
-            renderPassInfo.renderArea.extent = m_Swapchain->swapchainExtent();
+    //         renderPassInfo.renderArea.offset = { 0, 0 };
+    //         renderPassInfo.renderArea.extent = m_Swapchain->swapchainExtent();
             
-            renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
-            renderPassInfo.pClearValues      = clearValues.data();
-        }
+    //         renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
+    //         renderPassInfo.pClearValues      = clearValues.data();
+    //     }
 
-		vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	// 	vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        // Set viewport and scissor rect.
-        VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
-        VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
-	}
+    //     // Set viewport and scissor rect.
+    //     VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
+    //     VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
+	// }
 
 
-	void VyRenderer::beginLightingRenderPass(VkCommandBuffer cmdBuffer) 
-    {
-        VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
-        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
+	// void VyRenderer::beginLightingRenderPass(VkCommandBuffer cmdBuffer) 
+    // {
+    //     VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
+    //     VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
 
-		TArray<VkClearValue, 4> clearValues{};
-        {
-            clearValues[0].color = { 0.02f, 0.01f, 0.01f, 1.0f };
-            clearValues[1].color = { 0.02f, 0.01f, 0.01f, 1.0f };
-            clearValues[2].color = { 0.02f, 0.01f, 0.01f, 1.0f };
+	// 	TArray<VkClearValue, 4> clearValues{};
+    //     {
+    //         clearValues[0].color = { 0.02f, 0.01f, 0.01f, 1.0f };
+    //         clearValues[1].color = { 0.02f, 0.01f, 0.01f, 1.0f };
+    //         clearValues[2].color = { 0.02f, 0.01f, 0.01f, 1.0f };
 
-            clearValues[3].depthStencil = { 1.0f, 0 };
-        }
+    //         clearValues[3].depthStencil = { 1.0f, 0 };
+    //     }
 
-		VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
-        {
-            renderPassInfo.renderPass        = m_Swapchain->lightingRenderPass();
-            renderPassInfo.framebuffer       = m_Swapchain->lightingFrameBuffer( m_CurrentImageIndex );
+	// 	VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
+    //     {
+    //         renderPassInfo.renderPass        = m_Swapchain->lightingRenderPass();
+    //         renderPassInfo.framebuffer       = m_Swapchain->lightingFrameBuffer( m_CurrentImageIndex );
             
-            renderPassInfo.renderArea.offset = { 0, 0 };
-            renderPassInfo.renderArea.extent = m_Swapchain->swapchainExtent();
+    //         renderPassInfo.renderArea.offset = { 0, 0 };
+    //         renderPassInfo.renderArea.extent = m_Swapchain->swapchainExtent();
             
-            renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
-            renderPassInfo.pClearValues      = clearValues.data();
-        }
+    //         renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
+    //         renderPassInfo.pClearValues      = clearValues.data();
+    //     }
 
-		vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	// 	vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        // Set viewport and scissor rect.
-        VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
-        VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
-	}
+    //     // Set viewport and scissor rect.
+    //     VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
+    //     VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
+	// }
 
 
-	void VyRenderer::beginPostProcessingRenderPass(VkCommandBuffer cmdBuffer) 
-    {
-        VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
-        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
+	// void VyRenderer::beginPostProcessingRenderPass(VkCommandBuffer cmdBuffer) 
+    // {
+    //     VY_ASSERT(m_IsFrameStarted,                    "Can't begin swapchain render pass when frame is not in progress.");
+    //     VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't begin swapchain render pass on command buffer from a different frame.");
         
-		TArray<VkClearValue, 1> clearValues{};
-        {
-            clearValues[0].color = { 0.05f, 0.05f, 0.05f, 1.0f };
-        }
+	// 	TArray<VkClearValue, 1> clearValues{};
+    //     {
+    //         clearValues[0].color = { 0.05f, 0.05f, 0.05f, 1.0f };
+    //     }
 
-		VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
-        {
-            renderPassInfo.renderPass        = m_Swapchain->postProcessingRenderPass();
-            renderPassInfo.framebuffer       = m_Swapchain->postProcessingFrameBuffer( m_CurrentImageIndex );
+	// 	VkRenderPassBeginInfo renderPassInfo{ VKInit::renderPassBeginInfo() };
+    //     {
+    //         renderPassInfo.renderPass        = m_Swapchain->postProcessingRenderPass();
+    //         renderPassInfo.framebuffer       = m_Swapchain->postProcessingFrameBuffer( m_CurrentImageIndex );
             
-            renderPassInfo.renderArea.offset = { 0, 0 };
-            renderPassInfo.renderArea.extent = m_Swapchain->swapchainExtent();
+    //         renderPassInfo.renderArea.offset = { 0, 0 };
+    //         renderPassInfo.renderArea.extent = m_Swapchain->swapchainExtent();
 
-            renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
-            renderPassInfo.pClearValues      = clearValues.data();
-        }
+    //         renderPassInfo.clearValueCount   = static_cast<U32>(clearValues.size());
+    //         renderPassInfo.pClearValues      = clearValues.data();
+    //     }
 
-		vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	// 	vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        // Set viewport and scissor rect.
-        VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
-        VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
-	}
+    //     // Set viewport and scissor rect.
+    //     VKCmd::viewport( cmdBuffer, m_Swapchain->swapchainExtent() );
+    //     VKCmd::scissor ( cmdBuffer, m_Swapchain->swapchainExtent() );
+	// }
 
 
-	void VyRenderer::endRenderPass(VkCommandBuffer cmdBuffer) 
-    {
-        VY_ASSERT(m_IsFrameStarted,                    "Can't end the render pass when frame is not in progress.");
-        VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't end the render pass on command buffer from a different frame.");
+	// void VyRenderer::endRenderPass(VkCommandBuffer cmdBuffer) 
+    // {
+    //     VY_ASSERT(m_IsFrameStarted,                    "Can't end the render pass when frame is not in progress.");
+    //     VY_ASSERT(cmdBuffer == currentCommandBuffer(), "Can't end the render pass on command buffer from a different frame.");
 	
-        vkCmdEndRenderPass(cmdBuffer);
-	}
+    //     vkCmdEndRenderPass(cmdBuffer);
+	// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     // void VyRenderer::beginOffscreenRenderPass(VkCommandBuffer cmdBuffer)

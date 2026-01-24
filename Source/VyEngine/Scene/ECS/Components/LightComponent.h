@@ -4,6 +4,48 @@
 
 namespace Vy
 {
+    struct LightComponent
+    {
+        bool IsPoint = true;
+        Vec3 Color;
+
+        float Intensity;
+        float Radius;
+
+        Vec3  Direction;
+        float Cutoff;
+        float OuterCutoff;
+
+        static LightComponent pointLight(Vec3 color, float intensity, float radius)
+        {
+            LightComponent obj{};
+            {
+                obj.IsPoint   = true;
+                obj.Color     = color;
+                obj.Intensity = intensity;
+                obj.Radius    = radius;
+            }
+
+            return obj;
+        }
+
+        static LightComponent spotLight(Vec3 color, float intensity, float radius, Vec3 spotDirection, float cutOff, float outerCutOff)
+        {
+            LightComponent obj{};
+            {
+                obj.IsPoint     = false;
+                obj.Color       = color;
+                obj.Intensity   = intensity;
+                obj.Radius      = radius;
+                obj.Direction   = spotDirection;
+                obj.Cutoff      = cutOff;
+                obj.OuterCutoff = outerCutOff;
+            }
+
+            return obj;
+        }
+    };
+
     /**
      * @brief Ambient Light.
      * 

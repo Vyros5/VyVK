@@ -506,27 +506,47 @@ namespace Vy
 
 	void VyTexture::createImageView(VkFormat format)
 	{
-        m_View = VyImageView::Builder{}
-            .setViewType(VK_IMAGE_VIEW_TYPE_2D)
-            .setFormat  (format)
-            .setAspect  (VK_IMAGE_ASPECT_COLOR_BIT)
-            .setLevels  (0, m_MipLevels)
-            .setLayers  (0, 1)
-        	.build( m_Image );
+        auto builder = VyImageView::Builder{};
+
+		if (m_Filepath != "")
+		{
+			builder.setName( Utils::filenameFromPath( m_Filepath ) );
+		}
+		else {
+			builder.setName( "memory_texture" );
+		}
+		
+        builder.setViewType(VK_IMAGE_VIEW_TYPE_2D);
+        builder.setFormat  (format);
+        builder.setAspect  (VK_IMAGE_ASPECT_COLOR_BIT);
+        builder.setLevels  (0, m_MipLevels);
+        builder.setLayers  (0, 1);
+        	
+		m_View = builder.build( m_Image );
 	}
 
 
 	void VyTexture::createSampler()
 	{
-        m_Sampler = VySampler::Builder{}
-            .setFilters      (VK_FILTER_LINEAR)
-            .setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
-            .setWrap         (VK_SAMPLER_ADDRESS_MODE_REPEAT)
-            .setBorder       (VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
-			.enableAnisotropy(true)
-            .setLodRange     (0.0f, static_cast<float>(m_MipLevels))
-            .setMipLodBias   (0.0f)
-        	.build();
+		auto builder = VySampler::Builder{};
+
+		if (m_Filepath != "")
+		{
+			builder.setName( Utils::filenameFromPath( m_Filepath ) );
+		}
+		else {
+			builder.setName( "memory_texture" );
+		}
+
+		builder.setFilters      (VK_FILTER_LINEAR);
+		builder.setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR);
+		builder.setWrap         (VK_SAMPLER_ADDRESS_MODE_REPEAT);
+		builder.setBorder       (VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE);
+		builder.enableAnisotropy(true);
+		builder.setLodRange     (0.0f, static_cast<float>(m_MipLevels));
+		builder.setMipLodBias   (0.0f);
+
+		m_Sampler = builder.build();
 	}
 
 

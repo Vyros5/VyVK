@@ -240,6 +240,23 @@ namespace Vy::VKInit
         return ret;
 	}
 
+	inline VkAttachmentDescription attachmentDescription()
+	{
+		VkAttachmentDescription ret{};
+		{
+			ret.format         = VK_FORMAT_UNDEFINED;
+			ret.samples        = VK_SAMPLE_COUNT_1_BIT;
+			ret.loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			ret.storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			ret.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			ret.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			ret.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+			ret.finalLayout    = VK_IMAGE_LAYOUT_UNDEFINED;
+		}
+
+		return ret;
+	}
+
     inline VkFramebufferCreateInfo framebufferCreateInfo() 
     {
         VkFramebufferCreateInfo ret{};

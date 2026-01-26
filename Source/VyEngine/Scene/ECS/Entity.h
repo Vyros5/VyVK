@@ -43,7 +43,7 @@ namespace Vy
 		bool operator==(const VyEntity& other) const;
 		bool operator!=(const VyEntity& other) const;
 
-        ~VyEntity();
+        virtual ~VyEntity();
         
         // Static null entity for comparisons.
         static VyEntity null() { return VyEntity(); }

@@ -1,11 +1,22 @@
 #pragma once
 
 #include <VyEngine/Scene/ECS/Entity.h>
+// #include <VyEngine/Scene/GameObject.h>
 #include <VyEngine/Scene/ECS/Components/CameraComponent.h>
 #include <VyEngine/Scripting/ScriptManager.h>
 
+// #include <VyEngine/GFX/Resources
+
 namespace Vy
 {
+
+	struct GfxMeshData
+	{
+		U32 IndexCount   = 0u;
+		U32 FirstIndex   = 0u;
+		I32 VertexOffset = 0u;
+	};
+
 	/**
 	 * @brief VyScene containing all entities and systems.
 	 */
@@ -43,6 +54,15 @@ namespace Vy
 
 		TString getName() const { return m_SceneName; }
         void setName(TString name) { m_SceneName = name; }
+
+		/**
+		 * @brief Get root entity id for the scene
+		 * @return EntityHandle
+		 */
+		EntityHandle getRootHandle() const 
+		{ 
+			return m_Root; 
+		}
 
 		/**
 		 * @brief Create a new VyEntity in the scene.
@@ -163,8 +183,13 @@ namespace Vy
 		
 		THashMap<VyUUID, EntityHandle> m_EntityMap;
 		TVector<Shared<VyEntity>> m_Entities;
+
+		EntityHandle m_Root{ kInvalidEntityHandle };
+
 		/* VyScene Registry for storing all the entities belonging to this scene. */
 		entt::registry m_Registry;
+
+		// VyGameObject::UMap m_SceneGameObjects {};
 
         VyScriptManager m_ScriptManager;
 		// TVector<Unique<ILogicSystem>> m_LogicSystem;
@@ -172,5 +197,7 @@ namespace Vy
 		// Shared<VyEnvironment> m_Environment = MakeShared<VyEnvironment>();
 
 		VyEntity m_MainCamera;
+	public:
+		TVector<GfxMeshData> m_SceneMeshes = {};
     };
 }

@@ -4,7 +4,7 @@
 // CONSTANTS
 
 #define MAX_POINT_LIGHTS 10
-#define MAX_SPOT_LIGHTS 10
+#define MAX_SPOT_LIGHTS  10
 
 #define CASCADE_SHADOW_MAP_COUNT 4
 
@@ -28,8 +28,8 @@ layout (location = 4) in vec3 aTangent;
 // OUTPUT
 
 layout (location = 0) out vec3 fragColor;
-layout (location = 1) out vec3 fragModelWorldSpace; // outEyePos
-layout (location = 2) out vec3 fragNormalWorldSpace;
+layout (location = 1) out vec3 fragModelWS; // outEyePos
+layout (location = 2) out vec3 fragNormalWS;
 layout (location = 3) out vec2 fragUV;
 layout (location = 4) out vec3 fragTangent;
 
@@ -38,7 +38,7 @@ layout (location = 5) out vec4 fragViewPos;
 layout (location = 7) out vec3 fragModelPos; //outWorldPos
 layout (location = 8) out vec3 fragLightVec; //outLightVec
 
-layout (location = 9) out vec4 fragSpotLightWorldSpace[ MAX_SPOT_LIGHTS ];
+layout (location = 9) out vec4 fragSpotLightWS[ MAX_SPOT_LIGHTS ];
 
 // ================================================================================================
 // DESCRIPTOR SET 0 : GLOBAL
@@ -112,17 +112,17 @@ void main()
     
 	gl_Position = uUbo.Camera.Projection * uUbo.Camera.View * modelWS;
 
-	fragNormalWorldSpace = mat3(uPush.NormalMatrix) * aNormal;
-	fragModelWorldSpace  = modelWS.xyz; // outEyePos
-	fragColor            = aColor;
-	fragUV               = aUV;
-	fragTangent          = mat3(uPush.NormalMatrix) * aTangent;
+	fragNormalWS = mat3(uPush.NormalMatrix) * aNormal;
+	fragModelWS  = modelWS.xyz; // outEyePos
+	fragColor    = aColor;
+	fragUV       = aUV;
+	fragTangent  = mat3(uPush.NormalMatrix) * aTangent;
 
 	fragViewPos = uUbo.Camera.View * modelWS;
 
 	for(int i = 0; i < MAX_SPOT_LIGHTS; i++)
 	{
-		fragSpotLightWorldSpace[i] = BIAS * uSpotShadowLightProjectionUBO.LightProjection[ i ] * modelWS;
+		fragSpotLightWS[i] = BIAS * uSpotShadowLightProjectionUBO.LightProjection[ i ] * modelWS;
 	}
 
 	fragModelPos = aPosition; // outWorldPos

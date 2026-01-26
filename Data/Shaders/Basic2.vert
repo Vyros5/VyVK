@@ -6,20 +6,26 @@
 #define MAX_POINT_LIGHTS 10
 #define MAX_SPOT_LIGHTS  10
 
-const vec2 OFFSETS[6] = vec2[]
-(
-    vec2(-1.0, -1.0),
-    vec2(-1.0,  1.0),
-    vec2( 1.0, -1.0),
-    vec2( 1.0, -1.0),
-    vec2(-1.0,  1.0),
-    vec2( 1.0,  1.0)
-);
+// ================================================================================================
+// INPUT
+
+layout (location = 0) in vec3 aPosition;
+layout (location = 1) in vec3 aColor;
+layout (location = 2) in vec3 aNormal;
+layout (location = 3) in vec2 aUV;
+layout (location = 4) in vec3 aTangent;
 
 // ================================================================================================
 // OUTPUT
 
-layout(location = 0) out vec2 fragOffset;
+layout (location = 0) out vec3 fragColor;
+layout (location = 1) out vec3 fragModelWS; // outEyePos
+layout (location = 2) out vec3 fragNormalWS;
+layout (location = 3) out vec2 fragUV;
+layout (location = 4) out vec3 fragTangent;
+layout (location = 5) out vec4 fragViewPos;
+
+layout (location = 7) out vec3 fragModelPos; //outWorldPos
 
 // ================================================================================================
 // DESCRIPTOR SET 0 : GLOBAL
@@ -66,32 +72,30 @@ layout (set = 0, binding = 0) uniform GlobalUbo
 } uUbo;
 
 // ================================================================================================
-// CONSTANT PUSH : LIGHT OBJECT
+// CONSTANT PUSH : MAIN
 
 layout (push_constant) uniform Push 
 {
-	vec4  Position;
-	vec4  Color;
-	float Radius;
+	mat4 ModelMatrix;
+	mat4 NormalMatrix;
 
 } uPush;
 
 // ================================================================================================
 
-// WS = World Space
-
 void main()
 {
-	fragOffset = OFFSETS[ gl_VertexIndex ];
+	vec4 modelWS = uPush.ModelMatrix * vec4(aPosition, 1.0);
+    
+	gl_Position  = uUbo.Camera.Projection * uUbo.Camera.View * modelWS;
 
-	vec3 cameraRightWS = { uUbo.Camera.View[0][0], uUbo.Camera.View[1][0], uUbo.Camera.View[2][0] };
-	vec3 cameraUpWS    = { uUbo.Camera.View[0][1], uUbo.Camera.View[1][1], uUbo.Camera.View[2][1] };
-
-	vec3 lightWS = uPush.Position.xyz
-        + uPush.Radius * fragOffset.x * cameraRightWS
-        + uPush.Radius * fragOffset.y * cameraUpWS;
-
-	gl_Position = uUbo.Camera.Projection * uUbo.Camera.View * vec4(lightWS, 1.0);
+	fragNormalWS = mat3(uPush.NormalMatrix) * aNormal;
+	fragModelWS  = modelWS.xyz; // outEyePos
+	fragColor    = aColor;
+	fragUV       = aUV;
+	fragTangent  = mat3(uPush.NormalMatrix) * aTangent;
+	fragViewPos  = uUbo.Camera.View * modelWS;
+	fragModelPos = aPosition; // outWorldPos
 }
 
 // ================================================================================================

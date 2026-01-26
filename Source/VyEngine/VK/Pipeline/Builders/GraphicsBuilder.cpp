@@ -227,6 +227,18 @@ namespace Vy
 
 
 	VyPipeline::GraphicsBuilder& 
+	VyPipeline::GraphicsBuilder::addColorAttachment()
+	{
+		m_GraphicsConfig.ColorBlendAttachments.emplace_back( VyPipeline::colorBlendAttachmentState() );
+
+		m_GraphicsConfig.ColorBlendInfo.attachmentCount = static_cast<U32>(m_GraphicsConfig.ColorBlendAttachments.size());
+		m_GraphicsConfig.ColorBlendInfo.pAttachments    = m_GraphicsConfig.ColorBlendAttachments.data();
+
+		return *this;
+	}
+
+
+	VyPipeline::GraphicsBuilder& 
 	VyPipeline::GraphicsBuilder::clearColorAttachments()
 	{
 		m_GraphicsConfig.ColorBlendAttachments.clear();

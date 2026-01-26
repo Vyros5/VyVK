@@ -207,7 +207,7 @@ namespace Vy
             VkCommandBuffer    cmdBuffer, 
             VkShaderStageFlags stageFlags, 
             const T&           data,
-            U32                offset = 0) const
+            U32                offset) const
 		{
 			pushConstants(cmdBuffer, stageFlags, &data, sizeof(T), offset);
 		}
@@ -291,6 +291,7 @@ namespace Vy
         GraphicsBuilder& addColorAttachment(VkFormat colorFormat, bool bAlphaBlending = false);
         GraphicsBuilder& addColorAttachment(const VkPipelineColorBlendAttachmentState& attachment);
         GraphicsBuilder& addColorAttachments(VkFormat colorFormat, U32 count, bool bAlphaBlending = false);
+        GraphicsBuilder& addColorAttachment();
         GraphicsBuilder& clearColorAttachments();
 
         // Depth Stencil

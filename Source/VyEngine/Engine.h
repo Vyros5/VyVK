@@ -61,7 +61,11 @@ namespace Vy
         // Shared<VyMaterialSystem>& materialSystem()  { return m_MaterialSystem; }
         
     private:
+        void initDescriptors();
+        
         void loadEntities();
+
+        void printEntities();
 
         bool isRunning();
 
@@ -76,7 +80,7 @@ namespace Vy
 
         // Unique<VyModelRenderSystem> m_ModelSystem;
         // Unique<VyLightSystem>       m_LightSystem;
-        // Unique<VyGridSystem>        m_GridSystem;
+        Unique<VyGridSystem>        m_GridSystem;
         // Unique<VySkyboxRenderSystem> m_SkyboxSystem;
         Unique<VySkybox>            m_Skybox;
         // Shared<VyMaterialSystem>    m_MaterialSystem{};
@@ -114,6 +118,6 @@ namespace Vy
         Shared<VyTexture> m_TempGroundTexture;
 
         bool m_Running;
-        U32 m_FrameCount{ 0 };
+        // U32 m_FrameCount{ 0 };
     };
 }

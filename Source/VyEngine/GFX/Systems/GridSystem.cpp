@@ -30,6 +30,9 @@ namespace Vy
             builder.addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   "Grid.vert.spv");
             builder.addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, "Grid.frag.spv");
             
+            // Set multisampled.
+            builder.setRasterizationSamples( VyContext::device().msaaSampleCountFlagBits() );
+            
             // Alpha blending.
             builder.addColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT, true);
             builder.setDepthAttachment(VK_FORMAT_D32_SFLOAT);

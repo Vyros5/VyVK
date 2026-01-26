@@ -84,6 +84,9 @@ namespace Vy
             auto& entity = it->second;
             const auto& [ lightComp, transform ] = view.get<LightComponent, TransformComponent>(entity);
 
+           VY_ASSERT(pointLightIndex <= MAX_POINT_LIGHTS, "Point lights exceed maximum specified");
+           VY_ASSERT(spotLightIndex  <= MAX_SPOT_LIGHTS,  "Spot lights exceed maximum specified");
+
             // Copy light data to UBO.
             if (lightComp.IsPoint)
             {
@@ -92,16 +95,12 @@ namespace Vy
 
                 ubo.PointLights[ pointLightIndex ].Position = Vec4(transform.Translation, 1.0f);
                 ubo.PointLights[ pointLightIndex ].Color    = Vec4(lightComp.Color, lightComp.Intensity);
-                
-                pointLightIndex++;
             }
             else {
                 ubo.SpotLights[ spotLightIndex ].Position  = Vec4(transform.Translation, 1.0f);
                 ubo.SpotLights[ spotLightIndex ].Color     = Vec4(lightComp.Color, lightComp.Intensity);
                 ubo.SpotLights[ spotLightIndex ].Direction = Vec4(lightComp.Direction, 1.0f);
                 ubo.SpotLights[ spotLightIndex ].Cutoffs   = Vec4(lightComp.Cutoff, lightComp.OuterCutoff, 0.0f, 0.0f);
-                
-                spotLightIndex++;
             }
         }
 
@@ -151,7 +150,7 @@ namespace Vy
 
             vkCmdDraw(frameInfo.CommandBuffer, 6, 1, 0, 0);
         }
-        
+
         // Directional Light Data
         LightObjectPushConstant push{};
         {

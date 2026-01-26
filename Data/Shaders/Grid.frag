@@ -1,14 +1,16 @@
 #version 450
 
 // ================================================================================================
+// INPUT
 
-// Input
 layout (location = 1) in vec3 nearPoint;
 layout (location = 2) in vec3 farPoint;
 layout (location = 3) in mat4 fragView;
 layout (location = 7) in mat4 fragProj;
 
+// ================================================================================================
 // Output
+
 layout(location = 0) out vec4 outColor;
 
 // ================================================================================================
@@ -23,7 +25,7 @@ const float FAR_FLANE      =  10.0f;
 // ================================================================================================
 
 // Grid generation.
-vec4 grid(vec3 fragPos3D, float scale) 
+vec4 Grid(vec3 fragPos3D, float scale) 
 {
     // Scale variable to set the distance between the lines.
     vec2  coord = fragPos3D.xz * scale;
@@ -61,7 +63,7 @@ vec4 grid(vec3 fragPos3D, float scale)
 // ================================================================================================
 
 // Compute depth in clip space.
-float computeDepth(vec3 pos) 
+float ComputeDepth(vec3 pos) 
 {
     vec4 clipSpacePos = fragProj * fragView * vec4(pos.xyz, 1.0f);
 
@@ -71,7 +73,7 @@ float computeDepth(vec3 pos)
 // ================================================================================================
 
 // Compute linear depth.
-float computeLinearDepth(vec3 pos) 
+float ComputeLinearDepth(vec3 pos) 
 {
     vec4  clipSpacePos = fragProj * fragView * vec4(pos.xyz, 1.0f);
 
@@ -93,12 +95,12 @@ void main()
 
     vec3 fragPos3D = nearPoint + t * (farPoint - nearPoint);
 
-    gl_FragDepth = computeDepth(fragPos3D);
+    gl_FragDepth = ComputeDepth(fragPos3D);
 
-    float linearDepth = computeLinearDepth(fragPos3D);
+    float linearDepth = ComputeLinearDepth(fragPos3D);
     float fading      = max(0.0f, (FADE_LIMIT - linearDepth));
 
     // Adding multiple resolutions for the grid.
-    outColor    = (grid(fragPos3D, GRID_SCALE) + grid(fragPos3D, 1.0f)) * float(t > 0.0f);
+    outColor    = (Grid(fragPos3D, GRID_SCALE) + Grid(fragPos3D, 1.0f)) * float(t > 0.0f);
     outColor.a *= fading;
 }

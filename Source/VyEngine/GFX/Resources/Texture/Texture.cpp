@@ -298,7 +298,7 @@ namespace Vy
 		createImageView(format);
 		createSampler();
 
-		VY_INFO_TAG("VyTexture", "Loaded: {0} ({1}x{2}, {3} mips)", filepath, m_Width, m_Height, m_MipLevels);
+		VY_INFO_TAG("VyTexture", "Loaded: {0} ({1}x{2}, {3} mips)", Utils::filenameFromPath(filepath), m_Width, m_Height, m_MipLevels);
 	}
 
 

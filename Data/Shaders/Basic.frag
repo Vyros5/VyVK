@@ -31,8 +31,8 @@ const mat4 BIAS = mat4(
 // INPUT
 
 layout (location = 0) in vec3 fragColor;
-layout (location = 1) in vec3 fragModelWorldSpace; // outEyePos
-layout (location = 2) in vec3 fragNormalWorldSpace;
+layout (location = 1) in vec3 fragModelWS; // outEyePos
+layout (location = 2) in vec3 fragNormalWS;
 layout (location = 3) in vec2 fragUV;
 layout (location = 4) in vec3 fragTangent;
 layout (location = 5) in vec4 fragViewPos;
@@ -40,7 +40,7 @@ layout (location = 5) in vec4 fragViewPos;
 layout (location = 7) in vec3 fragModelPos; //outWorldPos
 layout (location = 8) in vec3 fragLightVec; //outLightVec
 
-layout (location = 9) in vec4 fragSpotLightWorldSpace[MAX_SPOT_LIGHTS];
+layout (location = 9) in vec4 fragSpotLightWS[MAX_SPOT_LIGHTS];
 
 // ================================================================================================
 // OUTPUT
@@ -62,7 +62,6 @@ struct SpotLightData
 	vec4 Color;        // color r=x, g=y, b=z, a=intensity
 	vec4 Direction;    // direction x, y, z
 	vec4 Cutoffs;      // Cutoffs x=innerCutoff y=outerCutoff
-
 };
 
 struct DirectionalLightData
@@ -138,19 +137,18 @@ vec3 getNormalFromMap()
 {
     vec3 tangentNormal = texture(uNormalTexture, fragUV).xyz * 2.0 - 1.0;
 
-    vec3 Q1  = dFdx(fragModelWorldSpace);
-    vec3 Q2  = dFdy(fragModelWorldSpace);
+    vec3 Q1  = dFdx(fragModelWS);
+    vec3 Q2  = dFdy(fragModelWS);
     vec2 st1 = dFdx(fragUV);
     vec2 st2 = dFdy(fragUV);
 
-    vec3 N   = normalize(fragNormalWorldSpace);
+    vec3 N   = normalize(fragNormalWS);
     vec3 T   = normalize(Q1*st2.t - Q2*st1.t);
     vec3 B   = -normalize(cross(N, T));
     mat3 TBN = mat3(T, B, N);
 
     return normalize(TBN * tangentNormal);
 }
-
 
 // Approximate the ratio between how much the surface reflects and how much it refracts.
 // The F0 parameter is the surface reflection at zero incidence or how much the surface reflects
@@ -224,7 +222,7 @@ vec3 PointLightCalculation(
     float          lightCount)
 {
     // Light direction.
-    vec3  L                = light.Position.xyz - fragModelWorldSpace;
+    vec3  L                = light.Position.xyz - fragModelWS;
     float lightToPixelDist = length(L);
     L = normalize(L);
     
@@ -263,7 +261,7 @@ vec3 PointLightCalculation(
     vec3  Lo    = (kD * albedoValue / PI + specular) * radiance * NdotL;
 
     //shadow
-    vec3  fragToLight  = fragModelWorldSpace - light.Position.xyz;
+    vec3  fragToLight  = fragModelWS - light.Position.xyz;
     float currentDepth = length(fragToLight);
 
     float shadow = 0.0;
@@ -271,7 +269,7 @@ vec3 PointLightCalculation(
         float bias    = -0.00005f;
         int   samples = 20;
 
-        float viewDistance = length(uUbo.Camera.InverseView[3].xyz - fragModelWorldSpace);
+        float viewDistance = length(uUbo.Camera.InverseView[3].xyz - fragModelWS);
         float diskRadius   = (1.0 + (viewDistance / 25.0f)) / 25.0;
         
         for(int i = 0; i < samples; ++i)
@@ -279,7 +277,7 @@ vec3 PointLightCalculation(
             vec4 loc =  vec4(fragToLight + ((gridSamplingDisk[i])/10 * diskRadius), lightCount); 
 
             float closestDepth = texture(uPointShadowCubeMap, loc).r;
-            //closestDepth *= 100.0f;   // undo mapping [0;1]
+
             if(currentDepth - bias > closestDepth)
             {
                shadow += 1.0;
@@ -294,14 +292,14 @@ vec3 PointLightCalculation(
 
 
 vec3 DirectionalLightCalculation(
-    vec3 albedoValue, 
+    vec3  albedoValue, 
     float metallicValue, 
     float roughnessValue, 
-    vec3 viewToFragPos, 
-    vec3 normalFromMap, 
-    vec3 lightDirection, 
-    vec4 lightColor,
-    vec3 ambient)
+    vec3  viewToFragPos, 
+    vec3  normalFromMap, 
+    vec3  lightDirection, 
+    vec4  lightColor,
+    vec3  ambient)
 {
     vec3 L = normalize(-lightDirection);
 
@@ -345,7 +343,7 @@ vec3 DirectionalLightCalculation(
 		}
 	}
 
-    vec4 shadowCoord = (BIAS * uCascadedShadowPassUBO.LightProjection[cascadeIndex] * vec4(fragModelWorldSpace, 1.0f));
+    vec4 shadowCoord = (BIAS * uCascadedShadowPassUBO.LightProjection[cascadeIndex] * vec4(fragModelWS, 1.0f));
 
     shadowCoord = shadowCoord / shadowCoord.w;
     if(shadowCoord.z > -1.0f && shadowCoord.z < 1.0)
@@ -355,7 +353,7 @@ vec3 DirectionalLightCalculation(
         float bias = 0.000001f; // Bias value
 
 		int sampleRadius = 3;
-		vec3 pixelSize =  1.0 / textureSize(uCascadedShadowMap, 0);
+		vec3 pixelSize = 1.0 / textureSize(uCascadedShadowMap, 0);
 
 		for(int y = -sampleRadius; y <= sampleRadius; y++)
 		{
@@ -369,6 +367,7 @@ vec3 DirectionalLightCalculation(
                 }
 			}    
 		}
+
 		shadow /= pow((sampleRadius * 2 + 1), 2);
 	}
 //    debug cascade shadows
@@ -401,7 +400,7 @@ vec3 SpotLightCalculation(
     float         lightIndex)
 {
     // Light direction.
-    vec3  L                = light.Position.xyz - fragModelWorldSpace;
+    vec3  L                = light.Position.xyz - fragModelWS;
     float lightToPixelDist = length(L);
     L = normalize(L);
     
@@ -450,13 +449,12 @@ vec3 SpotLightCalculation(
     //shadow calculation
     float shadow = 0.0f;
     // Sets lightCoords to cull space
-	vec4 lightCoords = fragSpotLightWorldSpace[int(lightIndex)] / fragSpotLightWorldSpace[int(lightIndex)].w;
+	vec4 lightCoords = fragSpotLightWS[int(lightIndex)] / fragSpotLightWS[int(lightIndex)].w;
 
 	if(lightCoords.z > -1.0f && lightCoords.z < 1.0)
-	//if(currentDepth > -1.0f && currentDepth < 1.0)
     {
 		//float currentDepth = lightCoords.z;
-        vec3 fragToLight =  fragModelWorldSpace - light.Position.xyz;
+        vec3  fragToLight  = fragModelWS - light.Position.xyz;
         float currentDepth = length(fragToLight);
         
         float bias = 0.00005f; // Bias value
@@ -468,7 +466,7 @@ vec3 SpotLightCalculation(
 		{
 			for(int x = -sampleRadius; x <= sampleRadius; x++)
 			{
-                vec2  temp = lightCoords.xy + vec2(x, y) * pixelSize.xy/10;
+                vec2 temp = lightCoords.xy + vec2(x, y) * pixelSize.xy / 10;
 
 				float closestDepth = texture(uSpotShadowMap, vec3(temp.st, lightIndex)).r;
 
@@ -478,6 +476,7 @@ vec3 SpotLightCalculation(
                 }
 			}    
 		}
+        
 		shadow /= pow((sampleRadius * 2 + 1), 2);
 	}
     
@@ -495,10 +494,10 @@ void main()
     float roughness = texture(uMetallicRoughnessTexture, fragUV).g;
     float ao        = 1.0f;
 
-    vec3 cameraPosWorldSpace = uUbo.Camera.InverseView[3].xyz;
+    vec3 cameraPosWS = uUbo.Camera.InverseView[3].xyz;
 
-    vec3 N = normalize(fragNormalWorldSpace); // Surface normal
-    vec3 V = normalize(cameraPosWorldSpace - fragModelWorldSpace); // View direction
+    vec3 N = normalize(fragNormalWS); // Surface normal
+    vec3 V = normalize(cameraPosWS - fragModelWS); // View direction
 
     // Total reflected radiance back to the viewer.
     vec3 Lo = vec3(0.0);
@@ -508,7 +507,15 @@ void main()
     {
         PointLightData light = uUbo.PointLights[int(i)];
 
-        Lo += PointLightCalculation(albedo, metallic, roughness, V, N, light, i);
+        Lo += PointLightCalculation(
+            albedo, 
+            metallic, 
+            roughness, 
+            V, 
+            N, 
+            light, 
+            i
+        );
     }
 
     // Spot Light List
@@ -516,7 +523,15 @@ void main()
     {
         SpotLightData light = uUbo.SpotLights[int(j)];
 
-        Lo += SpotLightCalculation(albedo, metallic, roughness, V, N, light, j);
+        Lo += SpotLightCalculation(
+            albedo, 
+            metallic, 
+            roughness, 
+            V, 
+            N, 
+            light, 
+            j
+        );
     }
 
     // Improvised ambient term.

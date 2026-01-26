@@ -42,40 +42,6 @@ namespace Vy
 
     // =====================================================================================================================
 
-    struct GPUMemoryStats
-    {
-        U64 UsedBytes;
-        U64 FreeBytes;
-        U32 AllocationCount;
-        U32 BlockCount;
-		U64 TotalBytes;
-		U64 AllocatedMB;
-    };
-
-	struct MemoryStats
-	{
-		struct HeapStats
-		{
-			U64 BlockCount;
-			U64 AllocationCount;
-			U64 BlockBytes;
-			U64 AllocationBytes;
-		};
-
-		U64                TotalAllocatedBytes;
-		U64                TotalAvailableBytes;
-		U64                TotalBlockBytes;
-		TVector<HeapStats> HeapStats;
-	};
-
-	struct MemoryBudget
-	{
-		U64 BlockBytes;
-		U64 AllocationBytes;
-		U64 Usage;
-		U64 Budget;
-	};
-
 	/**
 	 * @class VyContext
 	 * 
@@ -142,14 +108,6 @@ namespace Vy
 
  		static VkCommandBuffer beginCommands()                        { return get().m_Device.beginSingleTimeCommands(); }
  		static void            endCommands(VkCommandBuffer cmdBuffer) {        get().m_Device.endSingleTimeCommands(cmdBuffer); }
-
-		// static GPUMemoryStats getStats();
-
-		static MemoryStats getStats();
-
-		static void printMemoryStats();
-
-		static TVector<MemoryBudget> getBudget();
 
 	private:
 

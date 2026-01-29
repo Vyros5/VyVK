@@ -26,7 +26,7 @@ namespace Vy
             << " - Total Available Bytes : " << Utils::formatBytes(stats.TotalAvailableBytes) << '\n'
 			<< " - Total Block Bytes     : " << Utils::formatBytes(stats.TotalBlockBytes)     << '\n'
 			<< " - Heap Count            : " << stats.HeapStats.size()                        << '\n'
-			<< "\n--------------------------------------------------------------------------" << '\n'
+			<< "--------------------------------------------------------------------------" << '\n'
         ;
 
 		// ss  	<< " ------------------------------------" << '\n';

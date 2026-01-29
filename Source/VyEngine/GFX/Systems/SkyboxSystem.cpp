@@ -1,17 +1,17 @@
-#include <VyEngine/GFX/Systems/SkyboxRenderSystem.h>
+#include <VyEngine/GFX/Systems/SkyboxSystem.h>
 
 #include <VyEngine/VK/Context.h>
 #include <VyEngine/Globals.h>
 
 namespace Vy
 {
-    struct SkyboxPushConstants
-    {
-        Mat4 ViewProjection;
-    };
+    // struct SkyboxPushConstants
+    // {
+    //     Mat4 ViewProjection;
+    // };
 
 
-    VySkyboxRenderSystem::VySkyboxRenderSystem(VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
+    VySkyboxSystem::VySkyboxSystem(VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
     {
         createDescriptorSetLayout();
 
@@ -19,18 +19,17 @@ namespace Vy
     }
 
 
-    VySkyboxRenderSystem::~VySkyboxRenderSystem()
+    VySkyboxSystem::~VySkyboxSystem()
     {
     }
 
 
-    void VySkyboxRenderSystem::createDescriptorSetLayout()
+    void VySkyboxSystem::createDescriptorSetLayout()
     {
         m_DescriptorSetLayout = VyDescriptorSetLayout::Builder{}
             .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Skybox Sampler
             .buildPtr();
 
-        // Create descriptor pool
         m_DescriptorPool = VyDescriptorPool::Builder{}
             .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<U32>( MAX_FRAMES_IN_FLIGHT ))
             .setMaxSets (static_cast<U32>( MAX_FRAMES_IN_FLIGHT ))
@@ -43,9 +42,12 @@ namespace Vy
     }
 
 
-    void VySkyboxRenderSystem::createPipeline(VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
+    void VySkyboxSystem::createPipeline(VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
     {
-            auto setLayouts = TVector{ globalSetLayout, m_DescriptorSetLayout->handle()  };
+        auto setLayouts = TVector{ 
+            globalSetLayout,                // Global set (0)
+            m_DescriptorSetLayout->handle() // Skybox set (1)
+        };
 
         auto builder = VyPipeline::GraphicsBuilder{};
         {
@@ -58,6 +60,9 @@ namespace Vy
             
             // No alpha blending or depth.
             builder.addColorAttachment( VK_FORMAT_R16G16B16A16_SFLOAT );
+
+            // Set multisampled. (SAMPLE_COUNT_8_BIT)
+            builder.setRasterizationSamples( VyContext::device().msaaSampleCountFlagBits() );
 
             // Draw triangles.
             builder.setTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
@@ -81,7 +86,7 @@ namespace Vy
     }
 
 
-    void VySkyboxRenderSystem::render(VyFrameInfo& frameInfo, VySkybox* pSkybox)
+    void VySkyboxSystem::render(VyFrameInfo& frameInfo, VySkybox* pSkybox)
     {
         if (pSkybox)
         {
@@ -97,14 +102,18 @@ namespace Vy
 
             // Set 0 - Global UBO
             // Set 1 - Skybox Sampler
+            TVector<VkDescriptorSet> globSet = { 
+                frameInfo.GlobalSet,
+                m_DescriptorSets[ frameInfo.FrameIndex ]
+            };
+
             m_Pipeline->bindDescriptorSets(frameInfo.CommandBuffer,
                 0, 
-                TVector{ 
-                    frameInfo.GlobalSet,           
-                    m_DescriptorSets[ frameInfo.FrameIndex ] 
-                }
+                globSet
             );
 
+            // Draw 36 vertices for a cube.
+            // 3 Vertices per triangle, 2 Tris per face, 6 Faces (12 Tris total) = 36 Vertices.
             vkCmdDraw(frameInfo.CommandBuffer, 36, 1, 0, 0);
         }
     }

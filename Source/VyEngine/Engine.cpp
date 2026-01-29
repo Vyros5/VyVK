@@ -4,6 +4,8 @@
 #include <VyEngine/Scene/ECS/Components.h>
 #include <VyEngine/Core/FrameRateController.h>
 
+#include <VyEngine/VK/Renderer/OffscreenRenderer.h>
+
 #include <iostream>
 #include <VyLib/Common/AnsiColor.h>
 
@@ -61,22 +63,23 @@ namespace Vy
         // Create the global uniform buffers (One per frame). 
         for (int i = 0; i < m_UniformBuffers.size(); i++) 
         {
-            m_UniformBuffers[ i ] = MakeUnique<VyBuffer>( VyBuffer::uniformBuffer("global", sizeof(GlobalUbo)) );
+            m_UniformBuffers[ i ] = MakeUnique<VyBuffer>( VyBuffer::uniformBuffer("global", sizeof(GlobalUbo) /*, 1*/) );
         }
 
         m_GlobalSetLayout = VyDescriptorSetLayout::Builder{}
             .setName   ("global")
-            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_ALL_GRAPHICS)
-            .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_ALL_GRAPHICS) // GLOBAL
+            .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // DEFAULT 
             .buildPtr();
 
         m_MaterialSetLayout = VyDescriptorSetLayout::Builder{}
             .setName   ("material")
             .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // ALB
-            .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // NRM
+            .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // NORM
             .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // MR
             .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // AO
             .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // EMIS
+            .addBinding(5, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_ALL_GRAPHICS) // MATERIAL
             .buildPtr();
 
         m_TempGroundTexture = VyTexture::createFromFilepath(TEXTURE_DIR "Ground.png");
@@ -104,8 +107,6 @@ namespace Vy
         m_Scene = MakeShared<VyScene>( "main-scene" );
         m_Scene->reset();
 
-        // m_Skybox = VySkybox::loadFromFolder(TString(CUBEMAP_DIR) + "Yokohama", "jpg");
-
         initDescriptors();
 
         // Load builtin entities for the current scene. 
@@ -115,26 +116,12 @@ namespace Vy
         m_RenderSystem     = MakeUnique<VyRenderSystem>    (m_Renderer.swapchainRenderPass(), m_SetLayouts);
         m_PointLightSystem = MakeUnique<VyPointLightSystem>(m_Renderer.swapchainRenderPass(), m_GlobalSetLayout->handle());
         m_GridSystem       = MakeUnique<VyGridSystem>      (m_Renderer.swapchainRenderPass(), m_GlobalSetLayout->handle());
-        
-        printEntities();
+        m_SkyboxSystem     = MakeUnique<VySkyboxSystem>    (m_Renderer.swapchainRenderPass(), m_GlobalSetLayout->handle());
+
+
+        m_Scene->print();
     }
 
-
-    void VyEngine::printEntities()
-    {
-        auto view = m_Scene->registry().view<TagComponent>();
-
-        std::stringstream ss;
-        ss  << GRAY "Loaded Entities: (" << view.size() << ")" RESET << '\n';
-        
-        for (auto&& [ entity, tag ] : view.each())
-        {
-            ss  << CYAN "  - '" << tag.Tag.c_str() << "'" RESET << '\n';
-        }
-
-        VY_TRACE("{0}", ss.str());
-    }
-    
 
     void VyEngine::updateCamera(VyCamera& camera)
 	{
@@ -190,8 +177,6 @@ namespace Vy
                 updateCamera( camera );
             }
 
-            Vec2 invResolution;
-
             // [ Frame ]
             if (auto cmdBuffer = m_Renderer.beginFrame()) 
             {
@@ -208,7 +193,7 @@ namespace Vy
                     }
                 }
 
-                // Update Frame Info.
+                // Collect Frame Info.
                 int frameIndex = m_Renderer.frameIndex();
 
                 VyFrameInfo frameInfo{
@@ -244,11 +229,10 @@ namespace Vy
 
                     m_Renderer.beginSwapchainRenderPass( cmdBuffer );
                     {
-                        m_RenderSystem->renderMainPass( frameInfo );
-
+                        m_SkyboxSystem    ->render( frameInfo, m_Skybox.get() );
+                        m_RenderSystem    ->render( frameInfo );
+                        m_GridSystem      ->render( frameInfo );
                         m_PointLightSystem->render( frameInfo, ubo );
-
-                        m_GridSystem->render( frameInfo );
                     }
                     m_Renderer.endRenderPass( cmdBuffer );
                 }
@@ -269,16 +253,18 @@ namespace Vy
 
     void VyEngine::loadEntities()
     {
+        m_Skybox = VySkybox::loadFromFolder( TString(CUBEMAP_DIR) + "Yokohama", "jpg" );
+
         m_Models.push_back( VyGLTFModel::createFromFile( MODELS_DIR "Helmet/DamagedHelmet.gltf", *m_MaterialSetLayout, *m_GlobalPool) );
-        // m_Models.push_back( VyGLTFModel::createFromFile( MODELS_DIR "BoomBox/BoomBox.gltf", *m_MaterialSetLayout, *m_GlobalPool) );
-        m_Models.push_back( VyGLTFModel::createFromFile( MODELS_DIR "Cube/Cube.gltf", *m_MaterialSetLayout, *m_GlobalPool) );
+        // m_Models.push_back( VyGLTFModel::createFromFile( MODELS_DIR "BoomBox/BoomBox.gltf",      *m_MaterialSetLayout, *m_GlobalPool) );
+        m_Models.push_back( VyGLTFModel::createFromFile( MODELS_DIR "Cube/Cube.gltf",            *m_MaterialSetLayout, *m_GlobalPool) );
         
         auto helmet = m_Scene->createEntity( "helmet" );
         {
             helmet.add<ModelComponent>( m_Models[ 0 ] );
             helmet.get<TransformComponent>() = TransformComponent{
                 Vec3(0.0f, -1.0f, 0.0f),
-                Vec3(1.0f, 1.0f, 1.0f),
+                Vec3(1.0f,  1.0f, 1.0f),
                 Vec3( -glm::pi<float>() / 2.0f, 0.0f, 0.0f )
             };
         }

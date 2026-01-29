@@ -1,14 +1,18 @@
 
 # ========================================================================
 # Vulkan Related
-
+set(VULKAN_SDK "C:/VulkanSDK/1.4.335.0" CACHE PATH "Path to the Vulkan SDK")
+# set(ENV{VULKAN_SDK} "C:/VulkanSDK/1.4.335.0")
 find_package(Vulkan REQUIRED)
 if(NOT Vulkan_FOUND)
     message(FATAL_ERROR "Vulkan was not found. Make sure the Vulkan SDK is installed")
 endif()
 
 find_package(Volk CONFIG REQUIRED)
-# find_package(VulkanHeaders CONFIG REQUIRED)
+if(NOT Volk_FOUND)
+    message(FATAL_ERROR "Volk was not found.")
+endif()
+
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 
 # ========================================================================
@@ -45,7 +49,7 @@ find_package(efsw CONFIG REQUIRED)
 find_package(JsonCpp CONFIG REQUIRED)
 find_package(meshoptimizer CONFIG REQUIRED)
 
-find_package(spirv_cross_core CONFIG REQUIRED)
-find_package(spirv_cross_glsl CONFIG REQUIRED)
+# find_package(spirv_cross_core CONFIG REQUIRED)
+# find_package(spirv_cross_glsl CONFIG REQUIRED)
 
 # ========================================================================

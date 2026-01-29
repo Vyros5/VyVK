@@ -1,7 +1,7 @@
 #pragma once
 
-#include <VyEngine/GFX/Resources/Model/Model.h>
-#include <VyEngine/GFX/Resources/Mesh/Model.h>
+// #include <VyEngine/GFX/Resources/Model/Model.h>
+// #include <VyEngine/GFX/Resources/Mesh/Model.h>
 #include <VyEngine/GFX/Resources/GLTF/Model.h>
 
 namespace Vy
@@ -44,21 +44,21 @@ namespace Vy
 	// };
 
 
-	struct MeshModelComponent 
-    {
-		Shared<MeshModel> Model;
+	// struct MeshModelComponent 
+    // {
+	// 	Shared<MeshModel> Model;
 
-		MeshModelComponent() = delete;
-		MeshModelComponent(const MeshModelComponent&) = default;
+	// 	MeshModelComponent() = delete;
+	// 	MeshModelComponent(const MeshModelComponent&) = default;
 
-		MeshModelComponent(const Shared<MeshModel>& model) : 
-			Model( model ) 
-		{
-		}
+	// 	MeshModelComponent(const Shared<MeshModel>& model) : 
+	// 		Model( model ) 
+	// 	{
+	// 	}
 
-		MeshModelComponent(TStringView path)
-			: Model( MeshModel::createMeshFromFile( path ) ) 
-		{
-		}
-	};
+	// 	MeshModelComponent(TStringView path)
+	// 		: Model( MeshModel::createMeshFromFile( path ) ) 
+	// 	{
+	// 	}
+	// };
 }

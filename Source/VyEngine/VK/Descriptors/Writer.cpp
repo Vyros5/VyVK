@@ -4,6 +4,9 @@
 
 #include <ranges>
 
+#include <VyEngine/VK/Buffer/Buffer.h>
+#include <VyEngine/GFX/Resources/Texture/Texture.h>
+
 namespace Vy
 {
 // ================================================================================================

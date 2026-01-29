@@ -40,6 +40,29 @@ namespace Vy
         }
     };
 
+    struct VyVertex2
+    {
+        Vec3 Position { 0.0f };
+        Vec3 Color    { 1.0f };
+        Vec3 Normal   {      };
+        Vec2 UV       {      };
+        Vec3 Tangent  {      };
+        Vec3 Bitangent{      };
+
+        static TVector<VkVertexInputBindingDescription>   bindingDescriptions();
+        static TVector<VkVertexInputAttributeDescription> attributeDescriptions();
+        
+        bool operator==(const VyVertex2& other) const 
+        {
+            return Position  == other.Position 
+                && Color     == other.Color 
+                && Normal    == other.Normal
+                && UV        == other.UV 
+                && Tangent   == other.Tangent
+                && Bitangent == other.Bitangent
+            ;
+        }
+    };
 
     /**
      * VyAABB - Axis-aligned bounding box

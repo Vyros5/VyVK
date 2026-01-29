@@ -20,7 +20,7 @@ namespace Vy
 
     VyPointLightSystem::VyPointLightSystem(VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
     {
-        createPipeline(renderPass, globalSetLayout);
+        createPipeline( renderPass, globalSetLayout );
     }
 
 
@@ -148,6 +148,7 @@ namespace Vy
                 0
             );
 
+            // Draw quad.
             vkCmdDraw(frameInfo.CommandBuffer, 6, 1, 0, 0);
         }
 
@@ -171,6 +172,7 @@ namespace Vy
             0
         );
 
+        // Draw quad.
         vkCmdDraw(frameInfo.CommandBuffer, 6, 1, 0, 0);
     }
 
@@ -189,13 +191,13 @@ namespace Vy
             
             // Enable Aplha Blending
             builder.addColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT, true);
-            // builder.setDepthAttachment(VK_FORMAT_D32_SFLOAT);
+            builder.setDepthAttachment(VK_FORMAT_D32_SFLOAT);
 
             // Set multisampled.
             builder.setRasterizationSamples( VyContext::device().msaaSampleCountFlagBits() );
 
             builder.setDepthTest(true, false, VK_COMPARE_OP_LESS_OR_EQUAL);
-            // builder.setCullMode(VK_CULL_MODE_FRONT_BIT);
+            builder.setCullMode(VK_CULL_MODE_FRONT_BIT);
 
             // Clear vertex bindings and attributes.
             builder.clearVertexDescriptions();

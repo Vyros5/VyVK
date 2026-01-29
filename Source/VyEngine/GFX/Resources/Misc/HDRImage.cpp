@@ -3,59 +3,90 @@
 #include <VyEngine/VK/Context.h>
 
 #include <VyEngine/VK/Pipeline/Pipeline.h>
+#include <VyEngine/VK/Descriptors/Descriptors.h>
 
 #include "stb_image.h"
 
 namespace Vy
 {
-	HDRImage::HDRImage(const TString& filename)
+	HDRImage::HDRImage() :
+        m_Projection(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f))
 	{
-        // 1) Load the HDR pixels with stb_image
-        if (!std::filesystem::exists(filename)) {
+        // m_Projection[1][1] *= -1.0f; 
+    }
+
+
+    void HDRImage::loadHDR(const TString& filename)
+    {
+        const VkFormat hdrFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
+
+        // Load the HDR pixels with stb_image
+        if (!std::filesystem::exists(filename)) 
+        {
             throw std::runtime_error("File does not exist: " + filename);
         }
-        if (!stbi_is_hdr(filename.c_str())) {
+        if (!stbi_is_hdr(filename.c_str())) 
+        {
             throw std::runtime_error("File is not HDR format: " + filename);
         }
 
-        int texWidth, texHeight, texChannels;
-        float* pixels = stbi_loadf(filename.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        if (!pixels) {
+        int texW, texH, texChannels;
+        float* pPixels = stbi_loadf(filename.c_str(), &texW, &texH, &texChannels, STBI_rgb_alpha);
+        
+        if (!pPixels) 
+        {
             throw std::runtime_error("Failed to load HDR image: " + filename);
         }
-        // m_EquirectMipLevels = 1; // only one mip level for now
-        // m_EquirectExtent = { U32(texWidth), U32(texHeight) };
-        // m_EquirectFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
 
-        VkDeviceSize imageSize = VkDeviceSize(texWidth) * texHeight * 4 * sizeof(float);
+        const VkDeviceSize imageSize = static_cast<VkDeviceSize>(texW * texH * 4 * sizeof(float));
 
-        // 2) Create a host?visible staging buffer
+        // Create host visible staging buffer
         VyBuffer stagingBuffer = VyBuffer::stagingBuffer("hdri", imageSize );
 
-        // 3) Copy pixels into the staging buffer
-        stagingBuffer.write(pixels);
+        // Copy pixels into the staging buffer
+        stagingBuffer.write(pPixels);
 
-        stbi_image_free(pixels);
+        stbi_image_free(pPixels);
 
-        // 4) Create the equirectangular image (device?local)
-        CreateEquirectImage(
-            texWidth,
-            texHeight,
-            1,
-            VK_FORMAT_R32G32B32A32_SFLOAT,
-            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-        );
-        // CreateEquirectTextureImageView();
+        // Create the equirectangular image
+        m_HDR.Image = VyImage::Builder{}
+			.setName       ("hdr")
+            .setImageType  (VK_IMAGE_TYPE_2D)
+            .setFormat     (hdrFormat)
+            .setExtent     (static_cast<U32>(texW), static_cast<U32>(texH))
+            .setLevels     (1)
+			.setLayers     (1)
+			.setSamples    (VK_SAMPLE_COUNT_1_BIT)
+            .setTiling     (VK_IMAGE_TILING_OPTIMAL)
+			.setLayout     (VK_IMAGE_LAYOUT_UNDEFINED)
+            .setUsage      (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
+            .setMemoryUsage(VMA_MEMORY_USAGE_AUTO)
+        	.build();
 
-        // 5) Transition image to TRANSFER_DST_OPTIMAL, copy, then to SHADER_READ_ONLY_OPTIMAL
-        m_EquirectImage.copyFrom(stagingBuffer, true);
+        m_HDR.View = VyImageView::Builder{}
+			.setName    ("hdr")
+            .setViewType(VK_IMAGE_VIEW_TYPE_2D)
+            .setFormat  (hdrFormat)
+            .setAspect  ( VKUtil::aspectFromFormat( hdrFormat ))
+            .setLevels  (0, 1)
+            .setLayers  (0, 1)
+        	.buildPtr( m_HDR.Image );
 
-        // 7) Create the sampler
-        CreateEquirectTextureSampler(VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 
-        // 8) Build the cube?map from this equirectangular image
-        CreateCubeMap();
-        CreateIrradianceMap(); 
+        // Transition image to TRANSFER_DST_OPTIMAL, copy, then to SHADER_READ_ONLY_OPTIMAL
+        m_HDR.Image.copyFrom(stagingBuffer, true);
+
+        // Create the sampler
+        m_HDR.Sampler = VySampler::Builder{}
+            .setName         ("equirect")
+            .setFilters      (VK_FILTER_LINEAR)
+            .setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
+            .setWrap         (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
+            .setBorder       (VK_BORDER_COLOR_INT_OPAQUE_BLACK)
+            .enableAnisotropy(true)
+            .setLodRange     (0.0f, 1.0f)
+            .setMipLodBias   (0.0f)
+            .buildPtr();
 	}
 
 
@@ -67,16 +98,22 @@ namespace Vy
 
         // vkDestroySampler(VyContext::device(), m_CubeMapSampler, nullptr);
         // vkDestroyImageView(VyContext::device(), m_CubeMapImageView, nullptr);
-        for (auto& faceViews : m_CubeMapFaceViews)
-            for (auto v : faceViews)
-                vkDestroyImageView(VyContext::device(), v, nullptr);
+        // for (auto& faceViews : m_CubeMap.FaceViews)
+        // {
+        //     for (auto v : faceViews)
+        //     {
+        //         vkDestroyImageView(VyContext::device(), v, nullptr);
+        //     }
+        // }
 
-        // Destroy irradiance map face views
-        for (auto& view : m_IrradianceMapFaceViews) {
-            if (view != VK_NULL_HANDLE) {
-                vkDestroyImageView(VyContext::device(), view, nullptr);
-            }
-        }
+        // // Destroy irradiance map face views
+        // for (auto& view : m_IrradianceMap.FaceViews) 
+        // {
+        //     if (view != VK_NULL_HANDLE) 
+        //     {
+        //         vkDestroyImageView(VyContext::device(), view, nullptr);
+        //     }
+        // }
 
 		// vkDestroySampler(VyContext::device(), m_IrradianceMapSampler, nullptr);
         // vkDestroyImageView(VyContext::device(), m_IrradianceMapImageView, nullptr);
@@ -86,65 +123,73 @@ namespace Vy
 
 
 
-    void HDRImage::CreateEquirectImage(
-        U32               width,
-        U32               height,
-        U32               miplevels,
-        VkFormat          format,
-        VkImageUsageFlags usage)
-    {
-        m_EquirectImage = VyImage::Builder{}
-			.setName       ("equirect")
-            .setImageType  (VK_IMAGE_TYPE_2D)
-            .setFormat     (format)
-            .setExtent     (width, height)
-            .setLevels     (1)
-			.setLayers     (miplevels)
-			.setSamples    (VK_SAMPLE_COUNT_1_BIT)
-            .setTiling     (VK_IMAGE_TILING_OPTIMAL)
-			.setLayout     (VK_IMAGE_LAYOUT_UNDEFINED)
-            .setUsage      (usage)
-            .setMemoryUsage(VMA_MEMORY_USAGE_AUTO)
-        	.build();
+    // BASE IMAGE CREATION
 
-        m_EquirectImageView = VyImageView::Builder{}
-			.setName    ("equirect")
-            .setViewType(VK_IMAGE_VIEW_TYPE_2D)
-            .setFormat  (format)
-            .setAspect  ( VKUtil::aspectFromFormat( format ))
-            .setLevels  (0, miplevels)
-            .setLayers  (0, 1)
-        	.build( m_EquirectImage );
+    // void HDRImage::createEquirectImage(
+    //     U32               width,
+    //     U32               height,
+    //     U32               miplevels,
+    //     VkFormat          format,
+    //     VkImageUsageFlags usage)
+    // {
+    //     m_Equirect.Image = VyImage::Builder{}
+	// 		.setName       ("equirect")
+    //         .setImageType  (VK_IMAGE_TYPE_2D)
+    //         .setFormat     (format)
+    //         .setExtent     (width, height)
+    //         .setLevels     (1)
+	// 		.setLayers     (miplevels)
+	// 		.setSamples    (VK_SAMPLE_COUNT_1_BIT)
+    //         .setTiling     (VK_IMAGE_TILING_OPTIMAL)
+	// 		.setLayout     (VK_IMAGE_LAYOUT_UNDEFINED)
+    //         .setUsage      (usage)
+    //         .setMemoryUsage(VMA_MEMORY_USAGE_AUTO)
+    //     	.build();
+
+    //     m_Equirect.ImageView = VyImageView::Builder{}
+	// 		.setName    ("equirect")
+    //         .setViewType(VK_IMAGE_VIEW_TYPE_2D)
+    //         .setFormat  (format)
+    //         .setAspect  ( VKUtil::aspectFromFormat( format ))
+    //         .setLevels  (0, miplevels)
+    //         .setLayers  (0, 1)
+    //     	.build( m_Equirect.Image );
+    // }
+
+
+    // void HDRImage::createEquirectTextureSampler(VkFilter filter, VkSamplerAddressMode addressMode)
+    // {
+    //     m_Equirect.Sampler = VySampler::Builder{}
+    //         .setName         ("equirect")
+    //         .setFilters      (filter)
+    //         .setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
+    //         .setWrap         (addressMode)
+    //         .setBorder       (VK_BORDER_COLOR_INT_OPAQUE_BLACK)
+    //         .enableAnisotropy(true)
+    //         .setLodRange     (0.0f, 1.0f)
+    //         .setMipLodBias   (0.0f)
+    //         .build();
+    // }
+
+    void HDRImage::generatePrefilteredEnvMap()
+    {
+
     }
 
 
-    void HDRImage::CreateEquirectTextureSampler(VkFilter filter, VkSamplerAddressMode addressMode)
-    {
-        m_EquirectSampler = VySampler::Builder{}
-            .setName         ("equirect")
-            .setFilters      (filter)
-            .setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
-            .setWrap         (addressMode)
-            .setBorder       (VK_BORDER_COLOR_INT_OPAQUE_BLACK)
-            .enableAnisotropy(true)
-            .setLodRange     (0.0f, 1.0f)
-            .setMipLodBias   (0.0f)
-            .build();
-    }
-
-
-    void HDRImage::CreateCubeMap()
+    void HDRImage::createCubeMap()
     {
         // We only need one mip level for now
-        U32 cubeMipLevels = 1;
+        const U32 kMipLevels = static_cast<U32>(std::floor(std::log2(m_CubeMap.Size))) + 1;
+        // const U32 kMipLevels = 1;
 
-        m_CubeMapImage = VyImage::Builder{}
+        m_CubeMap.Image = VyImage::Builder{}
 			.setName       ("cubemap")
             .setImageType  (VK_IMAGE_TYPE_2D)
-            .setFormat     (m_EquirectImage.format())
-            .setExtent     (m_CubeMapExtent)
-            .setLevels     (cubeMipLevels)
-			.setLayers     (m_FACE_COUNT)
+            .setFormat     (m_HDR.Image.format())
+            .setExtent     (m_CubeMap.Size, m_CubeMap.Size)
+            .setLevels     (kMipLevels)
+			.setLayers     (m_FACE_COUNT) // 6 Faces
 			.setSamples    (VK_SAMPLE_COUNT_1_BIT)
             .setTiling     (VK_IMAGE_TILING_OPTIMAL)
 			.setLayout     (VK_IMAGE_LAYOUT_UNDEFINED)
@@ -155,373 +200,513 @@ namespace Vy
                 | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
             )
             .setMemoryUsage(VMA_MEMORY_USAGE_AUTO)
-            .setFlags      (VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
+            .setFlags      (VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) // Create a cubemap
         	.build();
 
-        m_CubeMapImageView = VyImageView::Builder{}
+        m_CubeMap.View = VyImageView::Builder{}
 			.setName    ("cubemap")
             .setViewType(VK_IMAGE_VIEW_TYPE_CUBE)
-            .setFormat  (m_EquirectImage.format())
+            .setFormat  (m_HDR.Image.format())
             .setAspect  (VK_IMAGE_ASPECT_COLOR_BIT)
             .setLevels  (0, 1)
             .setLayers  (0, m_FACE_COUNT)
-        	.build( m_CubeMapImage );
+        	.build( m_CubeMap.Image );
 
 
-        // 3. Create per?face 2D views (for rendering each face)
+        // Create per-face 2D views (for rendering each face)
         for (U32 face = 0; face < m_FACE_COUNT; ++face) 
         {
             VyImageView faceView = VyImageView::Builder{}
-                .setName    ("cubemap_face")
+                .setName    (std::format("cubemap_face_{}", face))
                 .setViewType(VK_IMAGE_VIEW_TYPE_2D)
-                .setFormat  (m_EquirectImage.format())
+                .setFormat  (m_HDR.Image.format())
                 .setAspect  (VK_IMAGE_ASPECT_COLOR_BIT)
                 .setLevels  (0,    1)
                 .setLayers  (face, 1)
-                .build( m_CubeMapImage );
+                .build( m_CubeMap.Image );
 
-            m_CubeMapFaceViews[face].push_back(faceView);
+            m_CubeMap.FaceViews[ face ] = faceView.handle();
         }
 
-        // 4. Create the sampler
-        m_CubeMapSampler = VySampler::Builder{}
-            .setName         ("cubemap")
-            .setFilters      (VK_FILTER_LINEAR)
-            .setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
-            .setWrap         (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
-            .setBorder       (VK_BORDER_COLOR_INT_OPAQUE_BLACK)
-            .enableAnisotropy(true)
-            .setLodRange     (0.0f, static_cast<float>(cubeMipLevels))
-            .setMipLodBias   (0.0f)
-            .build();
+        // Create the sampler
+        // m_CubeMap.Sampler = VySampler::Builder{}
+        //     .setName         ("cubemap")
+        //     .setFilters      (VK_FILTER_LINEAR)
+        //     .setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
+        //     .setWrap         (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
+        //     .setBorder       (VK_BORDER_COLOR_INT_OPAQUE_BLACK)
+        //     .enableAnisotropy(true)
+        //     .setLodRange     (0.0f, static_cast<float>(kMipLevels))
+        //     .setMipLodBias   (0.0f)
+        //     .build();
 
-        // 5. Finally render into it
-        renderToCubeMap(
-            m_CubeMapExtent,
-            cubeMipLevels,
+        // Finally render into it
+        RenderToCubemap(
+            m_HDR.Image,
+            m_HDR.View->handle(),
+            m_HDR.Sampler->handle(),
+            m_CubeMap.Image,
+            m_CubeMap.FaceViews,
+            m_CubeMap.Size,
             m_CubeVertPath,
-            m_SkyFragPath,
-            m_EquirectImage,
-            m_EquirectImageView.handle(),
-            m_EquirectSampler.handle(),
-            m_CubeMapImage,
-            m_CubeMapFaceViews
+            m_SkyFragPath
         );
     }
 
-    
-    void HDRImage::renderToCubeMap(
-        const VkExtent2D&                extent, 
-        U32                              mipLevels, 
-        const TString&                   vertPath, 
-        const TString&                   fragPath, 
-        VyImage&                         inputImage, 
-        const VkImageView&               inputImageView, 
-        VkSampler                        inputSampler, 
-        VkImage&                         outputCubeMapImage, 
-        TArray<TVector<VkImageView>, 6>& outputCubeMapImageViews)
-	{
-        // 1) Transition the equirectangular input to SHADER_READ_ONLY_OPTIMAL if needed
-        if (m_EquirectImage.layout() != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) 
+
+    void HDRImage::RenderToCubemap(
+        VyImage&               inputImage, 
+        const VkImageView&     inputView, 
+        VkSampler              inputSampler,
+        VkImage&               outputImage, 
+        TArray<VkImageView, 6> outputFaceViews, 
+        U32                    size,
+        const TString&         vertPath, 
+        const TString&         fragPath
+    )
+    {
+        // Transition the equirectangular input to SHADER_READ_ONLY_OPTIMAL if needed
+        if (m_HDR.Image.layout() != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) 
         {
-            m_EquirectImage.transitionLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            m_HDR.Image.transitionLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
 
-        // 2) Begin one-off command buffer
+        // Begin one-time command buffer
         VkCommandBuffer cmdBuffer = VyContext::beginCommands();
 
-        // 3) Transition the entire cube-map image into COLOR_ATTACHMENT_OPTIMAL
+        // Transition the entire cube-map image into COLOR_ATTACHMENT_OPTIMAL
         {
-            VkImageMemoryBarrier2 barrier{ VKInit::imageMemoryBarrier2() };
+            VkImageMemoryBarrier barrier{ VKInit::imageMemoryBarrier() };
             {
-                barrier.srcStageMask     = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
-                barrier.srcAccessMask    = 0;
-                barrier.dstStageMask     = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-                barrier.dstAccessMask    = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-                barrier.oldLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
-                barrier.newLayout        = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                barrier.image            = outputCubeMapImage;
-                barrier.subresourceRange = { 
-                    VK_IMAGE_ASPECT_COLOR_BIT, 
-                    0, 1, 
-                    0, m_FACE_COUNT 
-                };
+                barrier.image                           = outputImage; // Cubemap Image
+                barrier.oldLayout                       = VK_IMAGE_LAYOUT_UNDEFINED;
+                barrier.newLayout                       = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+                barrier.subresourceRange.baseMipLevel   = 0;
+                barrier.subresourceRange.levelCount     = 1;
+                barrier.subresourceRange.baseArrayLayer = 0;
+                barrier.subresourceRange.layerCount     = m_FACE_COUNT;
+                barrier.srcAccessMask                   = 0;
+                barrier.dstAccessMask                   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
             }
 
-            VkDependencyInfo dep{ VKInit::dependencyInfo() };
-            {
-                dep.imageMemoryBarrierCount = 1;
-                dep.pImageMemoryBarriers = &barrier;
-            }
-
-            vkCmdPipelineBarrier2(cmdBuffer, &dep);
+            vkCmdPipelineBarrier(cmdBuffer,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                0,
+                0, nullptr,
+                0, nullptr,
+                1, &barrier
+            );
         }
 
-        // 4) Build a one-off descriptor set to sample the equirectangular map
-        VkDescriptorSetLayout descriptorLayout;
+        // Build a one-time descriptor set to sample the equirectangular map.
+        Unique<VyDescriptorSetLayout> setLayout = VyDescriptorSetLayout::Builder{}
+            .setName   ("hdri")
+            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .buildPtr();
+
+        Unique<VyDescriptorPool> descPool = VyDescriptorPool::Builder{}
+            .setName    ("hdri")
+            .setMaxSets (1)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
+            .buildPtr();
+
+        struct PushConstants 
         {
-            VkDescriptorSetLayoutBinding b{ 0,
-                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                1,
-                VK_SHADER_STAGE_FRAGMENT_BIT,
-                nullptr
-            };
-            VkDescriptorSetLayoutCreateInfo li{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-            {
-                li.bindingCount = 1;
-                li.pBindings = &b;
-            }
+            Mat4 View;
+            Mat4 Projection;
+        };
 
-            vkCreateDescriptorSetLayout(VyContext::device(), &li, nullptr, &descriptorLayout);
-        }
-
-        VkDescriptorPool descriptorPool;
-        {
-            VkDescriptorPoolSize sz{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 };
-            VkDescriptorPoolCreateInfo pi{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
-            pi.maxSets = 1;
-            pi.poolSizeCount = 1;
-            pi.pPoolSizes = &sz;
-            vkCreateDescriptorPool(VyContext::device(), &pi, nullptr, &descriptorPool);
-        }
-
-        VkDescriptorSet descriptorSet;
-        {
-            VkDescriptorSetAllocateInfo ai{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-            ai.descriptorPool = descriptorPool;
-            ai.descriptorSetCount = 1;
-            ai.pSetLayouts = &descriptorLayout;
-            vkAllocateDescriptorSets(VyContext::device(), &ai, &descriptorSet);
-
-            VkDescriptorImageInfo ii{};
-            {
-                ii.sampler     = inputSampler;
-                ii.imageView   = inputImageView;
-                ii.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            }
-
-            VkWriteDescriptorSet w{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-            w.dstSet = descriptorSet;
-            w.dstBinding = 0;
-            w.dstArrayElement = 0;
-            w.descriptorCount = 1;
-            w.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            w.pImageInfo = &ii;
-
-            vkUpdateDescriptorSets(VyContext::device(), 1, &w, 0, nullptr);
-        }
-
-        // 5) Create pipeline layout with 2×mat4 push-constants + our single descriptor set
+        // Create pipeline
         auto builder = VyPipeline::GraphicsBuilder{};
         {
-            builder.setName( "model" );
+            builder.setName( "cubemap" );
             
-            builder.addDescriptorSetLayout( descriptorLayout );
+            builder.addDescriptorSetLayout( setLayout->handle() );
             
-            builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(Mat4) * 2 /* view + proj*/);
+            builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(PushConstants));
             
             builder.addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   vertPath);
             builder.addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, fragPath);
             
             builder.addColorAttachment( inputImage.format() );
-            builder.setDepthAttachment(VK_FORMAT_UNDEFINED);
+            // builder.setDepthAttachment(VK_FORMAT_UNDEFINED);
+
+            builder.setCullMode(VK_CULL_MODE_NONE);
 
             builder.clearVertexDescriptions();
         }
 
         auto pipeline = builder.buildPtr();
 
-        // 7) Prepare capture projection / views
-        const Mat4 captureProj = [] {
-            Mat4 p = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-            return p;
-        }();
+        // Write descriptor image.
+        VkDescriptorImageInfo inputInfo{};
+        {
+            inputInfo.sampler     = inputSampler;
+            inputInfo.imageView   = inputView;
+            inputInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        }
 
-        const Vec3 eye{ 0.0f, 0.0f, 0.0f };
+        VkDescriptorSet descriptorSet = setLayout->allocate();
 
-        const std::array<Mat4, 6> captureViews = {
-            glm::lookAt(eye, eye + Vec3(  1.0f,  0.0f,  0.0f ), Vec3( 0.0f, -1.0f,  0.0f )), // +X
-            glm::lookAt(eye, eye + Vec3( -1.0f,  0.0f,  0.0f ), Vec3( 0.0f, -1.0f,  0.0f )), // -X
-            glm::lookAt(eye, eye + Vec3(  0.0f,  1.0f,  0.0f ), Vec3( 0.0f,  0.0f,  1.0f )), // -Y
-            glm::lookAt(eye, eye + Vec3(  0.0f, -1.0f,  0.0f ), Vec3( 0.0f,  0.0f, -1.0f )), // +Y
-            glm::lookAt(eye, eye + Vec3(  0.0f,  0.0f,  1.0f ), Vec3( 0.0f, -1.0f,  0.0f )), // +Z
-            glm::lookAt(eye, eye + Vec3(  0.0f,  0.0f, -1.0f ), Vec3( 0.0f, -1.0f,  0.0f ))  // -Z
-        };
+        VyDescriptorWriter{ *setLayout, *descPool }
+            .writeImage( 0, &inputInfo )
+            .update( descriptorSet );
 
-        // 8) Render each of the six faces
+        VkExtent2D extent = { size, size };
+
+        // Render each of the six faces
         for (U32 face = 0; face < m_FACE_COUNT; ++face) 
         {
-            // (a) barrier for this layer is already handled above by the 6-layer barrier
+            // The barrier for this layer is already handled above by the 6-layer barrier.
 
-            // (b) dynamic rendering begin
-            VkRenderingAttachmentInfo colorAtt{ VKInit::renderingAttachmentInfo() };
+            PushConstants push{};
             {
-                colorAtt.imageView        = outputCubeMapImageViews[face][0];
-                colorAtt.imageLayout      = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                colorAtt.loadOp           = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                colorAtt.storeOp          = VK_ATTACHMENT_STORE_OP_STORE;
-                colorAtt.clearValue.color = { 0,0,0,1 };
+                push.View       = m_ViewMatrices[ face ];
+                push.Projection = m_Projection;
             }
 
-            VkRenderingInfo ri{ VKInit::renderingInfo() };
+            // Dynamic rendering begin
+            VkRenderingAttachmentInfoKHR colorAttachment{ VKInit::renderingAttachmentInfoKHR() };
             {
-                ri.renderArea.extent    = extent;
-                ri.layerCount           = 1;
-                ri.colorAttachmentCount = 1;
-                ri.pColorAttachments    = &colorAtt;
+                colorAttachment.imageView        = outputFaceViews[ face ];
+                colorAttachment.imageLayout      = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                colorAttachment.loadOp           = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                colorAttachment.storeOp          = VK_ATTACHMENT_STORE_OP_STORE;
+                colorAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
             }
 
-            vkCmdBeginRendering(cmdBuffer, &ri);
+            VkRenderingInfoKHR renderingInfo{ VKInit::renderingInfoKHR() };
+            {
+                renderingInfo.renderArea.extent    = extent;
+                renderingInfo.renderArea.offset    = { 0, 0 };
+                renderingInfo.layerCount           = 1;
+                renderingInfo.colorAttachmentCount = 1;
+                renderingInfo.pColorAttachments    = &colorAttachment;
+            }
 
-            // (c) set viewport & scissor
-            VkViewport vp{ 0,0, float(extent.width), float(extent.height), 0,1 };
-            VkRect2D  sc{ {0,0}, extent };
-            vkCmdSetViewport(cmdBuffer, 0, 1, &vp);
-            vkCmdSetScissor(cmdBuffer, 0, 1, &sc);
+            vkCmdBeginRenderingKHR( cmdBuffer, &renderingInfo );
+            {
+                // Set viewport & scissor
+                VKCmd::viewport(cmdBuffer, extent);
+                VKCmd::scissor (cmdBuffer, extent);
 
-            // (d) bind pipeline + descriptor
-            pipeline->bind(cmdBuffer);
+                // Bind pipeline + descriptor
+                pipeline->bind( cmdBuffer );
 
-            pipeline->bindDescriptorSet(cmdBuffer, 0, descriptorSet);
-            // vkCmdBindDescriptorSets(
-            //     cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-            //     pipelineLayout, 0, 1, &descriptorSet,
-            //     0, nullptr
-            // );
+                // Set 0
+                pipeline->bindDescriptorSet(cmdBuffer, 0, descriptorSet);
 
-            // (e) push constants: view then proj
-            pipeline->pushConstants(cmdBuffer, VK_SHADER_STAGE_VERTEX_BIT, &captureViews[face], sizeof(Mat4));
-            // vkCmdPushConstants(cmdBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
-            //     0, sizeof(Mat4), &captureViews[face]);
-            pipeline->pushConstants(cmdBuffer, VK_SHADER_STAGE_VERTEX_BIT, &captureViews[face], sizeof(Mat4), sizeof(Mat4));
-            // vkCmdPushConstants(cmdBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
-            //     sizeof(Mat4), sizeof(Mat4), &captureProj);
+                // Push constants
+                pipeline->pushConstants(cmdBuffer, VK_SHADER_STAGE_VERTEX_BIT, &push, sizeof(PushConstants));
 
-            // (f) draw a 36-vertex cube (generated in your vert shader)
-            vkCmdDraw(cmdBuffer, 36, 1, 0, 0);
-
-            vkCmdEndRendering(cmdBuffer);
+                // Draw a 36-vertex cube (generated in vert shader)
+                vkCmdDraw(cmdBuffer, 36, 1, 0, 0);
+            }
+            vkCmdEndRenderingKHR( cmdBuffer );
         }
 
-        // 9) finally transition the cube to SHADER_READ_ONLY_OPTIMAL
+        // Finally transition the cube to SHADER_READ_ONLY_OPTIMAL
         {
-            VkImageMemoryBarrier2 barrier{ VKInit::imageMemoryBarrier2() };
+            VkImageMemoryBarrier barrier{ VKInit::imageMemoryBarrier() };
             {
-                barrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-                barrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-                barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-                barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-                barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                barrier.image = outputCubeMapImage;
-                barrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, m_FACE_COUNT };
+                barrier.oldLayout                       = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                barrier.newLayout                       = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                barrier.srcAccessMask                   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                barrier.dstAccessMask                   = VK_ACCESS_SHADER_READ_BIT;
+                barrier.image                           = outputImage;
+                barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+                barrier.subresourceRange.baseMipLevel   = 0;
+                barrier.subresourceRange.levelCount     = 1;
+                barrier.subresourceRange.baseArrayLayer = 0;
+                barrier.subresourceRange.layerCount     = m_FACE_COUNT;
             } 
 
-            VkDependencyInfo dep{ VKInit::dependencyInfo() };
-            {
-                dep.imageMemoryBarrierCount = 1;
-                dep.pImageMemoryBarriers = &barrier;
-            }
-
-            vkCmdPipelineBarrier2(cmdBuffer, &dep);
+            vkCmdPipelineBarrier(cmdBuffer,
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                0, 
+                0, nullptr, 
+                0, nullptr, 
+                1, &barrier
+            );
         }
 
-        // 10) End and submit
+        // End and submit
         VyContext::endCommands(cmdBuffer);
+    }
 
-        // 11) Clean up
-        // vkDestroyPipelineLayout(VyContext::device(), pipelineLayout, nullptr);
-        vkDestroyDescriptorPool(VyContext::device(), descriptorPool, nullptr);
-        vkDestroyDescriptorSetLayout(VyContext::device(), descriptorLayout, nullptr);
-	}
+    
+    // void HDRImage::renderToCubeMap(
+    //     const VkExtent2D&                extent, 
+    //     U32                              mipLevels, 
+    //     const TString&                   vertPath, 
+    //     const TString&                   fragPath, 
+    //     VyImage&                         inputImage, 
+    //     const VkImageView&               inputImageView, 
+    //     VkSampler                        inputSampler, 
+    //     VkImage&                         outputCubeMapImage, 
+    //     TArray<TVector<VkImageView>, 6>& outputCubeMapImageViews)
+	// {
+    //     // Transition the equirectangular input to SHADER_READ_ONLY_OPTIMAL if needed
+    //     if (m_Equirect.Image.layout() != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) 
+    //     {
+    //         m_Equirect.Image.transitionLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    //     }
+
+    //     // Begin one-off command buffer
+    //     VkCommandBuffer cmdBuffer = VyContext::beginCommands();
+
+    //     // Transition the entire cube-map image into COLOR_ATTACHMENT_OPTIMAL
+    //     {
+    //         VkImageMemoryBarrier barrier{ VKInit::imageMemoryBarrier() };
+    //         {
+    //             barrier.image                           = outputCubeMapImage;
+    //             barrier.oldLayout                       = VK_IMAGE_LAYOUT_UNDEFINED;
+    //             barrier.newLayout                       = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    //             barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    //             barrier.subresourceRange.baseMipLevel   = 0;
+    //             barrier.subresourceRange.levelCount     = 1;
+    //             barrier.subresourceRange.baseArrayLayer = 0;
+    //             barrier.subresourceRange.layerCount     = m_FACE_COUNT;
+    //             barrier.srcAccessMask                   = 0;
+    //             barrier.dstAccessMask                   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    //         }
+
+    //         vkCmdPipelineBarrier(cmdBuffer,
+    //             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    //             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    //             0,
+    //             0, nullptr,
+    //             0, nullptr,
+    //             1, &barrier
+    //         );
+    //     }
+
+    //     // Build a one-off descriptor set to sample the equirectangular map.
+    //     Unique<VyDescriptorSetLayout> setLayout = VyDescriptorSetLayout::Builder{}
+    //         .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+    //         .buildPtr();
+
+    //     Unique<VyDescriptorPool> descPool = VyDescriptorPool::Builder{}
+    //         .setMaxSets (1)
+    //         .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
+    //         .buildPtr();
+
+    //     VkDescriptorImageInfo inputInfo{};
+    //     {
+    //         inputInfo.sampler     = inputSampler;
+    //         inputInfo.imageView   = inputImageView;
+    //         inputInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //     }
+
+    //     VkDescriptorSet descriptorSet = setLayout->allocate();
+
+    //     VyDescriptorWriter{ *setLayout, *descPool }
+    //         .writeImage( 0, &inputInfo )
+    //         .update( descriptorSet );
+
+    //     // Create pipeline layout with 2×mat4 push-constants + our single descriptor set
+    //     auto builder = VyPipeline::GraphicsBuilder{};
+    //     {
+    //         builder.setName( "cubemap" );
+            
+    //         builder.addDescriptorSetLayout( setLayout->handle() );
+            
+    //         builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(Mat4) * 2 /* view + proj*/);
+            
+    //         builder.addShaderStage(VK_SHADER_STAGE_VERTEX_BIT,   vertPath);
+    //         builder.addShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT, fragPath);
+            
+    //         builder.addColorAttachment( inputImage.format() );
+    //         builder.setDepthAttachment(VK_FORMAT_UNDEFINED);
+
+    //         builder.setCullMode(VK_CULL_MODE_NONE);
+
+    //         builder.clearVertexDescriptions();
+    //     }
+
+    //     auto pipeline = builder.buildPtr();
+
+    //     // Render each of the six faces
+    //     for (U32 face = 0; face < m_FACE_COUNT; ++face) 
+    //     {
+    //         // The barrier for this layer is already handled above by the 6-layer barrier
+
+    //         // Dynamic rendering begin
+    //         VkRenderingAttachmentInfo colorAttachment{ VKInit::renderingAttachmentInfo() };
+    //         {
+    //             colorAttachment.imageView        = outputCubeMapImageViews[face][0];
+    //             colorAttachment.imageLayout      = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    //             colorAttachment.loadOp           = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    //             colorAttachment.storeOp          = VK_ATTACHMENT_STORE_OP_STORE;
+    //             colorAttachment.clearValue.color = { 0, 0, 0, 1 };
+    //         }
+
+    //         VkRenderingInfo renderingInfo{ VKInit::renderingInfo() };
+    //         {
+    //             renderingInfo.renderArea.extent    = extent;
+    //             renderingInfo.layerCount           = 1;
+    //             renderingInfo.colorAttachmentCount = 1;
+    //             renderingInfo.pColorAttachments    = &colorAttachment;
+    //         }
+
+    //         vkCmdBeginRendering(cmdBuffer, &renderingInfo);
+    //         {
+    //             // Set viewport & scissor
+    //             VKCmd::viewport(cmdBuffer, extent);
+    //             VKCmd::scissor (cmdBuffer, extent);
+
+    //             // Bind pipeline + descriptor
+    //             pipeline->bind(cmdBuffer);
+
+    //             pipeline->bindDescriptorSet(cmdBuffer, 0, descriptorSet);
+
+    //             // Push constants: view then proj
+    //             pipeline->pushConstants(cmdBuffer, VK_SHADER_STAGE_VERTEX_BIT, &m_CAPTURE_PROJECTION, sizeof(Mat4));
+    //             pipeline->pushConstants(cmdBuffer, VK_SHADER_STAGE_VERTEX_BIT, &m_CAPTURE_PROJECTION, sizeof(Mat4), sizeof(Mat4));
+
+    //             // Draw a 36-vertex cube (generated in your vert shader)
+    //             vkCmdDraw(cmdBuffer, 36, 1, 0, 0);
+    //         }
+    //         vkCmdEndRendering(cmdBuffer);
+    //     }
+
+    //     // Finally transition the cube to SHADER_READ_ONLY_OPTIMAL
+    //     {
+    //         VkImageMemoryBarrier barrier{ VKInit::imageMemoryBarrier() };
+    //         {
+    //             barrier.oldLayout        = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    //             barrier.newLayout        = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //             barrier.srcAccessMask    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    //             barrier.dstAccessMask    = VK_ACCESS_SHADER_READ_BIT;
+    //             barrier.image            = outputCubeMapImage;
+    //             barrier.subresourceRange = { 
+    //                 VK_IMAGE_ASPECT_COLOR_BIT, 
+    //                 0, mipLevels, 
+    //                 0, m_FACE_COUNT 
+    //             };
+    //         } 
+
+    //         vkCmdPipelineBarrier(cmdBuffer,
+    //             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    //             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+    //             0, 
+    //             0, nullptr, 
+    //             0, nullptr, 
+    //             1, &barrier
+    //         );
+    //     }
+
+    //     // End and submit
+    //     VyContext::endCommands(cmdBuffer);
+	// }
 
 
 
-    void HDRImage::CreateIrradianceMap()
+    void HDRImage::createIrradianceMap()
     {
         U32 irradianceMipLevels = 1;
 
-        // 1. Create image
+        // Create the irradiance cubemap (lower resolution)
         {
-            m_IrradianceMapImage = VyImage::Builder{}
+            m_IrradianceMap.Image = VyImage::Builder{}
                 .setName       ("irradiance")
                 .setImageType  (VK_IMAGE_TYPE_2D)
-                .setFormat     (m_EquirectImage.format())
-                .setExtent     (m_IrradianceMapExtent)
+                .setFormat     (m_HDR.Image.format())
+                .setExtent     (m_IrradianceMap.Size, m_IrradianceMap.Size)
                 .setLevels     (irradianceMipLevels)
-                .setLayers     (m_FACE_COUNT)
+                .setLayers     (m_FACE_COUNT) // 6 Faces
                 .setSamples    (VK_SAMPLE_COUNT_1_BIT)
                 .setTiling     (VK_IMAGE_TILING_OPTIMAL)
                 .setLayout     (VK_IMAGE_LAYOUT_UNDEFINED)
                 .setUsage      (
                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
                     | VK_IMAGE_USAGE_SAMPLED_BIT
-                    | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                    | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                    // | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                    // | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
                 )
                 .setMemoryUsage(VMA_MEMORY_USAGE_AUTO)
-                .setFlags      (VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
+                .setFlags      (VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) // Cubemap
                 .build();
         }
 
-        // 2. Create view
+        // Create the cubemap view for the irradiance map
         {
-            m_IrradianceMapImageView = VyImageView::Builder{}
+            m_IrradianceMap.View = VyImageView::Builder{}
                 .setName    ("irradiance")
                 .setViewType(VK_IMAGE_VIEW_TYPE_CUBE)
-                .setFormat  (m_EquirectImage.format())
+                .setFormat  (m_HDR.Image.format())
                 .setAspect  (VK_IMAGE_ASPECT_COLOR_BIT)
                 .setLevels  (0, irradianceMipLevels)
                 .setLayers  (0, m_FACE_COUNT)
-                .build( m_IrradianceMapImage );
+                .build( m_IrradianceMap.Image );
         }
-        {
-			m_IrradianceMapSampler = VySampler::Builder{}
-				.setName         ("irradiance")
-				.setFilters      (VK_FILTER_LINEAR)
-				.setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
-				.setWrap         (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
-				.setBorder       (VK_BORDER_COLOR_INT_OPAQUE_BLACK)
-				.setLodRange     (0.0f, 1.0f)
-				.setMipLodBias   (0.0f)
-				.build();
-        }
+        // {
+		// 	m_IrradianceMap.Sampler = VySampler::Builder{}
+		// 		.setName         ("irradiance")
+		// 		.setFilters      (VK_FILTER_LINEAR)
+		// 		.setMipmapMode   (VK_SAMPLER_MIPMAP_MODE_LINEAR)
+		// 		.setWrap         (VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
+		// 		.setBorder       (VK_BORDER_COLOR_INT_OPAQUE_BLACK)
+		// 		.setLodRange     (0.0f, 1.0f)
+		// 		.setMipLodBias   (0.0f)
+		// 		.build();
+        // }
 
-        // 3. Create face views
+        // Create image views for each face
         {
             for (U32 face = 0; face < m_FACE_COUNT; ++face)
             {
-                m_IrradianceMapFaceViews[ face ] = VyImageView::Builder{}
+                m_IrradianceMap.FaceViews[ face ] = VyImageView::Builder{}
                     .setName    ("irradiance_face")
                     .setViewType(VK_IMAGE_VIEW_TYPE_2D)
-                    .setFormat  (m_EquirectImage.format())
+                    .setFormat  (m_HDR.Image.format())
                     .setAspect  (VK_IMAGE_ASPECT_COLOR_BIT)
                     .setLevels  (0,    irradianceMipLevels)
                     .setLayers  (face, 1)
-                    .build( m_IrradianceMapImage ).handle();
+                    .build( m_IrradianceMap.Image ).handle();
             }
         }
 
-        // 4. Render to irradiance map
+        // Render to irradiance map
         {
-            TArray<TVector<VkImageView>, 6> faceViews;
+            TArray<VkImageView, 6> faceViews{};
 
-            for (int i = 0; i < 6; ++i)
+            // for (int i = 0; i < 6; ++i)
+            // {
+            //     faceViews[i].push_back( m_IrradianceMap.FaceViews[ i ] );
+            // }
+
+            RenderToCubemap(
+                m_CubeMap.Image, 
+                m_CubeMap.View.handle(), 
+                m_HDR.Sampler->handle(),
+                m_IrradianceMap.Image, 
+                faceViews, 
+                m_IrradianceMap.Size,
+                "Cubemap.vert.spv", 
+                "DiffuseIrradiance.frag.spv"
+            );
+            
+            // Clean up temporary face views
+            for (const auto& view : faceViews) 
             {
-                faceViews[i].push_back( m_IrradianceMapFaceViews[ i ] );
+                vkDestroyImageView(VyContext::device(), view, nullptr);
             }
 
-            renderToCubeMap(
-                m_IrradianceMapExtent, 
-                irradianceMipLevels,
-                m_CubeVertPath, 
-                m_IBLFragPath, 
-                m_CubeMapImage,
-                m_CubeMapImageView.handle(), 
-                m_EquirectSampler.handle(), 
-                m_IrradianceMapImage, 
-                faceViews
-            );
+            // renderToCubeMap(
+            //     m_IrradianceMap.Extent, 
+            //     irradianceMipLevels,
+            //     m_CubeVertPath, 
+            //     m_IBLFragPath, 
+            //     m_CubeMap.Image,
+            //     m_CubeMap.View.handle(), 
+            //     m_Equirect.Sampler.handle(), 
+            //     m_IrradianceMap.Image, 
+            //     faceViews
+            // );
 
             //GenerateMipmaps(m_IrradianceMapImage, m_EquirectFormat,
             //	m_IrradianceMapExtent.width, m_IrradianceMapExtent.height,

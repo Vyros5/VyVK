@@ -40,15 +40,15 @@ namespace Vy
      * Renders a cubemap skybox as the background of the scene.
      * Should be rendered first (or last with depth write disabled).
      */
-    class VySkyboxRenderSystem
+    class VySkyboxSystem
     {
     public:
-        VySkyboxRenderSystem(VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
-        ~VySkyboxRenderSystem();
+        VySkyboxSystem(VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
+        ~VySkyboxSystem();
 
         // Non-copyable
-        VySkyboxRenderSystem(const VySkyboxRenderSystem&)            = delete;
-        VySkyboxRenderSystem& operator=(const VySkyboxRenderSystem&) = delete;
+        VySkyboxSystem(const VySkyboxSystem&)            = delete;
+        VySkyboxSystem& operator=(const VySkyboxSystem&) = delete;
 
         /**
          * @brief Render the skybox

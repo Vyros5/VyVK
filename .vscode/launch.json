@@ -12,7 +12,9 @@
             "args": [],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
-            "environment": [],
+            "environment": [
+                { "name": "VULKAN_SDK", "value": "C:/VulkanSDK/1.4.335.0" }
+            ],
             "console": "integratedTerminal"
         }
     ]

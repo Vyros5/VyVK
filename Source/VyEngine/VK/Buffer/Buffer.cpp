@@ -16,7 +16,7 @@ namespace Vy
 // =========================================================================================================================
 
 	VyBufferInfo 
-	VyBuffer::uniformBuffer(TString name, VkDeviceSize instanceSize, U32 instanceCount /*MAX_FRAMES_IN_FLIGHT*/)
+	VyBuffer::uniformBuffer(TString name, VkDeviceSize instanceSize, U32 instanceCount /*MAX_FRAMES_IN_FLIGHT*/, VkBufferUsageFlags otherUsage /*0*/)
 	{
 		VY_ASSERT(instanceSize  > 0, "Cannot create uniform buffer of size 0");
 		VY_ASSERT(instanceCount > 0, "Cannot create uniform buffer with 0 instances");
@@ -25,7 +25,7 @@ namespace Vy
 			.DebugName          = name + "_uniform_buffer",
 			.InstanceSize       = instanceSize, 
 			.InstanceCount      = instanceCount, 
-			.UsageFlags         = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			.UsageFlags         = otherUsage | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			.AllocFlags         = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT, 
 			.MinOffsetAlignment = VyContext::device().properties().limits.minUniformBufferOffsetAlignment
 		};
@@ -214,7 +214,7 @@ namespace Vy
 		vmaGetAllocationInfo(VyContext::allocator(), m_Allocation, &m_AllocationInfo);
 		m_pMappedData = m_AllocationInfo.pMappedData;
 
-		printInfo();
+		// printInfo();
 
 		VKDbg::setObjectName(VK_OBJECT_TYPE_BUFFER, (U64)m_Buffer, m_DebugName.c_str());
 		vmaSetAllocationName(VyContext::allocator(), m_Allocation, m_DebugName.c_str());

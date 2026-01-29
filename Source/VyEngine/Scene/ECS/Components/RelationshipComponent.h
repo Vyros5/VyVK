@@ -33,4 +33,17 @@ namespace Vy
 
 		constexpr ChildrenComponent() = default;
 	};
+
+	class HierarchyComponent
+	{
+	public:
+		EntityHandle                 getParent()   const { return Parent; }
+		const TVector<EntityHandle>& getChildren() const { return Children; }
+
+	private:
+		EntityHandle          Parent = entt::null;
+		TVector<EntityHandle> Children;
+
+		friend class VyScene;
+	};
 }

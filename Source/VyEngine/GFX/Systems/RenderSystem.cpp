@@ -6,6 +6,8 @@
 #include <VyEngine/GFX/Resources/Texture/Texture.h>
 #include <VyEngine/Scene/ECS/Components.h>
 
+// #include <VyEngine/GFX/Systems/IBLSystem.h>
+
 #include <iostream>
 #include <VyLib/Common/AnsiColor.h>
 
@@ -16,9 +18,7 @@ namespace Vy
         Mat4 ModelMatrix { 1.0f };
         Mat4 NormalMatrix{ 1.0f };
 
-        // UVec4 Flags{ 0 };
-        U32 Flags{ 0 };
-        // U32 _pad[3];
+        U32 Flags{ 0u };
     };
 
 
@@ -35,7 +35,7 @@ namespace Vy
     }
 
 
-    void VyRenderSystem::renderMainPass(VyFrameInfo frameInfo)
+    void VyRenderSystem::render(VyFrameInfo frameInfo)
     {
         m_MainPipeline->bind( frameInfo.CommandBuffer );
 
@@ -71,19 +71,13 @@ namespace Vy
 
                 for (const auto& primitive : modelComp.Model->primitives())
                 {
-                    // const VyPBRMaterial* pMaterial = nullptr;
-                    // if (auto* mat = frameInfo.Scene->registry().try_get<VyPBRMaterial>(entity))
-                    // {
-                    //     pMaterial = mat;
-                    // }
-
                     const auto& material = primitive.Material;
 
                     U32 textureFlags = 0;
 
                     if (material.hasAlbedoMap())
                     {
-                        textureFlags |= 1 << 0;
+                        textureFlags |= VyGLTFModel::VY_HAS_ALBEDO_MAP;
                     }
 
                     // if (material.hasMetallicMap())
@@ -109,6 +103,7 @@ namespace Vy
                     if (material.hasEmissiveMap())
                     {
                         textureFlags |= VyGLTFModel::VY_HAS_EMISSIVE_MAP;
+                        // VY_INFO("1");
                     }
 
                     if (material.hasNormalMap())

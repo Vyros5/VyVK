@@ -1,44 +1,44 @@
-#include <VyEngine/GFX/Systems/MaterialSystem.h>
+// #include <VyEngine/GFX/Systems/MaterialSystem.h>
 
-#include <VyEngine/VK/Context.h>
-#include <VyEngine/Globals.h>
+// #include <VyEngine/VK/Context.h>
+// #include <VyEngine/Globals.h>
 
-#include <VyEngine/Scene/ECS/Components.h>
-// #include <VyEngine/GFX/Resources/Texture/Texture.h>
+// #include <VyEngine/Scene/ECS/Components.h>
+// // #include <VyEngine/GFX/Resources/Texture/Texture.h>
 
-namespace Vy
-{
-    Unique<VyDescriptorSetLayout> 
-    VyMaterialSystem::createMaterialSetLayout()
-    {
-        return VyDescriptorSetLayout::Builder{}
-            .setName   ("material")
-            // .setLayoutFlags(VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT)
-            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Albedo
-            .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Normal
-            .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Roughness
-            .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Metallic
-            .buildPtr();
-    }
+// namespace Vy
+// {
+//     Unique<VyDescriptorSetLayout> 
+//     VyMaterialSystem::createMaterialSetLayout()
+//     {
+//         return VyDescriptorSetLayout::Builder{}
+//             .setName   ("material")
+//             // .setLayoutFlags(VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT)
+//             .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Albedo
+//             .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Normal
+//             .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Roughness
+//             .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // Metallic
+//             .buildPtr();
+//     }
 
 
-    void VyMaterialSystem::updateMaterials(
-        VyFrameInfo&           frameInfo, 
-        VyDescriptorSetLayout& materialSetLayout, 
-        VyDescriptorPool&      materialPool)
-    {
-        // Iterate over all entities with materials and update their descriptor sets.
-        auto view = frameInfo.Scene->registry().view<MaterialComponent>();
+//     void VyMaterialSystem::updateMaterials(
+//         VyFrameInfo&           frameInfo, 
+//         VyDescriptorSetLayout& materialSetLayout, 
+//         VyDescriptorPool&      materialPool)
+//     {
+//         // Iterate over all entities with materials and update their descriptor sets.
+//         auto view = frameInfo.Scene->registry().view<MaterialComponent>();
         
-        for (auto&& [ entity, matComp ] : view.each())
-        {
-            if (matComp.Material)
-            {
-                matComp.Material->updateDescriptorSet( materialSetLayout, materialPool );
-            }
-        }
-    }
-}
+//         for (auto&& [ entity, matComp ] : view.each())
+//         {
+//             if (matComp.Material)
+//             {
+//                 matComp.Material->updateDescriptorSet( materialSetLayout, materialPool );
+//             }
+//         }
+//     }
+// }
 
 
 // namespace Vy

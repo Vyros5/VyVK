@@ -6,51 +6,57 @@
 
 namespace Vy
 {
-    struct VyDescriptorSet
-    {
-        VkDescriptorSet               Set = VK_NULL_HANDLE;
-        VyDescriptorSetLayout&        SetLayout;
-        TVector<VkWriteDescriptorSet> Writes;
+	// class VyBuffer;
+	// class VyTexture;
 
-        VyDescriptorSet() = delete;
+    // class VyDescriptorSet
+    // {
+	// public:
+	// 	class Builder
+	// 	{
+	// 	public:
+	// 		Builder(VyDescriptorSetLayout& setLayout);
 
-        explicit VyDescriptorSet(VyDescriptorSetLayout& layout) :
-            SetLayout( layout )
-        {
-        }
+	// 		Builder(const Builder&) = delete;
+			
+    //         ~Builder() = default;
 
-        /**
-         * @brief Configure buffer which is part of descriptor
-         * @param binding number in the set
-         * @param dstIndex index of the element which has to be configured
-         * @param count number of descriptors to update
-         * @param pBufferInfo contains buffer details for linking to the descriptor
-         * @return gfx descriptor set
-         */
-        VyDescriptorSet& configureBuffer(
-            BindingIndex            binding,
-            U32                     dstIndex,
-            U32                     count,
-            VkDescriptorBufferInfo* pBufferInfo);
+	// 		Builder& operator=(const Builder&) noexcept = delete;
 
-        /**
-         * @brief Configure image which is part of descriptor
-         * @param binding number in the set
-         * @param dstIndex index of the element which has to be configured
-         * @param count number of descriptors to update
-         * @param pImageInfo contains image deatils for linking to the descriptor
-         * @return gfx descriptor set
-         */
-        VyDescriptorSet& configureImage(
-            BindingIndex           binding,
-            U32                    dstIndex,
-            U32                    count,
-            VkDescriptorImageInfo* pImageInfo);
+	// 		Builder& addBuffer(BindingIndex binding, const VyBuffer& buffer);
+	// 		Builder& addTexture(BindingIndex binding, const VyTexture& texture);
+	// 		Builder& addTexture(BindingIndex binding, Shared<VyTexture> texture);
+			
+    //         VyDescriptorSet build();
 
-        /**
-         * @brief apply buffer/image configurations on the set. It will overwrite any
-         * existing configurations
-         */
-        void apply();
-    };
+	// 		Unique<VyDescriptorSet> buildPtr();
+
+	// 	private:
+	// 		VyDescriptorSetLayout& m_SetLayout;
+	// 		VyDescriptorWriter     m_Writer;
+	// 	};
+
+	// 	VyDescriptorSet(VyDescriptorSetLayout& setLayout);
+	// 	VyDescriptorSet(VyDescriptorSetLayout& setLayout, VyDescriptorPool& pool);
+
+	// 	VyDescriptorSet(const VyDescriptorSet&) = delete;
+	// 	VyDescriptorSet(VyDescriptorSet&&) = default;
+		
+    //     ~VyDescriptorSet() = default;
+
+	// 	VyDescriptorSet& operator=(const VyDescriptorSet&) = delete;
+	// 	VyDescriptorSet& operator=(VyDescriptorSet&&) = default;
+
+	// 	operator VkDescriptorSet() const { return m_DescriptorSet; }
+	// 	VkDescriptorSet handle() const { return m_DescriptorSet; }
+
+	// 	void bind(
+    //         VkCommandBuffer     commandBuffer, 
+    //         VkPipelineLayout    pipelineLayout, 
+	// 		VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
+    //     ) const;
+
+	// private:
+	// 	VkDescriptorSet m_DescriptorSet{ VK_NULL_HANDLE };
+    // };
 } 

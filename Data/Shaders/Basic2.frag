@@ -35,7 +35,7 @@ const float NORMAL_STRENGTH       = 1.0;
 const float EMISSIVE_INTENSITY    = 0.2;
 
 // ================================================================================================
-// MAP FLAGS
+// MAP FLAGS - (Must match the 'VyMaterialFlags' enum)
 
 const uint HAS_ALBEDO_MAP             = 1 << 0;
 const uint HAS_METALLIC_MAP           = 1 << 1;
@@ -115,16 +115,30 @@ layout (set = 0, binding = 0) uniform GlobalUbo
 // ================================================================================================
 // DESCRIPTOR SET 0 : DEFAULT TEXTURE
 
-layout (set = 0, binding = 1) uniform sampler2D DefaultTexture;
+layout (set = 0, binding = 1) uniform sampler2D DefaultTexture; // unused
 
 // ================================================================================================
 // DESCRIPTOR SET 1 : MATERIAL TEXTURES
 
 layout (set = 1, binding = 0) uniform sampler2D uAlbedoMap;
 layout (set = 1, binding = 1) uniform sampler2D uNormalMap;
+// layout (set = 1, binding = -) uniform sampler2D uMetallicMap;  // TODO
+// layout (set = 1, binding = -) uniform sampler2D uRoughnessMap; // TODO
 layout (set = 1, binding = 2) uniform sampler2D uMetallicRoughnessMap;
 layout (set = 1, binding = 3) uniform sampler2D uAOMap;
 layout (set = 1, binding = 4) uniform sampler2D uEmissiveMap;
+layout (set = 1, binding = 5) uniform PBRParameters 
+{
+    vec4  AlbedoFactor;
+    float MetallicFactor;
+    float RoughnessFactor;
+    float AOFactor;
+    float _pad0;
+
+    vec3  EmissiveFactor;
+    float EmissiveStrength;
+
+} uParameters;
 
 // ================================================================================================
 // CONSTANT PUSH : MAIN
@@ -136,7 +150,6 @@ layout (push_constant) uniform Push
 
     uint Flags;
     
-
 } uPush;
 
 // ================================================================================================
@@ -189,6 +202,7 @@ vec3 ACESFilmGammaCorrection(vec3 color)
     return LinearToSRGB(color); 
 }
 
+// ------------------------------------------------------------------------------------------------
 
 vec3 HDRToneMap(vec3 color)
 {
@@ -506,6 +520,20 @@ vec3 SpotLightCalculation(
     return Lo;
 }
 
+vec3 CalculateEmissive()
+{
+    vec3 emissive = uParameters.EmissiveFactor.rgb * uParameters.EmissiveStrength;
+
+    if ((uPush.Flags & HAS_EMISSIVE_MAP) != 0u)
+    {
+        vec3 emissiveTex = SRGBtoLinear(texture(uEmissiveMap, fragUV).rgb); // * EMISSIVE_INTENSITY;
+
+        emissive *= emissiveTex;
+    }
+
+    return emissive;
+}
+
 // ================================================================================================
 // MAIN
 
@@ -517,20 +545,21 @@ void main()
     float metallic  = 0.0;
     float ao        = 0.0;
 
-    vec3 albedo   = vec3(1.0);
-    vec3 emissive = vec3(0.0);
-    vec3 N        = vec3(0.0);
+    vec3 albedo     = vec3(1.0);
+    // vec3 emissive   = vec3(0.0);
+    vec3 N          = vec3(0.0);
 
-    bool aoHandled = false;
+    bool aoHandled  = false;
 
     // [ Albedo ]
     if ((uPush.Flags & HAS_ALBEDO_MAP) != 0u)
     {
+        // albedo = texture(uAlbedoMap, fragUV).rgb * uParameters.AlbedoFactor.rgb;
         albedo = pow(texture(uAlbedoMap, fragUV).rgb, vec3(2.2));
     }
 
-    // [ Metallic Roughness / AO ]
-    if ((uPush.Flags & USE_ARM_COMBINED) != 0u) // OcclusionRoughnessMetallic Packed
+    // [ AO-Roughness-Metallic Packed ]
+    if ((uPush.Flags & USE_ARM_COMBINED) != 0u)
     {
         vec3 arm = texture(uMetallicRoughnessMap, fragUV).rgb;
 
@@ -541,31 +570,41 @@ void main()
         aoHandled = true;
     }
     
-    // [ Metallic Roughness ]
-    else if ((uPush.Flags & USE_MR_COMBINED) != 0u) // MetallicRoughness Packed (glTF)
+    // [ Metallic-Roughness Packed (glTF) ]
+    else if ((uPush.Flags & USE_MR_COMBINED) != 0u)
     {
         vec3 mr = texture(uMetallicRoughnessMap, fragUV).rgb;
 
-        metallic  = clamp(mr.b * METALLIC_MULTIPLIER,  0.0,  1.0);
-        roughness = clamp(mr.g * ROUGHNESS_MULTIPLIER, 0.04, 1.0);
+        metallic  = clamp(mr.b * uParameters.MetallicFactor,  0.0,  1.0);
+        roughness = clamp(mr.g * uParameters.RoughnessFactor, 0.04, 1.0);
+        // metallic  = clamp(mr.b * METALLIC_MULTIPLIER,  0.0,  1.0);
+        // roughness = clamp(mr.g * ROUGHNESS_MULTIPLIER, 0.04, 1.0);
     }
     else
     {
         // TODO: Sample individual roughness and metallic textures.
+        
+        // // [ Metallic ]
+        // if ((uPush.Flags & HAS_METALLIC_MAP) != 0u)
+        // {
+        //     metallic = texture(uMetallicMap, fragUV).r;
+        // }
+
+        // // [ Roughness ]
+        // if ((uPush.Flags & HAS_ROUGHNESS_MAP) != 0u)
+        // {
+        //     roughness = texture(uRoughnessMap, fragUV).r;
+        // }
     }
 
-    // [ Ambient Occlusion ]
+    // [ AO (Ambient Occlusion) ]
     if (!aoHandled && (uPush.Flags & HAS_AO_MAP) != 0u)
     {
         ao *= clamp(texture(uAOMap, fragUV).r * AO_MULTIPLIER, 0.0, 1.0);
     }
 
     // [ Emissive ]
-    if ((uPush.Flags & HAS_EMISSIVE_MAP) != 0u)
-    {
-        // emissive = texture(uEmissiveMap, fragUV).rgb * EMISSIVE_INTENSITY;
-        emissive = SRGBtoLinear(texture(uEmissiveMap, fragUV).rgb) * EMISSIVE_INTENSITY;
-    }
+    vec3 emissive = CalculateEmissive();
 
     // [ Surface Normal ]
     if ((uPush.Flags & HAS_NORMAL_MAP) != 0u)
@@ -579,7 +618,7 @@ void main()
 
     // -------------------------------------------------------------------
 
-    // Camera Position (Wolrd Space)
+    // Camera Position (World Space)
     vec3 cameraPosWS = uUbo.Camera.InverseView[3].xyz;
     
     // View direction
@@ -588,7 +627,7 @@ void main()
     // Total reflected radiance back to the viewer.
     vec3 Lo = vec3(0.0);
 
-    // Point Lights
+    // [ Point Lights ]
     for(int i = 0; i < uUbo.PointLightsCount; i++)
     {
         PointLightData light = uUbo.PointLights[ i ];
@@ -603,7 +642,7 @@ void main()
         );
     }
 
-    // Spot Lights
+    // [ Spot Lights ]
     for(int j = 0; j < uUbo.SpotLightsCount; j++)
     {
         SpotLightData light = uUbo.SpotLights[ j ];
@@ -621,6 +660,7 @@ void main()
     // Improvised ambient term.
     vec3 ambient = uUbo.DirectionalLight.Direction.w * albedo * ao;
 
+    // [ Direct Light ]
     vec3 dirLi = DirectionalLightCalculation(
         albedo, 
         metallic, 
@@ -631,13 +671,16 @@ void main()
         uUbo.DirectionalLight.Color
     );
 
-    // Final composite
+    // [ Final Composite ]
     vec3 color = ambient + Lo + dirLi;
 
-    // color += emissive;
+    if ((uPush.Flags & HAS_EMISSIVE_MAP) != 0u)
+    {
+        color += emissive;
+    }
 
-    // Tone Mapping / Gamma Correction (sRGB)
-    color = ACESFilmGammaCorrection(color); 
+    // [ Tone Mapping / Gamma Correction (sRGB) ]
+    color = ACESFilmGammaCorrection( color ); 
     
     outColor = vec4(color, 1.0);
 }

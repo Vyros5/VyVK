@@ -11,6 +11,9 @@
 
 #include <VyEngine/VK/Swapchain/Swapchain.h>
 
+#include <iostream>
+#include <VyLib/Common/AnsiColor.h>
+
 namespace Vy
 {
     VyScene::VyScene(const TStringView name) :
@@ -170,5 +173,75 @@ namespace Vy
 		// addLogicSystem<VyTransformSystem>();
         // addLogicSystem<HierarchySystem>();
 		// addLogicSystem<CameraSystem>();
+    }
+
+
+    void VyScene::setEntityParent(EntityHandle child, EntityHandle parent)
+    {
+        if (!m_Registry.valid(child) && !m_Registry.valid(parent))
+        {
+            throw std::invalid_argument("Entity or parent is invalid");
+        }
+
+        auto& oldHierarchy = m_Registry.get<HierarchyComponent>(child);
+
+        if (m_Registry.valid(oldHierarchy.Parent))
+        {
+            auto &oldParentHierarchy = m_Registry.get<HierarchyComponent>(oldHierarchy.Parent);
+            auto &children           = oldParentHierarchy.Children;
+
+            children.erase(std::remove(children.begin(), children.end(), child), children.end());
+
+            oldHierarchy.Parent = entt::null;
+        }
+
+        oldHierarchy.Parent = parent;
+        auto& newHierarchy  = m_Registry.get<HierarchyComponent>(parent);
+        
+        newHierarchy.Children.push_back(child);
+    }
+
+    
+    const TVector<EntityHandle>& VyScene::getEntityChildren(EntityHandle entity)
+    {
+        if (m_Registry.all_of<HierarchyComponent>(entity))
+        {
+            return m_Registry.get<HierarchyComponent>(entity).Children;
+        }
+
+        static const TVector<EntityHandle> empty;
+        return empty;
+    }
+
+    EntityHandle VyScene::getEntityParent(EntityHandle entity)
+    {
+        if (m_Registry.all_of<HierarchyComponent>(entity))
+        {
+            return m_Registry.get<HierarchyComponent>(entity).Parent;
+        }
+        return entt::null;
+    }
+
+
+    void VyScene::print()
+    {
+        auto view = this->registry().view<TagComponent>();
+
+		std::stringstream ss;
+        ss  << "\n--------------------------------------------------------------------------" << '\n'
+			<< "[" << YELLOW "Scene Stats" RESET "] " << '\n'
+            << " - Total Entities : " << view.size()  << '\n'
+            << '\n'
+            <<  " - Entities: " << '\n'
+        ;
+
+		for (auto&& [ entity, tag ] : view.each())
+		{
+			ss  << "    - " << "(" << GRAY << (U32)entity << RESET << ") " CYAN << tag.Tag.c_str() << RESET << '\n';
+		}
+
+		ss  << "--------------------------------------------------------------------------" << '\n';
+
+        std::cout << ss.str() << std::endl;
     }
 }

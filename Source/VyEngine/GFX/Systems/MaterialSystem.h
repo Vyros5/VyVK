@@ -1,34 +1,34 @@
-#pragma once
+// #pragma once
 
-#include <VyEngine/VK/Pipeline/Pipeline.h>
-#include <VyEngine/GFX/Data/FrameInfo.h>
-// #include <VyEngine/GFX/Resources/Material/Material.h>
-#include <VyEngine/GFX/Resources/Mesh/Material.h>
+// #include <VyEngine/VK/Pipeline/Pipeline.h>
+// #include <VyEngine/GFX/Data/FrameInfo.h>
+// // #include <VyEngine/GFX/Resources/Material/Material.h>
+// #include <VyEngine/GFX/Resources/Mesh/Material.h>
 
-#include <VyEngine/VK/Descriptors/Descriptors.h>
+// #include <VyEngine/VK/Descriptors/Descriptors.h>
 
-namespace Vy
-{
-    class VyMaterialSystem 
-    {
-    public:
-        VyMaterialSystem();
-        ~VyMaterialSystem() = default;
+// namespace Vy
+// {
+//     class VyMaterialSystem 
+//     {
+//     public:
+//         VyMaterialSystem();
+//         ~VyMaterialSystem() = default;
 
-        VyMaterialSystem(const VyMaterialSystem&)            = delete;
-        VyMaterialSystem& operator=(const VyMaterialSystem&) = delete;
+//         VyMaterialSystem(const VyMaterialSystem&)            = delete;
+//         VyMaterialSystem& operator=(const VyMaterialSystem&) = delete;
 
-        Unique<VyDescriptorSetLayout> createMaterialSetLayout();
+//         Unique<VyDescriptorSetLayout> createMaterialSetLayout();
             
-        void updateMaterials(
-            VyFrameInfo&           frameInfo, 
-            VyDescriptorSetLayout& materialSetLayout, 
-            VyDescriptorPool&      materialPool
-        );
+//         void updateMaterials(
+//             VyFrameInfo&           frameInfo, 
+//             VyDescriptorSetLayout& materialSetLayout, 
+//             VyDescriptorPool&      materialPool
+//         );
 
-    private:
-    };
-}
+//     private:
+//     };
+// }
 
 // namespace Vy
 // {

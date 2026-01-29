@@ -40,7 +40,7 @@ namespace Vy
          * 
          * @return The created Uniform Buffer Description.
          */
-		static VyBufferInfo uniformBuffer(TString name, VkDeviceSize instanceSize, U32 instanceCount = MAX_FRAMES_IN_FLIGHT);
+		static VyBufferInfo uniformBuffer(TString name, VkDeviceSize instanceSize, U32 instanceCount = MAX_FRAMES_IN_FLIGHT, VkBufferUsageFlags otherUsage = 0);
 
         /**
          * @brief Factory Method for creating a descriptor for a Vertex Buffer object. (VBO)

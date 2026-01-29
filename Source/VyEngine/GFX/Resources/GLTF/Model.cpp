@@ -2,7 +2,7 @@
 
 #include "tiny_gltf.h"
 
-
+#include <VyEngine/VK/Context.h>
 // #define TINYGLTF_IMPLEMENTATION
 //#define STB_IMAGE_IMPLEMENTATION
 // #define TINYGLTF_NO_STB_IMAGE_WRITE
@@ -41,400 +41,6 @@ namespace std
 
 namespace Vy
 {
-
-    // static inline float DecodeComponent(int componentType, bool normalized, const void* src)
-    // {
-    //     switch (componentType) 
-    //     {
-    //     case TINYGLTF_COMPONENT_TYPE_FLOAT: 
-    //     {
-    //         float v;
-    //         std::memcpy(&v, src, sizeof(float));
-    //         return v;
-    //     }
-    //     case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: 
-    //     {
-    //         U8 v;
-    //         std::memcpy(&v, src, 1);
-    //         return normalized ? (float)v / 255.0f : (float)v;
-    //     }
-    //     case TINYGLTF_COMPONENT_TYPE_BYTE: 
-    //     {
-    //         I8 v;
-    //         std::memcpy(&v, src, 1);
-    //         if (normalized) {
-    //             // Map to [-1,1]
-    //             return std::max(-1.0f, (float)v / 127.0f);
-    //         }
-    //         return (float)v;
-    //     }
-    //     case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: 
-    //     {
-    //         U16 v;
-    //         std::memcpy(&v, src, 2);
-    //         return normalized ? (float)v / 65535.0f : (float)v;
-    //     }
-    //     case TINYGLTF_COMPONENT_TYPE_SHORT: 
-    //     {
-    //         I16 v;
-    //         std::memcpy(&v, src, 2);
-    //         if (normalized) {
-    //             return std::max(-1.0f, (float)v / 32767.0f);
-    //         }
-    //         return (float)v;
-    //     }
-    //     case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: 
-    //     {
-    //         U32 v;
-    //         std::memcpy(&v, src, 4);
-    //         return (float)v; // POSITION should not be UINT normally, but handle generically.
-    //     }
-    //     default:
-    //         VY_ERROR("Unsupported vertex componentType: {}", componentType);
-    //         return 0.0f;
-    //     }
-    // }
-
-    // // https://github.com/ClemensX/ShadedPathV/blob/a2525bc341c7e4ecd49f820871f5c04f6171fa10/src/lib/gltf.cpp
-    // void extractVertexAttribute(
-    //     const tinygltf::Model&     model, 
-    //     const tinygltf::Primitive& primitive, 
-    //     const TString&             attributeName, 
-    //     TVector<float>&            outData, 
-    //     int&                       stride) 
-    // {
-    //     outData.clear();
-    //     stride = 0;
-
-    //     auto it = primitive.attributes.find(attributeName);
-    //     if (it == primitive.attributes.end()) return;
-
-    //     const tinygltf::Accessor& accessor = model.accessors[static_cast<size_t>(it->second)];
-    //     if (accessor.bufferView < 0) 
-    //     {
-    //         VY_ERROR("Accessor bufferView < 0 for attribute {}", attributeName);
-    //         return;
-    //     }
-
-    //     const tinygltf::BufferView& bufferView = model.bufferViews[static_cast<size_t>(accessor.bufferView)];
-    //     const tinygltf::Buffer&     buffer     = model.buffers[static_cast<size_t>(bufferView.buffer)];
-
-    //     const size_t numComponents = tinygltf::GetNumComponentsInType(accessor.type);
-    //     if (numComponents == 0) 
-    //     {
-    //         VY_ERROR("Invalid accessor.type for attribute {}", attributeName);
-    //         return;
-    //     }
-
-    //     // Bytes per single component.
-    //     int componentSize = 0;
-    //     switch (accessor.componentType) 
-    //     {
-    //     case TINYGLTF_COMPONENT_TYPE_FLOAT:          componentSize = 4; break;
-    //     case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-    //     case TINYGLTF_COMPONENT_TYPE_BYTE:           componentSize = 1; break;
-    //     case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-    //     case TINYGLTF_COMPONENT_TYPE_SHORT:          componentSize = 2; break;
-    //     case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:   componentSize = 4; break;
-    //     default:
-    //         VY_ERROR("Unsupported vertex componentType: {}", accessor.componentType);
-    //         return;
-    //     }
-
-    //     // Byte stride between consecutive vertices in the buffer.
-    //     const int byteStride = accessor.ByteStride(bufferView) > 0
-    //         ? accessor.ByteStride(bufferView)
-    //         : int(numComponents) * componentSize;
-
-    //     if (byteStride < componentSize * int(numComponents)) 
-    //     {
-    //         // Spec allows >= packed size. Anything smaller is invalid.
-    //         VY_ERROR("Invalid byteStride ({}) for attribute {}", byteStride, attributeName);
-    //         return;
-    //     }
-
-    //     const size_t start = bufferView.byteOffset + accessor.byteOffset;
-    //     // Last vertex must fit: start + (count-1)*byteStride + packedSize
-    //     const size_t packedSize = numComponents * size_t(componentSize);
-    //     const size_t lastByte   = start + (accessor.count ? (accessor.count - 1) * size_t(byteStride) : 0) + packedSize;
-    //     if (lastByte > buffer.data.size()) 
-    //     {
-    //         VY_ERROR("Buffer overrun risk while reading attribute  {}", attributeName);
-    //         return;
-    //     }
-
-    //     const unsigned char* pBase = reinterpret_cast<const unsigned char*>(buffer.data.data() + start);
-
-    //     outData.resize(accessor.count * numComponents);
-
-    //     stride = int(numComponents); // number of float components per vertex
-
-    //     for (size_t i = 0; i < accessor.count; ++i) 
-    //     {
-    //         const unsigned char* pElem = pBase + i * byteStride;
-
-    //         // Components in the attribute are ALWAYS tightly packed starting at pElem,
-    //         // even if vertex is interleaved (extra bytes follow after the attribute data).
-    //         for (size_t c = 0; c < numComponents; ++c) 
-    //         {
-    //             const void* pCompSrc = pElem + c * componentSize;
-
-    //             outData[i * numComponents + c] = DecodeComponent(accessor.componentType, accessor.normalized, pCompSrc);
-    //         }
-    //     }
-    // }
-
-
-    // VkFormat VyGLTFModel::accessorFormat(tinygltf::Model& inModel, U32 index) const
-    // {
-    //     assert(index < inModel.accessors.size());
-    //     auto& accessor = inModel.accessors[index];
-
-    //     VkFormat format;
-    //     switch (accessor.componentType) 
-    //     {
-    //         case TINYGLTF_COMPONENT_TYPE_BYTE:
-    //         {
-    //             static const TMap<int, VkFormat> mapped_format = {
-    //                 {TINYGLTF_TYPE_SCALAR,       VK_FORMAT_R8_SINT},
-    //                 {  TINYGLTF_TYPE_VEC2,     VK_FORMAT_R8G8_SINT},
-    //                 {  TINYGLTF_TYPE_VEC3,   VK_FORMAT_R8G8B8_SINT},
-    //                 {  TINYGLTF_TYPE_VEC4, VK_FORMAT_R8G8B8A8_SINT}
-    //             };
-
-    //             static const TMap<int, VkFormat> mapped_format_normalize = {
-    //                 {TINYGLTF_TYPE_SCALAR,       VK_FORMAT_R8_SNORM},
-    //                 {  TINYGLTF_TYPE_VEC2,     VK_FORMAT_R8G8_SNORM},
-    //                 {  TINYGLTF_TYPE_VEC3,   VK_FORMAT_R8G8B8_SNORM},
-    //                 {  TINYGLTF_TYPE_VEC4, VK_FORMAT_R8G8B8A8_SNORM}
-    //             };
-
-    //             if (accessor.normalized) 
-    //             {
-    //                 format = mapped_format_normalize.at(accessor.type);
-    //             } 
-    //             else {
-    //                 format = mapped_format.at(accessor.type);
-    //             }
-                
-    //         } break;
-
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-    //         {
-    //             static const TMap<int, VkFormat> mapped_format = {
-    //                 {TINYGLTF_TYPE_SCALAR,       VK_FORMAT_R8_UINT},
-    //                 {  TINYGLTF_TYPE_VEC2,     VK_FORMAT_R8G8_UINT},
-    //                 {  TINYGLTF_TYPE_VEC3,   VK_FORMAT_R8G8B8_UINT},
-    //                 {  TINYGLTF_TYPE_VEC4, VK_FORMAT_R8G8B8A8_UINT}
-    //             };
-
-    //             static const TMap<int, VkFormat> mapped_format_normalize = {
-    //                 {TINYGLTF_TYPE_SCALAR,       VK_FORMAT_R8_UNORM},
-    //                 {  TINYGLTF_TYPE_VEC2,     VK_FORMAT_R8G8_UNORM},
-    //                 {  TINYGLTF_TYPE_VEC3,   VK_FORMAT_R8G8B8_UNORM},
-    //                 {  TINYGLTF_TYPE_VEC4, VK_FORMAT_R8G8B8A8_UNORM}
-    //             };
-                
-    //             if (accessor.normalized) 
-    //             {
-    //                 format = mapped_format_normalize.at(accessor.type);
-    //             } 
-    //             else {
-    //                 format = mapped_format.at(accessor.type);
-    //             }
-
-    //         } break;
-
-    //         case TINYGLTF_COMPONENT_TYPE_SHORT:
-    //         {
-    //             static const TMap<int, VkFormat> mapped_format = {
-    //                 {TINYGLTF_TYPE_SCALAR,          VK_FORMAT_R16_SINT},
-    //                 {  TINYGLTF_TYPE_VEC2,       VK_FORMAT_R16G16_SINT},
-    //                 {  TINYGLTF_TYPE_VEC3,    VK_FORMAT_R16G16B16_SINT},
-    //                 {  TINYGLTF_TYPE_VEC4, VK_FORMAT_R16G16B16A16_SINT}
-    //             };
-
-    //             static const TMap<int, VkFormat> mapped_format_normalize = {
-    //                 {TINYGLTF_TYPE_SCALAR,          VK_FORMAT_R16_SNORM},
-    //                 {  TINYGLTF_TYPE_VEC2,       VK_FORMAT_R16G16_SNORM},
-    //                 {  TINYGLTF_TYPE_VEC3,    VK_FORMAT_R16G16B16_SNORM},
-    //                 {  TINYGLTF_TYPE_VEC4, VK_FORMAT_R16G16B16A16_SNORM}
-    //             };
-
-    //             if (accessor.normalized) 
-    //             {
-    //                 format = mapped_format_normalize.at(accessor.type);
-    //             } 
-    //             else {
-    //                 format = mapped_format.at(accessor.type);
-    //             }
-
-    //         } break;
-
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-    //         {
-    //             static const TMap<int, VkFormat> mapped_format = {
-    //                 {TINYGLTF_TYPE_SCALAR,          VK_FORMAT_R16_UINT},
-    //                 {  TINYGLTF_TYPE_VEC2,       VK_FORMAT_R16G16_UINT},
-    //                 {  TINYGLTF_TYPE_VEC3,    VK_FORMAT_R16G16B16_UINT},
-    //                 {  TINYGLTF_TYPE_VEC4, VK_FORMAT_R16G16B16A16_UINT}
-    //             };
-
-    //             static const TMap<int, VkFormat> mapped_format_normalize = {
-    //                 {TINYGLTF_TYPE_SCALAR,          VK_FORMAT_R16_UNORM},
-    //                 {  TINYGLTF_TYPE_VEC2,       VK_FORMAT_R16G16_UNORM},
-    //                 {  TINYGLTF_TYPE_VEC3,    VK_FORMAT_R16G16B16_UNORM},
-    //                 {  TINYGLTF_TYPE_VEC4, VK_FORMAT_R16G16B16A16_UNORM}
-    //             };
-
-    //             if (accessor.normalized) 
-    //             {
-    //                 format = mapped_format_normalize.at(accessor.type);
-    //             } 
-    //             else {
-    //                 format = mapped_format.at(accessor.type);
-    //             }
-
-    //         } break;
-
-    //         case TINYGLTF_COMPONENT_TYPE_INT:
-    //         {
-    //             static const TMap<int, VkFormat> mapped_format = {
-    //                 {TINYGLTF_TYPE_SCALAR,          VK_FORMAT_R32_SINT},
-    //                 {  TINYGLTF_TYPE_VEC2,       VK_FORMAT_R32G32_SINT},
-    //                 {  TINYGLTF_TYPE_VEC3,    VK_FORMAT_R32G32B32_SINT},
-    //                 {  TINYGLTF_TYPE_VEC4, VK_FORMAT_R32G32B32A32_SINT}
-    //             };
-
-    //             format = mapped_format.at(accessor.type);
-
-    //         } break;
-
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-    //         {
-    //             static const TMap<int, VkFormat> mapped_format = {
-    //                 {TINYGLTF_TYPE_SCALAR,          VK_FORMAT_R32_UINT},
-    //                 {  TINYGLTF_TYPE_VEC2,       VK_FORMAT_R32G32_UINT},
-    //                 {  TINYGLTF_TYPE_VEC3,    VK_FORMAT_R32G32B32_UINT},
-    //                 {  TINYGLTF_TYPE_VEC4, VK_FORMAT_R32G32B32A32_UINT}
-    //             };
-
-    //             format = mapped_format.at(accessor.type);
-
-    //         } break;
-
-    //         case TINYGLTF_COMPONENT_TYPE_FLOAT:
-    //         {
-    //             static const TMap<int, VkFormat> mapped_format = {
-    //                 {TINYGLTF_TYPE_SCALAR,          VK_FORMAT_R32_SFLOAT},
-    //                 {  TINYGLTF_TYPE_VEC2,       VK_FORMAT_R32G32_SFLOAT},
-    //                 {  TINYGLTF_TYPE_VEC3,    VK_FORMAT_R32G32B32_SFLOAT},
-    //                 {  TINYGLTF_TYPE_VEC4, VK_FORMAT_R32G32B32A32_SFLOAT}
-    //             };
-
-    //             format = mapped_format.at(accessor.type);
-
-    //         } break;
-
-    //         default:
-    //         {
-    //             format = VK_FORMAT_UNDEFINED;
-    //             VY_ERROR("Invalid gltf accessor component type: {}, {}", accessor.componentType, accessor.type);
-            
-    //         } break;
-    //     }
-    //     return format;
-    // }
-
-
-    // VkFormat VyGLTFModel::imageFormat(tinygltf::Model& inModel, U32 index) const
-    // {
-    //     assert(index < inModel.images.size());
-        
-    //     auto& image = inModel.images[index];
-
-    //     int component = image.component;
-    //     int pixel_type = image.pixel_type;
-
-    //     if (1 == component) {
-    //         switch (pixel_type) {
-    //         case TINYGLTF_COMPONENT_TYPE_BYTE: return VK_FORMAT_R8_SNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return VK_FORMAT_R8_UNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_SHORT: return VK_FORMAT_R16_SNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return VK_FORMAT_R16_UNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_INT:
-    //         case TINYGLTF_COMPONENT_TYPE_FLOAT:
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return VK_FORMAT_R32_SFLOAT;
-    //         };
-    //     } else if (2 == component) {
-    //         switch (pixel_type) {
-    //         case TINYGLTF_COMPONENT_TYPE_BYTE: return VK_FORMAT_R8G8_SNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return VK_FORMAT_R8G8_UNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_SHORT: return VK_FORMAT_R16G16_SNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return VK_FORMAT_R16G16_UNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_INT:
-    //         case TINYGLTF_COMPONENT_TYPE_FLOAT:
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return VK_FORMAT_R32G32_SFLOAT;
-    //         };
-    //     } else if (3 == component) {
-    //         switch (pixel_type) {
-    //         case TINYGLTF_COMPONENT_TYPE_BYTE: return VK_FORMAT_R8G8B8_SNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return VK_FORMAT_R8G8B8_UNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_SHORT: return VK_FORMAT_R16G16B16_SNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return VK_FORMAT_R16G16B16_UNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_INT:
-    //         case TINYGLTF_COMPONENT_TYPE_FLOAT:
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return VK_FORMAT_R32G32B32_SFLOAT;
-    //         };
-    //     } else if (4 == component) {
-    //         switch (pixel_type) {
-    //         case TINYGLTF_COMPONENT_TYPE_BYTE: return VK_FORMAT_R8G8B8A8_SNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return VK_FORMAT_R8G8B8A8_UNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_SHORT: return VK_FORMAT_R16G16B16A16_SNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return VK_FORMAT_R16G16B16A16_UNORM;
-    //         case TINYGLTF_COMPONENT_TYPE_INT:
-    //         case TINYGLTF_COMPONENT_TYPE_FLOAT:
-    //         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return VK_FORMAT_R32G32B32A32_SFLOAT;
-    //         };
-    //     }
-    //     VY_ERROR("Invalid gltf image: component = {}, pixel type = {}", component, pixel_type);
-    //     return VK_FORMAT_UNDEFINED;
-    // }
-
-    // // Helper: Get accessor data as typed pointer
-    // template<typename T>
-    // const T* getAccessorData(const tinygltf::Model& model, int accessorIndex) 
-    // {
-    //     if (accessorIndex < 0) return nullptr;
-
-    //     const auto& accessor   = model.accessors  [ accessorIndex       ];
-    //     const auto& bufferView = model.bufferViews[ accessor.bufferView ];
-    //     const auto& buffer     = model.buffers    [ bufferView.buffer   ];
-
-    //     return reinterpret_cast<const T*>( &buffer.data[ bufferView.byteOffset + accessor.byteOffset ] );
-    // }
-
-    
-    // // Helper: Get accessor count
-    // size_t getAccessorCount(const tinygltf::Model& model, int accessorIndex) 
-    // {
-    //     if (accessorIndex < 0) return 0;
-    
-    //     return model.accessors[ accessorIndex ].count;
-    // }
-
-
-
-
-
-
-
-
-
-
-
-
-
     // Shared<VyGLTFModel> VyGLTFModel::createFromFile(const TString& filepath)
     // {
     //     Builder builder{};
@@ -580,106 +186,114 @@ namespace Vy
     //     }
     // }
 
+    // https://github.com/Loxodromics/LillUgsi/blob/main/src/rendering/models/embeddedtextureextractor.cpp
+    
+
     // Helper function to get texture path from glTF, handling both URI and embedded images
-    // static TString getTexturePath(const tinygltf::Model& inModel, int textureIndex, const TString& baseDir, const TString& cacheDir)
-    // {
-    //     if (textureIndex < 0 || textureIndex >= static_cast<int>(inModel.textures.size()))
-    //     {
-    //         return "";
-    //     }
+    static TString getTexturePath(const tinygltf::Model& inModel, int texIndex, const TString& baseDir, const TString& cacheDir)
+    {
+        if (texIndex < 0 || texIndex >= static_cast<int>(inModel.textures.size()))
+        {
+            return "";
+        }
 
-    //     const tinygltf::Texture& gltfTexture = inModel.textures[ textureIndex ];
+        const tinygltf::Texture& gltfTexture = inModel.textures[ texIndex ];
 
-    //     if (gltfTexture.source < 0 || gltfTexture.source >= static_cast<int>(inModel.images.size()))
-    //     {
-    //         return "";
-    //     }
+        if (gltfTexture.source < 0 || gltfTexture.source >= static_cast<int>(inModel.images.size()))
+        {
+            return "";
+        }
 
-    //     const tinygltf::Image& image = inModel.images[ gltfTexture.source ];
+        const tinygltf::Image& image = inModel.images[ gltfTexture.source ];
 
-    //     // If image has a URI, it's an external file.
-    //     if (!image.uri.empty())
-    //     {
-    //         // Check if it's a data URI (base64 embedded)
-    //         if (image.uri.find("data:") == 0)
-    //         {
-    //             // It's a data URI - tinygltf has already decoded it into image.image
-    //             // We need to write it to a cache file
-    //             TString extension = ".png"; // Default to PNG
-    //             if (image.mimeType == "image/jpeg")
-    //             {
-    //                 extension = ".jpg";
-    //             }
-    //             else if (image.mimeType == "image/png")
-    //             {
-    //                 extension = ".png";
-    //             }
+        // If image has a URI, it's an external file.
+        if (!image.uri.empty())
+        {
+            // Check if it's a data URI ( base64-embedded )
+            if (image.uri.find("data:") == 0)
+            {
+                // Data URI - tinygltf has already decoded it into image.image.
 
-    //             TString cachePath = cacheDir + "/texture_" + std::to_string(gltfTexture.source) + extension;
+                // We need to write it to a cache file
 
-    //             // Create cache directory if it doesn't exist
-    //             std::filesystem::create_directories(cacheDir);
+                TString extension = ".png"; // Default to PNG
 
-    //             // Write the image data to file
-    //             std::ofstream outFile(cachePath, std::ios::binary);
-    //             if (outFile.is_open())
-    //             {
-    //                 outFile.write(reinterpret_cast<const char*>(image.image.data()), image.image.size());
-    //                 outFile.close();
+                if (image.mimeType == "image/jpeg")
+                {
+                    extension = ".jpg";
+                }
+                else if (image.mimeType == "image/png")
+                {
+                    extension = ".png";
+                }
 
-    //                 return cachePath;
-    //             }
-    //             else
-    //             {
-    //                 std::cerr << YELLOW << "[GLTFImporter] Warning: Failed to write cached texture: " << cachePath << RESET << std::endl;
-    //                 return "";
-    //             }
-    //         }
-    //         else
-    //         {
-    //             // Regular file URI - return path relative to base directory
-    //             return baseDir + image.uri;
-    //         }
-    //     }
+                TString cachePath = cacheDir + "/texture_" + std::to_string(gltfTexture.source) + extension;
 
-    //     // Image is embedded in a bufferView
-    //     else if (image.bufferView >= 0)
-    //     {
-    //         // Image data is embedded in the glTF file
-    //         // tinygltf has already loaded it into image.image
-    //         TString extension = ".png"; // Default to PNG
-    //         if (image.mimeType == "image/jpeg")
-    //         {
-    //             extension = ".jpg";
-    //         }
-    //         else if (image.mimeType == "image/png")
-    //         {
-    //             extension = ".png";
-    //         }
+                // Create cache directory if it doesn't exist.
+                std::filesystem::create_directories(cacheDir);
 
-    //         TString cachePath = cacheDir + "/embedded_texture_" + std::to_string(gltfTexture.source) + extension;
+                // Write the image data to file.
+                std::ofstream outFile(cachePath, std::ios::binary);
+                if (outFile.is_open())
+                {
+                    outFile.write(reinterpret_cast<const char*>(image.image.data()), image.image.size());
+                    outFile.close();
 
-    //         // Create cache directory if it doesn't exist
-    //         std::filesystem::create_directories(cacheDir);
+                    return cachePath;
+                }
+                else
+                {
+                    std::cerr << YELLOW << "[GLTFImporter] Warning: Failed to write cached texture: " << cachePath << RESET << std::endl;
+                    return "";
+                }
+            }
+            else
+            {
+                // Regular file URI - return path relative to base directory.
+                return baseDir + image.uri;
+            }
+        }
 
-    //         // Write the image data to file
-    //         std::ofstream outFile(cachePath, std::ios::binary);
-    //         if (outFile.is_open())
-    //         {
-    //             outFile.write(reinterpret_cast<const char*>(image.image.data()), image.image.size());
-    //             outFile.close();
+        // Image is embedded in a bufferView.
+        else if (image.bufferView >= 0)
+        {
+            // Image data is embedded in the glTF file.
+            // tinygltf has already loaded it into image.image.
 
-    //             return cachePath;
-    //         }
-    //         else
-    //         {
-    //             std::cerr << YELLOW << "[GLTFImporter] Warning: Failed to write embedded texture: " << cachePath << RESET << std::endl;
-    //             return "";
-    //         }
-    //     }
+            TString extension = ".png"; // Default to PNG
+            
+            if (image.mimeType == "image/jpeg")
+            {
+                extension = ".jpg";
+            }
+            else if (image.mimeType == "image/png")
+            {
+                extension = ".png";
+            }
 
-    //     return "";
-    // }
+            TString cachePath = cacheDir + "/embedded_texture_" + std::to_string(gltfTexture.source) + extension;
+
+            // Create cache directory if it doesn't exist.
+            std::filesystem::create_directories(cacheDir);
+
+            // Write the image data to file.
+            std::ofstream outFile(cachePath, std::ios::binary);
+            if (outFile.is_open())
+            {
+                outFile.write(reinterpret_cast<const char*>(image.image.data()), image.image.size());
+                outFile.close();
+
+                return cachePath;
+            }
+            else
+            {
+                std::cerr << YELLOW << "[GLTFImporter] Warning: Failed to write embedded texture: " << cachePath << RESET << std::endl;
+                return "";
+            }
+        }
+
+        return "";
+    }
 
     // bool GLTFImporter::load(VyGLTFModel::Builder& builder, const TString& filepath, bool bFlipX, bool bFlipY, bool bFlipZ)
     // {
@@ -1350,9 +964,9 @@ namespace Vy
         for (auto& texture : gltfModel.images)
         {
             TString texPath = path.parent_path().append(texture.uri).generic_string();
+
             m_Textures.push_back( VyTexture::createFromFilepath( texPath ));
 
-            // std::cout << "TexCount: " << info.TextureCount << ", Tex: " << texPath << std::endl;
             info.TextureCount++;
         }
 
@@ -1539,25 +1153,76 @@ namespace Vy
                     }
 
                     // [ MATERIALS ]
-                    VyPBRMaterial material{};
+                    VyPBRMaterial material;
                     {
                         if (gltfPrimitive.material != -1)
                         {
                             tinygltf::Material& gltfMaterial = gltfModel.materials[ gltfPrimitive.material ];
 
+                            material.Name = gltfMaterial.name;
+
                             // [ PBR Metallic Roughness Factors ]
                             const auto& pbr = gltfMaterial.pbrMetallicRoughness;
+
+                            auto color = pbr.baseColorFactor;
+                            material.Parameters.AlbedoFactor = Vec4(
+                                static_cast<float>(color[0]), 
+                                static_cast<float>(color[1]), 
+                                static_cast<float>(color[2]), 
+                                static_cast<float>(color[3]) 
+                            );
+
+                            material.Parameters.AOFactor = 1.0f;
+                            
+                            material.Parameters.MetallicFactor  = static_cast<float>(pbr.metallicFactor);
+                            material.Parameters.RoughnessFactor = static_cast<float>(pbr.roughnessFactor);
+
+                            material.Parameters.EmissiveFactor = Vec3(
+                                static_cast<float>(gltfMaterial.emissiveFactor[0]), 
+                                static_cast<float>(gltfMaterial.emissiveFactor[1]), 
+                                static_cast<float>(gltfMaterial.emissiveFactor[2])
+                            );
+
+                            // Parse Extensions
+                            // Emissive Strength
+                            if (gltfMaterial.extensions.find("KHR_materials_emissive_strength") != gltfMaterial.extensions.end())
+                            {
+                                const auto& ext = gltfMaterial.extensions.at("KHR_materials_emissive_strength");
+                                
+                                if (ext.Has("emissiveStrength"))
+                                {
+                                    material.Parameters.EmissiveStrength = static_cast<float>(ext.Get("emissiveStrength").GetNumberAsDouble());
+                                }
+                            }
+
+                            std::cout 
+                                << "[" << GREEN << " Material " << RESET << "] " 
+                                    << BLUE << material.Name << RESET 
+                                    << " -> PBR(albedo=<" 
+                                        << material.Parameters.AlbedoFactor.r << ","
+                                        << material.Parameters.AlbedoFactor.g << "," 
+                                        << material.Parameters.AlbedoFactor.b 
+                                    << ">, metallic=<" 
+                                        << material.Parameters.MetallicFactor
+                                    << ">, roughness=<" 
+                                        << material.Parameters.RoughnessFactor 
+                                    << ">), emissive=<" 
+                                        << material.Parameters.EmissiveFactor.r << ","
+                                        << material.Parameters.EmissiveFactor.g << "," 
+                                        << material.Parameters.EmissiveFactor.b 
+                                    << " (strength=<" 
+                                        << material.Parameters.EmissiveStrength 
+                                    << ">)>" 
+                                << std::endl;
 
                             // [ PBR - Albedo ]
                             if (pbr.baseColorTexture.index != -1)
                             {
-                                U32 textureIndex = pbr.baseColorTexture.index;
-                                U32 imageIndex   = gltfModel.textures[textureIndex].source;
+                                U32 texIndex = pbr.baseColorTexture.index;
+                                U32 imgIndex = gltfModel.textures[ texIndex ].source;
 
-                                material.AlbedoMap = m_Textures[ imageIndex ];
-
-                                // std::cout << "[AL] TexIndex: " << textureIndex << ", ImgIndex: " << imageIndex << std::endl;
-                                // material.HasAlbedo = 1;
+                                material.AlbedoMap    = m_Textures[ imgIndex ];
+                                material.HasAlbedoMap = true;
                             }
                             else {
                                 material.AlbedoMap = m_DefaultWhite;
@@ -1566,13 +1231,14 @@ namespace Vy
                             // [ PBR - MetallicRoughness ]
                             if (pbr.metallicRoughnessTexture.index != -1)
                             {
-                                U32 textureIndex = pbr.metallicRoughnessTexture.index;
-                                U32 imageIndex   = gltfModel.textures[textureIndex].source;
+                                U32 texIndex = pbr.metallicRoughnessTexture.index;
+                                U32 imgIndex = gltfModel.textures[ texIndex ].source;
                                 
-                                material.MetallicRoughnessMap        = m_Textures[imageIndex];
+                                material.MetallicRoughnessMap        = m_Textures[ imgIndex ];
                                 material.UseMetallicRoughnessTexture = true;
+                                material.HasMetallicRoughnessMap     = true;
 
-                                // [ ORM ]
+                                // [ ARM ]
                                 if (gltfMaterial.occlusionTexture.index == pbr.metallicRoughnessTexture.index)
                                 {
                                     material.UseOcclusionRoughnessMetallicTexture = true;
@@ -1582,25 +1248,32 @@ namespace Vy
                                 material.MetallicRoughnessMap = m_DefaultNormal;
                             }
 
-                            // [ Occlusion ]
-                            if (gltfMaterial.occlusionTexture.index != -1)
+                            // [ Ambient Occlusion ]
                             {
-                                U32 textureIndex = gltfMaterial.occlusionTexture.index;
-                                U32 imageIndex   = gltfModel.textures[textureIndex].source;
 
-                                material.AOMap = m_Textures[imageIndex];
-                            }
-                            else {
-                                material.AOMap = m_DefaultNormal;
+
+                                if (gltfMaterial.occlusionTexture.index != -1)
+                                {
+                                    U32 texIndex = gltfMaterial.occlusionTexture.index;
+                                    U32 imgIndex = gltfModel.textures[ texIndex ].source;
+
+                                    material.AOMap    = m_Textures[ imgIndex ];
+                                    material.HasAOMap = true;
+
+                                }
+                                else {
+                                    material.AOMap = m_DefaultNormal;
+                                }
                             }
 
                             // [ Emissive ]
                             if (gltfMaterial.emissiveTexture.index != -1)
                             {
-                                U32 textureIndex = gltfMaterial.emissiveTexture.index;
-                                U32 imageIndex   = gltfModel.textures[textureIndex].source;
+                                U32 texIndex = gltfMaterial.emissiveTexture.index;
+                                U32 imgIndex = gltfModel.textures[ texIndex ].source;
 
-                                material.EmissiveMap = m_Textures[imageIndex];
+                                material.EmissiveMap    = m_Textures[ imgIndex ];
+                                material.HasEmissiveMap = true;
                             }
                             else {
                                 material.EmissiveMap = m_DefaultWhite;
@@ -1609,10 +1282,11 @@ namespace Vy
                             // [ Normal ]
                             if (gltfMaterial.normalTexture.index != -1)
                             {
-                                U32 textureIndex = gltfMaterial.normalTexture.index;
-                                U32 imageIndex   = gltfModel.textures[textureIndex].source;
+                                U32 texIndex = gltfMaterial.normalTexture.index;
+                                U32 imgIndex = gltfModel.textures[ texIndex ].source;
                                 
-                                material.NormalMap = m_Textures[imageIndex];
+                                material.NormalMap    = m_Textures[ imgIndex ];
+                                material.HasNormalMap = true;
                             }
                             else {
                                 material.NormalMap = m_DefaultNormal;
@@ -1631,7 +1305,7 @@ namespace Vy
 
                     createDescriptorSet(material, materialSetLayout, descriptorPool);
 
-                    VyPrimitive primitive{};
+                    VyPrimitive primitive;
                     {
                         primitive.FirstIndex  = indexOffset;
                         primitive.IndexCount  = indexCount;
@@ -1645,9 +1319,12 @@ namespace Vy
                     vertexOffset += vertexCount;
                     indexOffset  += indexCount;
 
-                    info.MeshCount++;
-                    info.VertexCount = vertexCount;
-                    info.IndexCount  = indexCount;
+                    {
+                        info.VertexCount = vertexCount;
+                        info.IndexCount  = indexCount;
+
+                        info.MeshCount++;
+                    }
 
                 } // [ End of mesh loop ]
 
@@ -1665,11 +1342,20 @@ namespace Vy
 		std::stringstream ss;
         ss  << "\n--------------------------------------------------------------------------" << '\n'
 			<< "[" << CYAN "VyModel Load Stats" RESET "] " << '\n'
-            << " - Name       : " << info.Name             << '\n'
-            // << " - Scenes     : " << info.SceneCount       << '\n'
-            // << " - Nodes      : " << info.NodeCount        << '\n'
-			<< " - Meshes     : " << info.MeshCount        << '\n'
-            << " - Vertices   : " << info.VertexCount      << '\n'
+            << " - Name       : " << info.Name             << '\n';
+        if (info.SceneCount > 1)
+        {
+        ss  << " - Scenes     : " << info.SceneCount       << '\n';
+        }
+        if (info.NodeCount > 1)
+        {
+        ss  << " - Nodes      : " << info.NodeCount        << '\n';
+        }
+        if (info.MeshCount > 1)
+        {
+        ss  << " - Meshes     : " << info.MeshCount        << '\n';
+        }
+        ss  << " - Vertices   : " << info.VertexCount      << '\n'
 			<< " - Indices    : " << info.IndexCount       << '\n'
             << " - Textures   : " << info.TextureCount     << '\n'
 			<< "--------------------------------------------------------------------------"   << '\n'
@@ -1679,20 +1365,35 @@ namespace Vy
     }
 
 
-    void VyGLTFModel::createDescriptorSet(VyPBRMaterial& material, VyDescriptorSetLayout& materialSetLayout, VyDescriptorPool& descriptorPool)
+    void VyGLTFModel::createDescriptorSet(
+        VyPBRMaterial&         material, 
+        VyDescriptorSetLayout& materialSetLayout, 
+        VyDescriptorPool&      descriptorPool)
     {
-        VkDescriptorImageInfo albedoInfo   = material.AlbedoMap           ->descriptorImageInfo();
-        VkDescriptorImageInfo normalInfo   = material.NormalMap           ->descriptorImageInfo();
-        VkDescriptorImageInfo mrInfo       = material.MetallicRoughnessMap->descriptorImageInfo();
-        VkDescriptorImageInfo aoInfo       = material.AOMap               ->descriptorImageInfo();
-        VkDescriptorImageInfo emissiveInfo = material.EmissiveMap         ->descriptorImageInfo();
+        VkDeviceSize bufferSize = sizeof(VyPBRMaterial::PBRParamaters);
+
+        VyBuffer stagingBuffer{ VyBuffer::stagingBuffer("material", bufferSize, 1) };
+
+        stagingBuffer.write( &material.Parameters, bufferSize, 0 );
+        
+        material.MaterialUBO = MakeShared<VyBuffer>( VyBuffer::uniformBuffer( "material", bufferSize, 1, VK_BUFFER_USAGE_TRANSFER_DST_BIT ) );
+
+        VyContext::device().copyBuffer(stagingBuffer.handle(), material.MaterialUBO->handle(), bufferSize );
+
+        VkDescriptorImageInfo  albedoInfo   = material.AlbedoMap           ->descriptorImageInfo();
+        VkDescriptorImageInfo  normalInfo   = material.NormalMap           ->descriptorImageInfo();
+        VkDescriptorImageInfo  mrInfo       = material.MetallicRoughnessMap->descriptorImageInfo();
+        VkDescriptorImageInfo  aoInfo       = material.AOMap               ->descriptorImageInfo();
+        VkDescriptorImageInfo  emissiveInfo = material.EmissiveMap         ->descriptorImageInfo();
+        VkDescriptorBufferInfo materialInfo = material.MaterialUBO         ->descriptorBufferInfo();
 
         VyDescriptorWriter( materialSetLayout, descriptorPool )
-            .writeImage( 0, &albedoInfo   )
-            .writeImage( 1, &normalInfo   )
-            .writeImage( 2, &mrInfo       )
-            .writeImage( 3, &aoInfo       )
-            .writeImage( 4, &emissiveInfo )
+            .writeImage ( 0, &albedoInfo   )
+            .writeImage ( 1, &normalInfo   )
+            .writeImage ( 2, &mrInfo       )
+            .writeImage ( 3, &aoInfo       )
+            .writeImage ( 4, &emissiveInfo )
+            .writeBuffer( 5, &materialInfo )
             .build( material.DescriptorSet );
     }
 
@@ -1727,9 +1428,16 @@ namespace Vy
             {
                 if (bRenderMaterial)
                 {
-                    TVector<VkDescriptorSet> sets = { primitive.Material.DescriptorSet };
+                    TVector<VkDescriptorSet> sets = { 
+                        primitive.Material.DescriptorSet 
+                    };
 
-                    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setCount, sets.size(), sets.data(), 0, nullptr);
+                    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
+                        pipelineLayout,
+                        setCount, 
+                        sets.size(), sets.data(), 
+                        0, nullptr
+                    );
                 }
 
                 vkCmdDrawIndexed(cmdBuffer, primitive.IndexCount, 1, primitive.FirstIndex, primitive.FirstVertex, 0);

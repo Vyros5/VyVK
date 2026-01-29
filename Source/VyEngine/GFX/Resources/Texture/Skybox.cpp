@@ -1,5 +1,5 @@
 #include <VyEngine/GFX/Resources/Texture/Skybox.h>
-
+#include <VyEngine/GFX/Resources/Texture/Texture.h>
 #include <VyEngine/VK/Context.h>
 #include <VyEngine/Globals.h>
 
@@ -62,21 +62,22 @@ namespace Vy
     void VySkybox::createCubemapImage(const TArray<TString, 6>& facePaths)
     {
         // Load all 6 faces and determine size
-        TArray<unsigned char*, 6> pFaceData{};
+        TArray<U8*, 6> pFaceData{};
         
-        int width = 0, height = 0, channels = 0;
+        int width = 0, height = 0;//, channels = 0;
 
         for (int i = 0; i < 6; i++)
         {
             // Load all faces.
-            pFaceData[ i ] = stbi_load(facePaths[ i ].c_str(), &width, &height, &channels, STBI_rgb_alpha);
+            pFaceData[ i ] = VyTexture::loadImage(facePaths[ i ], width, height, STBI_rgb_alpha);
+            // stbi_load(facePaths[ i ].c_str(), &width, &height, &channels, STBI_rgb_alpha);
             
             if ( !pFaceData[ i ] )
             {
                 // Cleanup previously loaded images before throwing.
                 for (int j = 0; j < i; j++)
                 {
-                    stbi_image_free( pFaceData[ j ] );
+                    VyTexture::freeImageData( pFaceData[ j ] );
                 }
 
                 VY_THROW_RUNTIME_ERROR("Failed to load skybox texture face: " + 
@@ -95,7 +96,7 @@ namespace Vy
 					{
 						if (pFaceData[ j ]) 
 						{
-							stbi_image_free( pFaceData[ i ] );
+                            VyTexture::freeImageData( pFaceData[ j ] );
 						}
 					}
 
@@ -110,7 +111,7 @@ namespace Vy
                 {
                     if (pFaceData[ j ]) 
                     {
-                        stbi_image_free( pFaceData[ i ] );
+                        VyTexture::freeImageData( pFaceData[ j ] );
                     }
                 }
 
@@ -123,7 +124,6 @@ namespace Vy
         }
 
         VkDeviceSize faceSize  = static_cast<VkDeviceSize>(m_Size) * static_cast<VkDeviceSize>(m_Size) * 4; // RGBA
-        // VkDeviceSize imageSize = faceSize * 6;
 
         // Create staging buffer with all face data.
         VyBuffer stagingBuffer{ VyBuffer::stagingBuffer("skybox", faceSize, 6, 0, false /*not persistent*/) };
@@ -136,7 +136,7 @@ namespace Vy
             stagingBuffer.writeToIndex( pFaceData[ i ], i );
 
             // Free CPU-side image data.
-            stbi_image_free( pFaceData[ i ] );
+            VyTexture::freeImageData( pFaceData[ i ] );
         
 			// Avoid double free.
             pFaceData[ i ] = nullptr;
@@ -254,7 +254,7 @@ namespace Vy
                 dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
             }
             else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && 
-                    newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+                     newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
             {
                 barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
                 barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -268,8 +268,7 @@ namespace Vy
             }
 
             vkCmdPipelineBarrier(cmdBuffer, 
-                srcStage, 
-                dstStage, 
+                srcStage, dstStage, 
                 0, 
                 0, nullptr, 
                 0, nullptr, 

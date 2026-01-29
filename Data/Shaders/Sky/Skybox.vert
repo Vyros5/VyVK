@@ -1,16 +1,60 @@
 #version 450
 
+// ================================================================================================
+// CONSTANTS
+
+#define MAX_POINT_LIGHTS 10
+#define MAX_SPOT_LIGHTS  10
+
+// ================================================================================================
+// INPUT
+
+// ================================================================================================
+// OUTPUT
+
 layout (location = 0) out vec3 fragUVW;
 
 // ================================================================================================
-// Uniforms
+// DESCRIPTOR SET 0 : GLOBAL
 
-layout (set = 0, binding = 0) uniform GlobalUBO 
+struct PointLightData
+{
+	vec4 Position;     // xyz = position,  w = unused
+	vec4 Color;        // rgb = color,     a = intensity
+};
+
+struct SpotLightData
+{
+	vec4 Position;     // xyz = position,  w = unused
+	vec4 Color;        // rgb = color,     a = intensity
+	vec4 Direction;    // xyz = direction, w = unused
+	vec4 Cutoffs;      // x = innerCutoff, y = outerCutoff, zw = unused
+};
+
+struct DirectionalLightData
+{
+	vec4 Direction;    // xyz = direction, w = ambientStrength
+	vec4 Color;        // rgb = color,     a = intensity
+};
+
+struct CameraData
 {
     mat4 Projection;
     mat4 View;
     mat4 InverseView;
-    //...
+};
+
+layout (set = 0, binding = 0) uniform GlobalUbo
+{
+	CameraData           Camera;
+
+	DirectionalLightData DirectionalLight;
+
+	PointLightData       PointLights[ MAX_POINT_LIGHTS ];
+	SpotLightData        SpotLights [ MAX_SPOT_LIGHTS  ];
+
+	int                  PointLightsCount;
+	int                  SpotLightsCount;
 
 } uUbo;
 
@@ -109,12 +153,8 @@ vec3 POSITIONS[ 36 ] = vec3[]
     vec3(-1.0, -1.0, -1.0)
 );
 
-// layout (push_constant) uniform PushConstants
-// {
-//     mat4 ViewProjection;
-
-// } uPush;
-
+// ================================================================================================
+// MAIN
 
 void main()
 {
@@ -123,10 +163,10 @@ void main()
 
     // Remove translation from the view matrix for the skybox
     // This makes the skybox appear infinitely far away and fixed
-    mat4 rotView = mat4(mat3(uUbo.View));
+    mat4 rotView = mat4(mat3(uUbo.Camera.View));
 
     // Calculate the clip-space position.
-    gl_Position = uUbo.Projection * rotView * vec4(pos, 1.0);
+    gl_Position = uUbo.Camera.Projection * rotView * vec4(pos, 1.0);
 
     // Set z-component to w for max depth (ensures it's drawn behind everything).
     gl_Position.z = gl_Position.w;
@@ -137,15 +177,4 @@ void main()
 
     // Flip y-axis for vulkan.
     fragUVW.y *= -1;
-    
-    // // Use position as texture coordinate (cubemap sampling)
-    // fragTexCoord = pos;
-
-    // // Transform position by view-projection
-    // // Note: We remove translation from view matrix so skybox stays at origin
-    // vec4 clipPos = uPush.ViewProjection * vec4(pos, 1.0);
-
-    // // Set z = w so depth is always 1.0 (at far plane)
-    // // This ensures skybox renders behind everything
-    // gl_Position = clipPos.xyww;
 }

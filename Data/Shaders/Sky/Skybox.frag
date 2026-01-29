@@ -1,18 +1,22 @@
 #version 450
 
 // ================================================================================================
-// Input
+// INPUT
 
-layout(location = 0) in  vec3  fragUVW;
-
-// ================================================================================================
-// Output
-
-layout(location = 0) out vec4  outColor;
+layout (location = 0) in  vec3 fragUVW;
 
 // ================================================================================================
+// OUTPUT
+
+layout (location = 0) out vec4 outColor;
+
+// ================================================================================================
+// DESCRIPTOR SET 1 : SKYBOX
 
 layout (set = 1, binding = 0) uniform samplerCube uSkyboxSampler;
+
+// ================================================================================================
+// MAIN
 
 void main()
 {
@@ -20,11 +24,4 @@ void main()
     outColor = texture( uSkyboxSampler, fragUVW );
 }
 
-// void main()
-// {
-//     // Flip Y axis to correct vertical orientation
-//     vec3 texCoord = vec3(fragTexCoord.x, -fragTexCoord.y, fragTexCoord.z);
-//     vec3 color    = texture(uSkyboxSampler, texCoord).rgb;
-
-//     outColor = vec4(color, 1.0);
-// }
+// ================================================================================================

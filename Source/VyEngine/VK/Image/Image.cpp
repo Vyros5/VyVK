@@ -4,16 +4,11 @@
 
 namespace Vy
 {
-    VyImage::VyImage(
-        const TString&                 name, 
-        const VkImageCreateInfo&       info, 
-        const VmaAllocationCreateInfo& allocInfo
-    ) :
-        m_ImageInfo { info            },
-        m_AllocInfo { allocInfo       },
-        m_DebugName { name + "_image" }
+    VyImage::VyImage(const TString& name, const VyImageInfo& info) :
+        m_DebugName{ name + "_image" },
+        m_Info     { info            }
     {
-        this->create( info, allocInfo );
+        this->create( info );
     }
 
 
@@ -41,23 +36,56 @@ namespace Vy
     {
         std::swap(m_Image,         other.m_Image);
         std::swap(m_ImageMemory,   other.m_ImageMemory);
-        std::swap(m_ImageInfo,     other.m_ImageInfo);
-        std::swap(m_AllocInfo,     other.m_AllocInfo);
+        std::swap(m_Info,          other.m_Info);
+        // std::swap(m_MipLevels,     other.m_MipLevels);
         std::swap(m_CurrentLayout, other.m_CurrentLayout);
         std::swap(m_DebugName,     other.m_DebugName);
     }
 
 
-    void VyImage::create(const VkImageCreateInfo& imageInfo, const VmaAllocationCreateInfo& allocInfo)
+    void VyImage::create(const VyImageInfo& info)
     {
-		VK_CHECK(vmaCreateImage(
+		if (info.MipLevels == VyImageInfo::CALCULATE_MIP_LEVELS)
+		{
+			U32 maxDim = std::max(info.Extent.width, std::max(info.Extent.height, info.Extent.depth));
+			
+            m_Info.MipLevels = static_cast<U32>(std::floor(std::log2(maxDim))) + 1;
+		}
+
+        auto imageInfo = VKInit::imageCreateInfo();
+        {
+            imageInfo.imageType     = info.ImageType;
+            imageInfo.extent        = info.Extent;
+            imageInfo.mipLevels     = m_Info.MipLevels;
+            imageInfo.arrayLayers   = info.ArrayLayers;
+            imageInfo.format        = info.Format;
+            imageInfo.tiling        = info.Tiling;
+            imageInfo.initialLayout = info.InitialLayout;
+            imageInfo.usage         = info.Usage;
+            imageInfo.sharingMode   = info.SharingMode;
+            imageInfo.samples       = info.Samples;
+            imageInfo.flags         = info.Flags;
+        }
+
+		if (m_Info.MipLevels > 1)
+		{
+			imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		}
+
+		VmaAllocationCreateInfo allocInfo{};
+        {
+            allocInfo.usage = info.MemoryUsage;
+            allocInfo.flags = info.AllocFlags;
+        }
+
+		VK_CHECK_SUCCESS(vmaCreateImage(
 			VyContext::allocator(), 
 			&imageInfo, 
 			&allocInfo, 
 			&m_Image, 
 			&m_ImageMemory, 
 			nullptr
-		));
+		), "Failed to create image!");
 
         VKDbg::setObjectName(m_Image, m_DebugName.c_str());
     }
@@ -71,11 +99,11 @@ namespace Vy
 			VKCmd::transitionImageLayout(
 				cmdBuffer, 
 				m_Image, 
-				m_ImageInfo.format, 
+				m_Info.Format, 
 				m_CurrentLayout, 
 				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
-				m_ImageInfo.mipLevels, 
-				m_ImageInfo.arrayLayers
+				m_Info.MipLevels, 
+				m_Info.ArrayLayers
 			);
 			
 			// Copy the contents of the image (from the buffer) to the vkImage.
@@ -83,11 +111,11 @@ namespace Vy
 				cmdBuffer, 
 				srcBuffer.handle(), 
 				m_Image, 
-				m_ImageInfo.extent, 
-				m_ImageInfo.arrayLayers
+				m_Info.Extent, 
+				m_Info.ArrayLayers
 			);
 			
-            if (m_ImageInfo.mipLevels > 1)
+            if (m_Info.MipLevels > 1)
             {
                 // Transition to shader-read-only and generate mipmaps.
                 generateMipmaps(
@@ -102,40 +130,6 @@ namespace Vy
 		}
 		VyContext::endCommands(cmdBuffer);
     }
-
-
-	// void VyImage::upload(const VyBuffer& srcBuffer)
-	// {
-	// 	VkCommandBuffer cmdBuffer = VyContext::beginCommands();
-	// 	{
-	// 		// Transition image layout to be optimal for receiving data.
-	// 		VKCmd::transitionImageLayout(
-	// 			cmdBuffer, 
-	// 			m_Image, 
-	// 			m_ImageInfo.format, 
-	// 			m_CurrentLayout, 
-	// 			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
-	// 			m_ImageInfo.mipLevels, 
-	// 			m_ImageInfo.arrayLayers
-	// 		);
-			
-	// 		// Copy the contents of the image (from the buffer) to the vkImage.
-	// 		VKCmd::copyBufferToImage(
-	// 			cmdBuffer, 
-	// 			srcBuffer.handle(), 
-	// 			m_Image, 
-	// 			m_ImageInfo.extent, 
-	// 			m_ImageInfo.arrayLayers
-	// 		);
-			
-    //         // Transition to shader-read-only and generate mipmaps.
-	// 		generateMipmaps(
-	// 			cmdBuffer, 
-	// 			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-	// 		);
-	// 	}
-	// 	VyContext::endCommands(cmdBuffer);
-	// }
 
 
 	void VyImage::upload(const void* pData, VkDeviceSize size)
@@ -158,8 +152,8 @@ namespace Vy
 			cmdBuffer, 
 			srcBuffer.handle(), 
 			m_Image, 
-            m_ImageInfo.extent, 
-            m_ImageInfo.arrayLayers
+            m_Info.Extent, 
+            m_Info.ArrayLayers
 		);
 		
 		if (toShaderReadOnly)
@@ -205,11 +199,11 @@ namespace Vy
 		VKCmd::transitionImageLayout(
 			cmdBuffer, 
 			m_Image, 
-			m_ImageInfo.format, 
+			m_Info.Format, 
 			m_CurrentLayout, 
 			newLayout, 
-            m_ImageInfo.mipLevels, 
-            m_ImageInfo.arrayLayers
+            m_Info.MipLevels, 
+            m_Info.ArrayLayers
 		);
 
 		m_CurrentLayout = newLayout;
@@ -502,36 +496,13 @@ namespace Vy
         // m_ImageView   = VK_NULL_HANDLE;
 	}
 
+
+
+
     
 
     VyImage::Builder::Builder()
     {
-        // Setup Default Values
-        m_ImageInfo = VKInit::imageCreateInfo();
-        {
-            m_ImageInfo.imageType     = VK_IMAGE_TYPE_2D;
-            m_ImageInfo.extent.width  = 0;
-            m_ImageInfo.extent.height = 0;
-            m_ImageInfo.extent.depth  = 1;
-            m_ImageInfo.mipLevels     = 1;
-            m_ImageInfo.arrayLayers   = 1;
-            m_ImageInfo.format        = VK_FORMAT_UNDEFINED;
-            m_ImageInfo.tiling        = VK_IMAGE_TILING_OPTIMAL;
-            m_ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            m_ImageInfo.usage         = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-            m_ImageInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
-            m_ImageInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
-            m_ImageInfo.flags         = 0;
-        }
-
-        m_AllocInfo = {};
-        {
-            m_AllocInfo.usage         = VMA_MEMORY_USAGE_AUTO;
-            m_AllocInfo.flags         = 0;
-        }
-
-        m_Name = { "unnamed" };
-
         // m_PreMadeImage   = VK_NULL_HANDLE;
         // m_UseInitialData = false;
         // m_pData          = nullptr;
@@ -554,7 +525,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setWidth(U32 width)
     {
-        m_ImageInfo.extent.width = width;
+        m_Info.Extent.width = width;
 
         return *this;
     }
@@ -562,7 +533,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setHeight(U32 height)
     {
-        m_ImageInfo.extent.height = height;
+        m_Info.Extent.height = height;
 
         return *this;
     }
@@ -570,7 +541,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setDepth(U32 depth)
     {
-        m_ImageInfo.extent.depth = depth;
+        m_Info.Extent.depth = depth;
 
         return *this;
     }
@@ -578,7 +549,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setExtent(VkExtent2D extent)
     {
-        m_ImageInfo.extent = VkExtent3D{ extent.width, extent.height, 1 };
+        m_Info.Extent = VkExtent3D{ extent.width, extent.height, 1 };
 
         return *this;
     }
@@ -586,7 +557,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setExtent(VkExtent3D extent)
     {
-        m_ImageInfo.extent = extent;
+        m_Info.Extent = extent;
 
         return *this;
     }
@@ -594,7 +565,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setExtent(U32 width, U32 height, U32 depth)
     {
-        m_ImageInfo.extent = VkExtent3D{ width, height, depth };
+        m_Info.Extent = VkExtent3D{ width, height, depth };
 
         return *this;
     }
@@ -602,7 +573,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setImageType(VkImageType type)
     {
-        m_ImageInfo.imageType = type;
+        m_Info.ImageType = type;
 
         return *this;
     }
@@ -610,7 +581,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setLevels(U32 levels)
     {
-        m_ImageInfo.mipLevels = levels;
+        m_Info.MipLevels = levels;
 
         return *this;
     }
@@ -618,7 +589,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setLayers(U32 layers)
     {
-        m_ImageInfo.arrayLayers = layers;
+        m_Info.ArrayLayers = layers;
 
         return *this;
     }
@@ -626,7 +597,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setFormat(VkFormat format)
     {
-        m_ImageInfo.format = format;
+        m_Info.Format = format;
 
         return *this;
     }
@@ -634,7 +605,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setLayout(VkImageLayout layout)
     {
-        m_ImageInfo.initialLayout = layout;
+        m_Info.InitialLayout = layout;
 
         return *this;
     }
@@ -642,7 +613,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setTiling(VkImageTiling tiling)
     {
-        m_ImageInfo.tiling = tiling;
+        m_Info.Tiling = tiling;
 
         return *this;
     }
@@ -650,7 +621,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setSamples(VkSampleCountFlagBits sampleCount)
     {
-        m_ImageInfo.samples = sampleCount;
+        m_Info.Samples = sampleCount;
 
         return *this;
     }
@@ -658,7 +629,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setSharing(VkSharingMode sharingMode)
     {
-        m_ImageInfo.sharingMode = sharingMode;
+        m_Info.SharingMode = sharingMode;
 
         return *this;
     }
@@ -666,7 +637,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setUsage(VkImageUsageFlags flags)
     {
-        m_ImageInfo.usage = flags;
+        m_Info.Usage = flags;
 
         return *this;
     }
@@ -674,7 +645,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::addUsage(VkImageUsageFlags flags)
     {
-        m_ImageInfo.usage |= flags;
+        m_Info.Usage |= flags;
 
         return *this;
     }
@@ -682,7 +653,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setFlags(VkImageCreateFlags flags)
     {
-        m_ImageInfo.flags = flags;
+        m_Info.Flags = flags;
 
         return *this;
     }
@@ -690,7 +661,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setMemoryUsage(VmaMemoryUsage usage)
     {
-        m_AllocInfo.usage = usage;
+        m_Info.MemoryUsage = usage;
 
         return *this;
     }
@@ -698,7 +669,7 @@ namespace Vy
     VyImage::Builder& 
     VyImage::Builder::setAllocFlags(VmaAllocationCreateFlags flags)
     {
-        m_AllocInfo.flags = flags;
+        m_Info.AllocFlags = flags;
 
         return *this;
     }
@@ -720,11 +691,11 @@ namespace Vy
     //     m_InitDataWidth  = width;
     //     m_FinalLayout    = finalLayout;
         
-    //     m_ImageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    //     m_Info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-    //     if (m_ImageInfo.mipLevels > 1)
+    //     if (m_Info.mipLevels > 1)
     //     {
-    //         m_ImageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    //         m_Info.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     //     }
     
     //     return *this;
@@ -741,19 +712,19 @@ namespace Vy
 	VyImage 
 	VyImage::Builder::build() const 
 	{
-		VY_ASSERT(m_ImageInfo.extent.width > 0 && m_ImageInfo.extent.height > 0 && m_ImageInfo.extent.depth > 0, 
+		VY_ASSERT(m_Info.Extent.width > 0 && m_Info.Extent.height > 0 && m_Info.Extent.depth > 0, 
 			"Image extent dimensions must be greater than 0.");
 
-		return VyImage{ m_Name, m_ImageInfo, m_AllocInfo };
+		return VyImage{ m_Name, m_Info };
 	}
 
 	Unique<VyImage> 
 	VyImage::Builder::buildPtr() const 
 	{
-		VY_ASSERT(m_ImageInfo.extent.width > 0 && m_ImageInfo.extent.height > 0 && m_ImageInfo.extent.depth > 0,
+		VY_ASSERT(m_Info.Extent.width > 0 && m_Info.Extent.height > 0 && m_Info.Extent.depth > 0,
 			"Image extent dimensions must be greater than 0.");
 
-		return MakeUnique<VyImage>( m_Name, m_ImageInfo, m_AllocInfo );
+		return MakeUnique<VyImage>( m_Name, m_Info );
 	}
 
     // VyImage 
@@ -761,14 +732,14 @@ namespace Vy
     // {
     //     VyImage image;
 
-    //     image.m_ImageInfo     = m_ImageInfo;
-    //     image.m_CurrentLayout = m_ImageInfo.initialLayout;
+    //     image.m_Info     = m_Info;
+    //     image.m_CurrentLayout = m_Info.initialLayout;
     //     image.m_Image         = m_PreMadeImage;
     //     image.m_AllocInfo     = m_AllocInfo;
 
     //     if (image.m_Image == VK_NULL_HANDLE)
     //     {
-    //         VyContext::device().createImage(image.m_Image, image.m_ImageMemory, m_ImageInfo, m_AllocInfo);
+    //         VyContext::device().createImage(image.m_Image, image.m_ImageMemory, m_Info, m_AllocInfo);
     //     }
 
     //     if (m_UseInitialData)
@@ -786,7 +757,7 @@ namespace Vy
     //             VyContext::device().copyBufferToImage(cmdBuffer, stagingBuffer.handle(), image.handle(), m_InitDataWidth, m_InitDataHeight, 1, 0);
                 
     //             // Generate mipmaps with initial data.
-    //             image.generateMipmaps(cmdBuffer, m_InitDataWidth, m_InitDataHeight, m_ImageInfo.mipLevels, m_ImageInfo.arrayLayers, m_FinalLayout);
+    //             image.generateMipmaps(cmdBuffer, m_InitDataWidth, m_InitDataHeight, m_Info.mipLevels, m_Info.arrayLayers, m_FinalLayout);
     //         }
     //         VyContext::endCommands(cmdBuffer);
     //     }

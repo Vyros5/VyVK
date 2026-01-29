@@ -10,10 +10,10 @@
     "spdlog",
     "stb",
     "tinyobjloader",
-    "volk",
     "vulkan-memory-allocator",
     "yaml-cpp",
     "vulkan",
+    "volk",
     "assimp",
     "efsw",
     "jsoncpp",
@@ -22,9 +22,9 @@
     "shaderc",
     {
       "name": "ktx",
-      "features": ["vulkan"]
-    },
-    "spirv-cross"
-    
+      "features": [
+        "vulkan"
+      ]
+    }
   ]
 }

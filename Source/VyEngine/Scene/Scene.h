@@ -9,14 +9,6 @@
 
 namespace Vy
 {
-
-	struct GfxMeshData
-	{
-		U32 IndexCount   = 0u;
-		U32 FirstIndex   = 0u;
-		I32 VertexOffset = 0u;
-	};
-
 	/**
 	 * @brief VyScene containing all entities and systems.
 	 */
@@ -59,7 +51,7 @@ namespace Vy
 		 * @brief Get root entity id for the scene
 		 * @return EntityHandle
 		 */
-		EntityHandle getRootHandle() const 
+		EntityHandle getRoot() const 
 		{ 
 			return m_Root; 
 		}
@@ -170,7 +162,16 @@ namespace Vy
 		// 	m_LogicSystem.emplace_back( std::make_unique<T>(std::forward<Args>(args)...) );
 		// }
 
+		void setEntityParent(EntityHandle child, EntityHandle parent = entt::null);
+
+		const TVector<EntityHandle>& getEntityChildren(EntityHandle entity);
+		EntityHandle                 getEntityParent  (EntityHandle entity);
+
+
 		void reset();
+
+
+		void print();
 
 	private:
 
@@ -189,15 +190,8 @@ namespace Vy
 		/* VyScene Registry for storing all the entities belonging to this scene. */
 		entt::registry m_Registry;
 
-		// VyGameObject::UMap m_SceneGameObjects {};
-
         VyScriptManager m_ScriptManager;
-		// TVector<Unique<ILogicSystem>> m_LogicSystem;
-
-		// Shared<VyEnvironment> m_Environment = MakeShared<VyEnvironment>();
 
 		VyEntity m_MainCamera;
-	public:
-		TVector<GfxMeshData> m_SceneMeshes = {};
     };
 }

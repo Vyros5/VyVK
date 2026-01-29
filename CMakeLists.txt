@@ -56,6 +56,7 @@ target_include_directories(${PROJECT_NAME}
         ${PROJECT_SOURCE_DIR}/Source/VyLib/Include/ufbx
 )
 
+
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

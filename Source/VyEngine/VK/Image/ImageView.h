@@ -6,6 +6,23 @@ namespace Vy
 {
     class VyImage;
 
+	struct VyImageViewInfo
+	{
+		static constexpr U32 USE_IMAGE_MIP_LEVELS = 0;
+		static constexpr U32 USE_IMAGE_LAYERS     = 0;
+
+		VkImageViewType    ViewType     = VK_IMAGE_VIEW_TYPE_2D;
+		VkFormat           Format       = VK_FORMAT_UNDEFINED;
+		
+		VkImageAspectFlags AspectMask   = VK_IMAGE_ASPECT_COLOR_BIT;
+		U32                BaseMipLevel = 0;
+		U32                LevelCount   = USE_IMAGE_MIP_LEVELS;
+		U32                BaseLayer    = 0;
+		U32                LayerCount   = USE_IMAGE_LAYERS;
+
+		VkComponentMapping Components   = { VK_COMPONENT_SWIZZLE_IDENTITY };
+	};
+
 	/**
 	 * @brief Vulkan Image View wrapper 
 	 */
@@ -21,24 +38,9 @@ namespace Vy
 		VyImageView() = default;
 
 		explicit VyImageView(
-			const TString&               name,
-			const VkImageViewCreateInfo& info, 
-			const VyImage&               image
-		);
-
-		VyImageView(
 			const TString&         name,
-			VyImage&               image,
-			VkImageViewType        viewType = VK_IMAGE_VIEW_TYPE_2D 
-		);
-
-		VyImageView(
-			const TString&          name,
-			const VyImage&          image,
-			VkImageViewType         viewType,
-			VkFormat                format,
-			VkComponentMapping      componentMapping,
-			VkImageSubresourceRange subresourceRange
+			const VyImageViewInfo& info, 
+			const VyImage&         image
 		);
         
 		/**
@@ -72,15 +74,13 @@ namespace Vy
 		operator     const VkImageView&()            const { return m_ImageView; }
 		VY_NODISCARD const VkImageView& handle()     const { return m_ImageView; }
 		VY_NODISCARD bool               valid()      const { return m_ImageView != VK_NULL_HANDLE; }
-		// VY_NODISCARD const VyImage&     imageRef()   const { return m_pOwnerImage; }
 
 		void destroy();
 
 	private:
-		// VyImage&              m_pOwnerImage;
-		VkImageView           m_ImageView  { VK_NULL_HANDLE };
-		VkImageViewCreateInfo m_Info       {};
-		TString                m_DebugName { "unnamed" };
+		VkImageView     m_ImageView  { VK_NULL_HANDLE };
+		VyImageViewInfo m_Info       {};
+		TString         m_DebugName { "unnamed" };
 
 		friend class VyImage;
 	};
@@ -119,7 +119,7 @@ namespace Vy
 		Unique<VyImageView> buildPtr(const VyImage& inImage) const;
 
 	private:
-		TString               m_Name{ "unnamed" };
-		VkImageViewCreateInfo m_Info{};
+		TString         m_Name{ "unnamed" };
+		VyImageViewInfo m_Info{};
 	};
 }

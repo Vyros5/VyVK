@@ -2,7 +2,7 @@
 
 #include <VyEngine/VK/Context.h>
 #include <VyEngine/GFX/Resources/Mesh/Vertex.h>
-#include <VyEngine/GFX/Resources/Mesh/Utils/AiConversion.h>
+#include <VyEngine/GFX/Resources/Model/Utils/aiConversion.h>
 #include <VyLib/Core/Math.h>
 #include <VyLib/Util/Hash.h>
 
@@ -200,8 +200,8 @@ namespace Vy
 
 		data.Textures = std::move( textures );
 
-		VyTexture::initBindless(U32(data.Textures.size()));
-		VyTexture::updateBindless( &data );
+		// VyTexture::initBindless(U32(data.Textures.size()));
+		// VyTexture::updateBindless( &data );
 
         return MakeUnique<VyModel>( std::move( data ) );
     }

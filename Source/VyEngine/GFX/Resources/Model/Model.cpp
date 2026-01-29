@@ -1,708 +1,768 @@
 #include <VyEngine/GFX/Resources/Model/Model.h>
-#include <VyEngine/VK/Context.h>
 
-#include <VyEngine/GFX/Resources/Model/UFBXImporter.h>
+#include <VyEngine/GFX/Resources/Model/Utils/aiConversion.h>
 
-// #define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
+#include <tiny_gltf.h>
 
 #include <VyLib/Util/Hash.h>
+#include <VyLib/Core/Math.h>
+#include <VyEngine/Globals.h>
+#include <iostream>
+#include <VyLib/Common/AnsiColor.h>
+#include <VyLib/Util/String.h>
 
-
-
-extern Vy::Shared<Vy::VyTexture> g_DefaultTexture;
-
-namespace std 
-{
-    template <>
-    struct hash<Vy::Vertex> 
-    {
-        size_t operator()(const Vy::Vertex& vertex) const 
-        {
-            size_t seed = 0;
+// namespace std 
+// {
+//     template <>
+//     struct hash<Vy::VyVertex> 
+//     {
+//         size_t operator()(Vy::VyVertex const& vertex) const 
+//         {
+//             size_t seed = 0;
             
-            Vy::Hash::hashCombine(seed, 
-                vertex.Position, 
-                vertex.Color, 
-                vertex.Normal, 
-                vertex.UV, 
-                vertex.Tangent
-            );
+//             Vy::Hash::hashCombine(seed
+//                 , vertex.Position
+//                 , vertex.Color
+//                 , vertex.Normal
+//                 , vertex.UV
+//                 , vertex.Tangent
+//                 // , vertex.Bitangent
+//             );
             
-            return seed;
-        }
-    };
-}
+//             return seed;
+//         }
+//     };
+// }
+
+// namespace Vy
+// {
+//     VyMesh::VyMesh(TVector<VyVertex> vertices, TVector<U32> indices) :
+//         m_Vertices{ vertices },
+//         m_Indices { indices  }
+//     {
+//         createBuffers();
+//     }
 
 
-namespace Vy
-{
-    TVector<VkVertexInputBindingDescription> Vertex::bindingDescriptions() 
-    {
-        TVector<VkVertexInputBindingDescription> bindingDescriptions( 1 );
-        {
-            bindingDescriptions[0].binding   = 0;
-            bindingDescriptions[0].stride    = sizeof(Vertex);
-            bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-        }
+//     void VyMesh::createBuffers()
+//     {
+//         {
+//             U32 vertexCount = static_cast<U32>( m_Vertices.size() );
+            
+//             VY_ASSERT(vertexCount >= 3, "Vertex count must be at least 3");
+            
+//             U32 vertexSize = sizeof(m_Vertices[0]);
+            
+//             m_VertexBuffer = MakeUnique<VyBuffer>( VyBuffer::vertexBuffer( "mesh", vertexSize, vertexCount ) );
+            
+//             m_VertexBuffer->upload( m_Vertices );
+//         }
 
-        return bindingDescriptions;
-    }
+//         {
+//             U32 indexCount = static_cast<U32>( m_Indices.size() );
+            
+//             if (indexCount <= 0) { return; }
+            
+//             U32 indexSize = sizeof(m_Indices[0]);
+            
+//             m_IndexBuffer = MakeUnique<VyBuffer>( VyBuffer::indexBuffer( "mesh", indexSize, indexCount ) );
+            
+//             m_IndexBuffer->upload( m_Indices );
+//         }
+//     }
 
 
-    TVector<VkVertexInputAttributeDescription> Vertex::attributeDescriptions() 
-    {
-        TVector<VkVertexInputAttributeDescription> attributeDescriptions{};
-        {
-            attributeDescriptions.push_back( { 0, 0, VK_FORMAT_R32G32B32_SFLOAT,    offsetof(Vertex, Position) } );
-            attributeDescriptions.push_back( { 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex, Color   ) } );
-            attributeDescriptions.push_back( { 2, 0, VK_FORMAT_R32G32B32_SFLOAT,    offsetof(Vertex, Normal  ) } );
-            attributeDescriptions.push_back( { 3, 0, VK_FORMAT_R32G32_SFLOAT,       offsetof(Vertex, UV      ) } );
-            attributeDescriptions.push_back( { 4, 0, VK_FORMAT_R32G32B32_SFLOAT,    offsetof(Vertex, Tangent ) } );
-            attributeDescriptions.push_back( { 5, 0, VK_FORMAT_R32G32B32A32_SINT,   offsetof(Vertex, JointIds) } );
-            attributeDescriptions.push_back( { 6, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex, Weights ) } );
-        }
+//     void VyMesh::destroy()
+//     {
+//         m_VertexBuffer.reset();
+//         m_IndexBuffer .reset();
+
+//         m_Vertices.clear();
+//         m_Indices .clear();
+//     }
+
+// }
+
+
+// namespace Vy
+// {
+//     void VyModel::loadModel(const TString& filepath)
+//     {
+// 		Assimp::Importer importer;
+
+// 		const aiScene* pScene = importer.ReadFile(filepath, 
+//             aiProcess_CalcTangentSpace |
+// 			aiProcess_Triangulate |
+// 			aiProcess_JoinIdenticalVertices |
+// 			aiProcess_SortByPType |
+// 			aiProcess_FlipUVs |
+// 			aiProcess_GenSmoothNormals
+//         );
+
+// 		if (pScene == nullptr)
+// 		{
+// 			std::cout << "Unable to read file! error message: \n" << std::endl;
+// 			throw std::runtime_error(importer.GetErrorString());
+// 		}
+
+// 		processScene( pScene );
+//     }
+
+
+//     void VyModel::processScene(const aiScene* pScene)
+//     {
+// 		aiNode* pNode = pScene->mRootNode;
+		
+//         auto numMeshes    = pNode->mNumMeshes;
+// 		auto numMaterials = pScene->mNumMaterials;
+		
+//         VY_INFO_TAG("VyModel", "Number of meshes    : {}", numMeshes);
+//         VY_INFO_TAG("VyModel", "Number of materials : {}", numMaterials);
+
+//         // Process the root node recursively.
+//         processNode( pNode, pScene );
+//     }
+
+
+//     VyPBRMaterial VyModel::processMaterial(aiMesh* pMesh, const aiScene* pScene)
+//     {
+//         // [ Materials ]
+//         if (pMesh->mMaterialIndex >= 0)
+//         {
+//             return;
+//         }
+
+//         aiMaterial* pMat = pScene->mMaterials[ pMesh->mMaterialIndex ];
+
+//         VyPBRMaterial m;
+
+//         if (pMat->GetTextureCount(aiTextureType_DIFFUSE) != 0) 
+//         {
+//             TString texPath = getTexturePath(pMat, aiTextureType_DIFFUSE);
+
+//             m.AlbedoMap = VyTexture::createFromFilepath( texPath );
+//         }
+
+//         if (pMat->GetTextureCount(aiTextureType_GLTF_METALLIC_ROUGHNESS) != 0) 
+//         {
+//             TString texPath = getTexturePath(pMat, aiTextureType_GLTF_METALLIC_ROUGHNESS);
+
+//             m.MetallicRoughnessMap = VyTexture::createFromFilepath( texPath );
+//         }
+
+//         if (pMat->GetTextureCount(aiTextureType_AMBIENT_OCCLUSION) != 0) 
+//         {
+//             TString texPath = getTexturePath(pMat, aiTextureType_AMBIENT_OCCLUSION);
+
+//             m.AOMap = VyTexture::createFromFilepath( texPath );
+//         }
+
+//         if (pMat->GetTextureCount(aiTextureType_NORMALS) != 0) 
+//         {
+//             TString texPath = getTexturePath(pMat, aiTextureType_NORMALS);
+
+//             m.NormalMap = VyTexture::createFromFilepath( texPath );
+//         }
+
+//         if (pMat->GetTextureCount(aiTextureType_EMISSIVE) != 0) 
+//         {
+//             TString texPath = getTexturePath(pMat, aiTextureType_EMISSIVE);
+
+//             m.EmissiveMap = VyTexture::createFromFilepath( texPath );
+//         }
+
+//         return m;
+//     }
+
+
+//     void VyModel::processNode(aiNode* pNode, const aiScene* pScene)
+//     {
+//         // Process all the node's meshes.
+//         for (U32 i = 0; i < pNode->mNumMeshes; i++)
+//         {
+//             aiMesh* pMesh = pScene->mMeshes[ pNode->mMeshes[ i ]];
+
+//             m_Meshes.emplace_back( processMesh( pMesh, pScene ) );
+//         }
+
+//         // Recursively traverse and process all the node's children.
+//         for (U32 i = 0; i < pNode->mNumChildren; i++)
+//         {
+//             processNode( pNode->mChildren[i], pScene );
+//         }
+//     }
+
+
+//     VyMesh VyModel::processMesh(aiMesh* pMesh, const aiScene* pScene)
+//     {
+//         TVector<VyVertex>  meshVertices( pMesh->mNumVertices);
+//         TVector<U32>       meshIndices;// ( pMesh->mNumIndices );
+
+//         // Initialize vertices
+//         for (size_t i = 0; i < pMesh->mNumVertices; i++) 
+//         {
+//             VyVertex& vertex = meshVertices[ i ];
+
+//             // Positions
+//             vertex.Position = Utils::AiToGlm( pMesh->mVertices[i] );
+
+//             // Normals
+//             if (pMesh->HasNormals()) 
+//             {
+//                 vertex.Normal = Utils::AiToGlm( pMesh->mNormals[i] );
+
+//             } else {
+//                 vertex.Normal = {0.0f, 0.0f, 0.0f};
+//             }
+
+//             // Texture Coordinates
+//             if (pMesh->HasTextureCoords(0)) 
+//             {
+//                 vertex.UV = Utils::AiToGlm( pMesh->mTextureCoords[0][i] );
+
+//             } else {
+//                 vertex.UV = {0.0f, 0.0f};
+//             }
+
+//             // Colors
+//             if (pMesh->HasVertexColors(0)) 
+//             {
+//                 vertex.Color = Utils::AiToGlm( pMesh->mColors[0][i] );
+
+//             } else {
+//                 vertex.Color = { 1.0f, 1.0f, 1.0f };
+//             }
+
+//             if (pMesh->HasTangentsAndBitangents()) 
+//             {
+//                 vertex.Tangent   = Vec4(Utils::AiToGlm( pMesh->mTangents  [ i ] ), 0.0f);
+//                 // vertex.Bitangent = Utils::AiToGlm( pMesh->mBitangents[ i ] );
+
+//             } else {
+//                 vertex.Tangent   = { 0.0f, 0.0f, 0.0f, 0.0f };
+//                 // vertex.Bitangent = { 0.0f, 0.0f, 0.0f };
+//             }
+
+//             // Process indices
+//             for (U32 i = 0; i < pMesh->mNumFaces; i++)
+//             {
+//                 aiFace face = pMesh->mFaces[ i ];
+
+//                 for (U32 j = 0; j < face.mNumIndices; j++)
+//                 {
+//                     meshIndices.push_back( static_cast<U32>(face.mIndices[j]) );
+//                 }
+//             }
+//         }
+
+//         return VyMesh{ meshVertices, meshIndices };
+//     }
+
+
+
+//     TString VyModel::getTexturePath(aiMaterial* pMaterial, aiTextureType type)
+//     {
+//         aiString texturePath;
+
+//         if (pMaterial->GetTexture(type, /*index=*/0, &texturePath) != AI_SUCCESS) 
+//         {
+//             return {};
+//         }
         
-        return attributeDescriptions;
-    }
+//         return getDirectory() + "/" + texturePath.C_Str();
+//     }
 
 
-    MaterialDescriptor::MaterialDescriptor(VyMaterialOLD& material, VyMaterialOLD::MaterialTexturesArray& textures) 
-    {
-        material.MaterialBuffer = std::make_shared<VyBuffer>( 
-            VyBuffer::uniformBuffer( 
-                "material", 
-                sizeof(VyMaterialOLD::PBRMaterial) 
-            ) 
-        );
+//     TString VyModel::getDirectory() const
+//     {
+//         return m_Filepath.substr(0, m_Filepath.find_last_of("/"));
+//     }
 
-        // Textures
-        Shared<VyTexture>  diffuseMap;
-        Shared<VyTexture>  normalMap;
-        Shared<VyTexture>  roughnessMetallicMap;
-        Shared<VyTexture>  emissiveMap;
-        Shared<VyTexture>  roughnessMap;
-        Shared<VyTexture>  metallicMap;
-        Shared<VyTexture>& dummy = g_DefaultTexture;
 
-        diffuseMap           = textures[VyMaterialOLD::DIFFUSE_MAP_INDEX]            
-                                ? textures[VyMaterialOLD::DIFFUSE_MAP_INDEX]            
-                                : dummy;
 
-        normalMap            = textures[VyMaterialOLD::NORMAL_MAP_INDEX]             
-                                ? textures[VyMaterialOLD::NORMAL_MAP_INDEX]             
-                                : dummy;
 
-        roughnessMetallicMap = textures[VyMaterialOLD::ROUGHNESS_METALLIC_MAP_INDEX] 
-                                ? textures[VyMaterialOLD::ROUGHNESS_METALLIC_MAP_INDEX] 
-                                : dummy;
-
-        emissiveMap          = textures[VyMaterialOLD::EMISSIVE_MAP_INDEX]           
-                                ? textures[VyMaterialOLD::EMISSIVE_MAP_INDEX]           
-                                : dummy;
-
-        roughnessMap         = textures[VyMaterialOLD::ROUGHNESS_MAP_INDEX]          
-                                ? textures[VyMaterialOLD::ROUGHNESS_MAP_INDEX]          
-                                : dummy;
-
-        metallicMap          = textures[VyMaterialOLD::METALLIC_MAP_INDEX]           
-                                ? textures[VyMaterialOLD::METALLIC_MAP_INDEX]           
-                                : dummy;
-
-        {
-            Unique<VyDescriptorSetLayout> localDescriptorSetLayout = VyDescriptorSetLayout::Builder{}
-                .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT)
-                .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                .addBinding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                .addBinding(6, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                .buildPtr();
-
-            auto bufferInfo = material.MaterialBuffer->descriptorBufferInfo();
-            auto imageInfo0 = diffuseMap             ->descriptorImageInfo();
-            auto imageInfo1 = normalMap              ->descriptorImageInfo();
-            auto imageInfo2 = roughnessMetallicMap   ->descriptorImageInfo();
-            auto imageInfo3 = emissiveMap            ->descriptorImageInfo();
-            auto imageInfo4 = roughnessMap           ->descriptorImageInfo();
-            auto imageInfo5 = metallicMap            ->descriptorImageInfo();
-
-            VyDescriptorWriter( *localDescriptorSetLayout, *VyContext::globalPool() )
-                .writeBuffer(0, &bufferInfo)
-                .writeImage (1, &imageInfo0)
-                .writeImage (2, &imageInfo1)
-                .writeImage (3, &imageInfo2)
-                .writeImage (4, &imageInfo3)
-                .writeImage (5, &imageInfo4)
-                .writeImage (6, &imageInfo5)
-                .build( m_DescriptorSet );
-        }
-    }
-
+//     VyModel::VyModel(const TString& filepath, VyDescriptorSetLayout& materialSetLayout, VyDescriptorPool& descriptorPool)
+//     {
+//         m_DefaultWhite  = VyTexture::createWhiteTexture(); 
+//         m_DefaultNormal = VyTexture::createNormalTexture();
     
-    MaterialDescriptor::MaterialDescriptor(MaterialDescriptor const& other) 
-    {
-        m_DescriptorSet = other.m_DescriptorSet;
-    }
+//         tinygltf::Model    gltfModel;
+//         tinygltf::TinyGLTF loader;
+//         TString            err;
+//         TString            warn;
 
+//         // Load Model
+//         if (filepath.find(".glb") != TString::npos)
+//         {
+//             if (!loader.LoadBinaryFromFile( &gltfModel, &err, &warn, filepath ))
+//             {
+//                 throw std::runtime_error("Failed to load glb file!");
+//             }
+//         }
+//         if (filepath.find(".gltf") != TString::npos)
+//         {
+//             if (!loader.LoadASCIIFromFile( &gltfModel, &err, &warn, filepath ))
+//             {
+//                 throw std::runtime_error("Failed to load gltf file!");
+//             }
+//         }
 
+//         if (!warn.empty())
+//         {
+//             std::cout << YELLOW << "[GLTFImporter] Warning: " << RESET << warn << std::endl;
+//         }
 
-    Unique<MeshModel> MeshModel::createMeshFromFile(TStringView filePath) 
-    {
-        UFBXImporter importer{ filePath.data() };
+//         if (!err.empty())
+//         {
+//             std::cerr << RED << "[GLTFImporter] Error: " << RESET << err << std::endl;
+//         }
 
-        if (!importer.loadModel()) 
-        {
-            VY_ERROR("Failed to load Model file {0}", filePath.data());
-            return nullptr;
-        }
-        
-        return MakeUnique<MeshModel>( importer );
-    }
+//         ModelLoadInfo info{};
+//         info.Name = Utils::filenameFromPath( filepath );
 
+//         auto path = TPath( filepath );
 
-    MeshModel::MeshModel(const UFBXImporter& importer) 
-    {
-        copyMeshes        (importer.Meshes  );
-        createVertexBuffer(importer.Vertices);
-        createIndexBuffer (importer.Indices );
+//         for (auto& texture : gltfModel.images)
+//         {
+//             TString texPath = path.parent_path().append(texture.uri).generic_string();
 
-        m_Skeleton    = importer.Skeleton;
-        m_SkeletonUbo = importer.SkeletonUbo;
-        m_Vertices    = importer.Vertices;
-        m_Indices     = importer.Indices;
-    }
+//             m_Textures.push_back( VyTexture::createFromFilepath( texPath ));
 
+//             info.TextureCount++;
+//         }
 
-    MeshModel::~MeshModel() 
-    {
-        vkDeviceWaitIdle(VyContext::device());
-    }
+//         for (auto& scene : gltfModel.scenes)
+//         {
+//             for (size_t i = 0; i < scene.nodes.size(); i++)
+//             {
+//                 auto& node = gltfModel.nodes[ i ];
 
+//                 U32 vertexOffset = 0;
+//                 U32 indexOffset  = 0;
 
-    void MeshModel::copyMeshes(const TVector<VyMesh>& meshes) 
-    {
-        for (auto& mesh : meshes) 
-        {
-            m_Meshes.push_back( mesh );
-        }
-    }
+//                 for (auto& gltfPrimitive : gltfModel.meshes[ node.mesh ].primitives)
+//                 {
+//                     U32 vertexCount = 0;
+//                     U32 indexCount  = 0;
 
+//                     bool bHasIndices = gltfPrimitive.indices > -1;
 
-    void MeshModel::createVertexBuffer(const TVector<Vertex>& vertices) 
-    {
-        m_VertexCount = static_cast<U32>(vertices.size());
-
-        VY_ASSERT(m_VertexCount >= 3, "Vertex count must be at least 3");
-        
-        VkDeviceSize bufferSize = sizeof(vertices[0]) * m_VertexCount;
-        U32          vertexSize = sizeof(vertices[0]);
-        
-        VyBuffer stagingBuffer{ VyBuffer::stagingBuffer("mesh", vertexSize, m_VertexCount) };
-        
-        stagingBuffer.write( vertices.data() );
-        
-        m_VertexBuffer = MakeUnique<VyBuffer>( VyBuffer::vertexBuffer("mesh", vertexSize, m_VertexCount) );
-        
-        VyContext::device().copyBuffer( stagingBuffer.handle(), m_VertexBuffer->handle(), bufferSize );
-    }
-
-
-    void MeshModel::createIndexBuffer(const TVector<U32>& indices) 
-    {
-        m_IndexCount     = static_cast<U32>(indices.size());
-        m_HasIndexBuffer = m_IndexCount > 0;
-        
-        if (!m_HasIndexBuffer) { return; }
-        
-        VkDeviceSize bufferSize = sizeof(indices[0]) * m_IndexCount;
-        U32          indexSize  = sizeof(indices[0]);
-        
-        VyBuffer stagingBuffer{ VyBuffer::stagingBuffer("mesh", indexSize, m_IndexCount) };
-        
-        stagingBuffer.write( indices.data() );
-        
-        m_IndexBuffer = MakeUnique<VyBuffer>( VyBuffer::indexBuffer("mesh", indexSize, m_IndexCount) );
-        
-        VyContext::device().copyBuffer( stagingBuffer.handle(), m_IndexBuffer->handle(), bufferSize );
-    }
-
-
-    void MeshModel::updateAnimation(U32 frameCounter) 
-    {
-        m_Skeleton->update();
-
-        // update ubo
-        m_SkeletonUbo->write(m_Skeleton->SkeletonUbo.JointsMatrices.data());
-    }
-
-
-    void MeshModel::bind(VkCommandBuffer cmdBuffer) 
-    {
-        VkBuffer     buffers[] = { m_VertexBuffer->handle() };
-        VkDeviceSize offsets[] = { 0 };
-
-        vkCmdBindVertexBuffers(cmdBuffer, 0, 1, buffers, offsets);
-        
-        if (m_HasIndexBuffer) 
-        {
-            vkCmdBindIndexBuffer(cmdBuffer, m_IndexBuffer->handle(), 0, VK_INDEX_TYPE_UINT32);
-        }
-    }
-
-
-    void MeshModel::draw(const VyFrameInfo& frameInfo, const VkPipelineLayout& pipelineLayout) 
-    {
-        for (auto& mesh : m_Meshes) 
-        {
-            bindDescriptors(frameInfo, pipelineLayout, mesh);
-            
-            drawMesh(frameInfo.CommandBuffer, mesh);
-        }
-    }
-
-
-    void MeshModel::drawMesh(const VkCommandBuffer& cmdBuffer, const VyMesh& mesh) const 
-    {
-        if (m_HasIndexBuffer) 
-        {
-            vkCmdDrawIndexed(cmdBuffer, mesh.IndexCount, 1, mesh.FirstIndex, mesh.FirstVertex, 0);
-        } 
-        else {
-            vkCmdDraw(cmdBuffer, mesh.VertexCount, 1, mesh.FirstVertex, 0);
-        }
-    }
-
-
-    void MeshModel::bindDescriptors(const VyFrameInfo& frameInfo, const VkPipelineLayout& pipelineLayout, VyMesh& mesh) 
-    {
-        mesh.Material.MaterialBuffer->write( &mesh.Material.PbrMaterial );
-
-        const VkDescriptorSet& materialDescriptorSet = mesh.Material.MaterialDescriptor->descriptorSet();
-        const VkDescriptorSet& skeletonDescriptorSet = mesh.SkeletonDescriptorSet;
-
-        TVector<VkDescriptorSet> descriptorSets = {
-            frameInfo.GlobalSet, 
-            materialDescriptorSet, 
-            skeletonDescriptorSet 
-        };
-        
-        vkCmdBindDescriptorSets(
-            frameInfo.CommandBuffer,                  // VkCommandBuffer        cmdBuffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,          // VkPipelineBindPoint    pipelineBindPoint,
-            pipelineLayout,                           // VkPipelineLayout       layout,
-            0,                                        // uint32_t               firstSet,
-            static_cast<U32>(descriptorSets.size()),  // uint32_t               descriptorSetCount,
-            descriptorSets.data(),                    // const VkDescriptorSet* pDescriptorSets,
-            0,                                        // uint32_t               dynamicOffsetCount,
-            nullptr                                   // const uint32_t*        pDynamicOffsets);
-        );
-    }
-
-
-    MeshModel::Bounds MeshModel::bounds() const 
-    {
-        Vec3 lower{std::numeric_limits<float>::max()};
-        Vec3 upper{std::numeric_limits<float>::lowest()};
-
-        for (auto& v : m_Vertices) 
-        {
-            lower = min(v.Position, lower);
-            upper = max(v.Position, upper);
-        }
-
-        return {lower, upper};
-    }
-    
-
-    float MeshModel::width() const 
-    {
-        auto b = bounds();
-        return b.Upper.x - b.Lower.x;
-    }
-
-
-
-
-
-
-
-
-    // bool Model::Data::loadModel(const TString& filepath, bool bAllUniqueVertices) 
-    // {
-    //     tinyobj::attrib_t            attrib;
-    //     TVector<tinyobj::shape_t>    shapes;
-    //     TVector<tinyobj::material_t> materials;
-    //     TString                      warn, err;
-        
-    //     if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filepath.c_str())) 
-    //     {
-    //         throw std::runtime_error(warn + err);
-    //     }
-        
-    //     Vertices.clear();
-    //     Indices .clear();
-        
-    //     THashMap<VyVertex, U32> uniqueVertices{};
-
-    //     for (const auto& shape: shapes) 
-    //     {
-    //         for (const auto& index: shape.mesh.indices) 
-    //         {
-    //             VyVertex vertex{};
-                
-    //             if (index.vertex_index >= 0) 
-    //             {
-    //                 vertex.Position = {
-    //                     attrib.vertices[3 * index.vertex_index + 0],
-    //                     attrib.vertices[3 * index.vertex_index + 1],
-    //                     attrib.vertices[3 * index.vertex_index + 2]
-    //                 };
-
-    //                 vertex.Color = {
-    //                     attrib.colors[3 * index.vertex_index + 0],
-    //                     attrib.colors[3 * index.vertex_index + 1],
-    //                     attrib.colors[3 * index.vertex_index + 2]
-    //                 };
-    //             }
-    //             if (index.normal_index >= 0) 
-    //             {
-    //                 vertex.Normal = {
-    //                     attrib.normals[3 * index.normal_index + 0],
-    //                     attrib.normals[3 * index.normal_index + 1],
-    //                     attrib.normals[3 * index.normal_index + 2]
-    //                 };
-    //             }
-    //             if (index.texcoord_index >= 0) 
-    //             {
-    //                 vertex.UV = {
-    //                     attrib.texcoords[2 * index.texcoord_index + 0],
-    //                     attrib.texcoords[2 * index.texcoord_index + 1]
-    //                 };
-    //             }
-                
-    //             // bAllUniqueVertices == True treats ALL vertices as unique (bypass overlapping UV bug)
-    //             if (uniqueVertices.count( vertex ) == 0 || bAllUniqueVertices) 
-    //             {
-    //                 uniqueVertices[ vertex ] = static_cast<U32>(Vertices.size());
+//                     // Buffer pointers & data strides.
+//                     const float* pPosBuffer      = nullptr;
+//                     const float* pNormalBuffer   = nullptr;
+//                     const float* pTangentBuffer  = nullptr;
+//                     const float* pUV0Buffer      = nullptr;
+//                     const float* pColor0Buffer   = nullptr;
                     
-    //                 Vertices.push_back( vertex );
-    //             }
+//                     int posByteStride;
+//                     int normByteStride;
+//                     int tangentByteStride;
+//                     int uv0ByteStride;
+//                     int color0ByteStride;
 
-    //             Indices.push_back( uniqueVertices[ vertex ] );
-    //         }
-            
-    //     }
-        
-    //     TVector<Vec3> tangents  ( Vertices.size(), Vec3(0.0f) );
-    //     TVector<Vec3> bitangents( Vertices.size(), Vec3(0.0f) );
-    //     Vec3          tanBasis[ 2 ];
-        
-    //     // Compute Tangent Basis for each triangle
-    //     for (size_t i = 0; i < Indices.size(); i += 3) // <- 3
-    //     {
-    //         computeTangentBasis(
-    //             Vertices.at( Indices[ i     ] ), 
-    //             Vertices.at( Indices[ i + 1 ] ), 
-    //             Vertices.at( Indices[ i + 2 ] ), 
-    //             tanBasis
-    //         );
+//                     // [ Position Attributes (REQUIRED) ]
+//                     auto positionEntry = gltfPrimitive.attributes.find("POSITION");
+//                     if(positionEntry != gltfPrimitive.attributes.end())
+//                     {
+//                         const auto& accessor   = gltfModel.accessors  [static_cast<size_t>(positionEntry->second)];
+//                         const auto& bufferView = gltfModel.bufferViews[static_cast<size_t>(accessor.bufferView)  ];
+//                         const auto& buffer     = gltfModel.buffers    [static_cast<size_t>(bufferView.buffer)    ];
+                        
+//                         pPosBuffer = reinterpret_cast<const float*>(&(buffer.data[accessor.byteOffset + bufferView.byteOffset]));
+                        
+//                         posByteStride = accessor.ByteStride(bufferView) 
+//                             ? (accessor.ByteStride(bufferView) / sizeof(float)) 
+//                             : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3);
 
-    //         tangents  .at( Indices[ i     ] ) += tanBasis[ 0 ];
-    //         tangents  .at( Indices[ i + 1 ] ) += tanBasis[ 0 ];
-    //         tangents  .at( Indices[ i + 2 ] ) += tanBasis[ 0 ];
-    //         bitangents.at( Indices[ i     ] ) += tanBasis[ 1 ];
-    //         bitangents.at( Indices[ i + 1 ] ) += tanBasis[ 1 ];
-    //         bitangents.at( Indices[ i + 2 ] ) += tanBasis[ 1 ];
-    //     }
-        
-    //     // Assign oriented Tangent Basis to each vertex
-    //     for (size_t i = 0; i < Vertices.size(); i++) 
-    //     {
-    //         Vec3 N = Vertices.at( i ).Normal;
-    //         Vec3 T = tangents.at( i );
+//                         // Set vertex count.
+//                         vertexCount = static_cast<U32>(accessor.count);
+//                     }
+//                     else {
+//                         VY_THROW_RUNTIME_ERROR("No Position attributes found.");
+//                     }
 
-    //         // Re-Orthogonalize, then Normalize
-    //         T = glm::normalize( T - (glm::dot( T, N ) * N) );
-            
-    //         float w = glm::dot( glm::cross( N, T ), bitangents.at( i ) ) < 0.0f ? -1.0f : 1.0f;
-            
-    //         Vertices.at( i ).Tangent = { T, w };
-    //     }    
-    // }
+//                     // [ Normal Attributes (optional) ]
+//                     auto normEntry = gltfPrimitive.attributes.find("NORMAL");
+//                     if(normEntry != gltfPrimitive.attributes.end())
+//                     {
+//                         const auto& accessor   = gltfModel.accessors  [static_cast<size_t>(normEntry->second)  ];
+//                         const auto& bufferView = gltfModel.bufferViews[static_cast<size_t>(accessor.bufferView)];
+//                         const auto& buffer     = gltfModel.buffers    [static_cast<size_t>(bufferView.buffer)  ];
 
+//                         pNormalBuffer = reinterpret_cast<const float*>(&(buffer.data[bufferView.byteOffset + accessor.byteOffset]));
 
-    // void VyModel::Data::computeTangentBasis(VyVertex& v0, VyVertex& v1, VyVertex& v2, Vec3* pTanOut)
-    // {
-    //     // Edges of the triangle : Position delta
-    //     Vec3 deltaPos1 = v1.Position - v0.Position;
-    //     Vec3 deltaPos2 = v2.Position - v0.Position;
-        
-    //     // UV delta
-    //     Vec2 deltaUV1 = v1.UV0 - v0.UV0;
-    //     Vec2 deltaUV2 = v2.UV0 - v0.UV0;
-        
-    //     if (v1.UV0 == v0.UV0 && v2.UV0 == v0.UV0) 
-    //     {
-    //         deltaUV1 = { 1.0f, 0.0f };
-    //         deltaUV2 = { 0.0f, 1.0f };
-    //     }
-        
-    //     float denom = (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
-    //     float r = denom == 0.0f ? 0.0f : 1.0f / denom;
-        
-    //     pTanOut[ 0 ] = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
-    //     pTanOut[ 1 ] = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x) * r;
-    // }
+//                         normByteStride = accessor.ByteStride(bufferView) 
+//                             ? (accessor.ByteStride(bufferView) / sizeof(float)) 
+//                             : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3); 
+//                     }
 
+//                     // [ Tangent Attributes (optional) ]
+//                     auto tangentEntry = gltfPrimitive.attributes.find("TANGENT");
+//                     if (tangentEntry != gltfPrimitive.attributes.end()) 
+//                     {
+//                         const auto& accessor   = gltfModel.accessors  [static_cast<size_t>(tangentEntry->second)];
+//                         const auto& bufferView = gltfModel.bufferViews[static_cast<size_t>(accessor.bufferView) ];
+//                         const auto& buffer     = gltfModel.buffers    [static_cast<size_t>(bufferView.buffer)   ];
 
-    // VyModel::Data VyModel::Data::makeSimpleCube(bool bInvert) 
-    // {
-    //     VyModel::Data cubeData;
-
-    //     cubeData.Vertices = {
-    //         { {-1.0f, -1.0f,  1.0f }, {}, {}, {}, { 0.0f, 0.0f } },
-    //         { { 1.0f, -1.0f,  1.0f }, {}, {}, {}, { 1.0f, 0.0f } },
-    //         { { 1.0f,  1.0f,  1.0f }, {}, {}, {}, { 1.0f, 1.0f } },
-    //         { {-1.0f,  1.0f,  1.0f }, {}, {}, {}, { 0.0f, 1.0f } },
-    //         { {-1.0f, -1.0f, -1.0f }, {}, {}, {}, { 0.0f, 0.0f } },
-    //         { { 1.0f, -1.0f, -1.0f }, {}, {}, {}, { 1.0f, 0.0f } },
-    //         { { 1.0f,  1.0f, -1.0f }, {}, {}, {}, { 1.0f, 1.0f } },
-    //         { {-1.0f,  1.0f, -1.0f }, {}, {}, {}, { 0.0f, 1.0f } }
-    //     };
-
-    //     if (bInvert) 
-    //     {
-    //         cubeData.Indices = {
-    //             0, 2, 1, 2, 0, 3,
-    //             4, 5, 6, 6, 7, 4,
-    //             1, 6, 5, 6, 1, 2,
-    //             0, 4, 7, 7, 3, 0,
-    //             4, 1, 5, 1, 4, 0,
-    //             3, 6, 2, 6, 3, 7
-    //         };
-    //     } 
-    //     else 
-    //     {
-    //         cubeData.Indices = {
-    //             2, 0, 1, 0, 2, 3,
-    //             5, 4, 6, 7, 6, 4,
-    //             6, 1, 5, 1, 6, 2,
-    //             4, 0, 7, 3, 7, 0,
-    //             1, 4, 5, 4, 1, 0,
-    //             6, 3, 2, 3, 6, 7
-    //         };
-    //     }
-    
-    //     return cubeData;
-    // }
-
-
-    // bool VyModel::Data::loadModel(const TPath& path, bool bAllUniqueVertices) 
-    // {
-    //     tinyobj::attrib_t            attrib;
-    //     TVector<tinyobj::shape_t>    shapes;
-    //     TVector<tinyobj::material_t> materials;
-    //     TString                      warn, err;
-        
-    //     if (!tinyobj::LoadObj( &attrib, &shapes, &materials, &warn, &err, path.string().c_str() )) 
-    //     {
-    //         VY_THROW_RUNTIME_ERROR( warn + err );
-
-    //         return false;
-    //     }
-        
-    //     Vertices.clear();
-    //     Indices .clear();
-        
-    //     THashMap<VyVertex, U32> uniqueVertices{};
-
-    //     for (const auto& shape: shapes) 
-    //     {
-    //         for (const auto& index: shape.mesh.indices) 
-    //         {
-    //             VyVertex vertex{};
-                
-    //             if (index.vertex_index >= 0) 
-    //             {
-    //                 vertex.Position = {
-    //                     attrib.vertices[3 * index.vertex_index + 0],
-    //                     attrib.vertices[3 * index.vertex_index + 1],
-    //                     attrib.vertices[3 * index.vertex_index + 2]
-    //                 };
-
-    //                 vertex.Color = {
-    //                     attrib.colors[3 * index.vertex_index + 0],
-    //                     attrib.colors[3 * index.vertex_index + 1],
-    //                     attrib.colors[3 * index.vertex_index + 2]
-    //                 };
-    //             }
-    //             if (index.normal_index >= 0) 
-    //             {
-    //                 vertex.Normal = {
-    //                     attrib.normals[3 * index.normal_index + 0],
-    //                     attrib.normals[3 * index.normal_index + 1],
-    //                     attrib.normals[3 * index.normal_index + 2]
-    //                 };
-    //             }
-    //             if (index.texcoord_index >= 0) 
-    //             {
-    //                 vertex.UV0 = {
-    //                     attrib.texcoords[2 * index.texcoord_index + 0],
-    //                     attrib.texcoords[2 * index.texcoord_index + 1]
-    //                 };
-    //             }
-                
-    //             if (!uniqueVertices.contains( vertex )) 
-    //             {
-    //                 uniqueVertices[ vertex ] = static_cast<U32>( Vertices.size() );
+//                         pTangentBuffer = reinterpret_cast<const float*>(&(buffer.data[bufferView.byteOffset + accessor.byteOffset]));
                     
-    //                 Vertices.push_back( vertex );
-    //             }
+//                         tangentByteStride = accessor.ByteStride(bufferView) 
+//                             ? (accessor.ByteStride(bufferView) / sizeof(float)) 
+//                             : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC4);
+//                     }
 
-    //             // bAllUniqueVertices == True treats ALL vertices as unique (bypass overlapping UV bug).
-    //             if (uniqueVertices.count( vertex ) == 0 || bAllUniqueVertices) 
-    //             {
-    //                 uniqueVertices[ vertex ] = static_cast<U32>( Vertices.size() );
+//                     // [ UV 0 Attributes (optional) ]
+//                     auto uvEntry0 = gltfPrimitive.attributes.find("TEXCOORD_0");
+//                     if (uvEntry0 != gltfPrimitive.attributes.end()) 
+//                     {
+//                         const auto& accessor   = gltfModel.accessors  [static_cast<size_t>(uvEntry0->second)   ];
+//                         const auto& bufferView = gltfModel.bufferViews[static_cast<size_t>(accessor.bufferView)];
+//                         const auto& buffer     = gltfModel.buffers    [static_cast<size_t>(bufferView.buffer)  ];
+
+//                         pUV0Buffer = reinterpret_cast<const float*>(&(buffer.data[bufferView.byteOffset + accessor.byteOffset]));
                     
-    //                 Vertices.push_back( vertex );
-    //             }
+//                         uv0ByteStride = accessor.ByteStride(bufferView) 
+//                             ? (accessor.ByteStride(bufferView) / sizeof(float)) 
+//                             : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC2); 
+//                     }
 
-    //             Indices.push_back( uniqueVertices[ vertex ] );
-    //         }
-    //     }
+//                     // [ Color 0 Attributes (optional) ]
+//                     auto colorEntry = gltfPrimitive.attributes.find("COLOR_0");
+//                     if (colorEntry != gltfPrimitive.attributes.end()) 
+//                     {
+//                         const auto& accessor   = gltfModel.accessors  [static_cast<size_t>(colorEntry->second) ];
+//                         const auto& bufferView = gltfModel.bufferViews[static_cast<size_t>(accessor.bufferView)];
+//                         const auto& buffer     = gltfModel.buffers    [static_cast<size_t>(bufferView.buffer)  ];
+
+//                         pColor0Buffer = reinterpret_cast<const float*>(&(buffer.data[bufferView.byteOffset + accessor.byteOffset]));
+                    
+//                         color0ByteStride = accessor.ByteStride(bufferView) 
+//                             ? (accessor.ByteStride(bufferView) / sizeof(float)) 
+//                             : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3); 
+//                     }
+
+//                     // [ Populate Vertex Data ]
+//                     for (U32 vIndex = 0; vIndex < vertexCount; vIndex++)
+//                     {
+//                         VyVertex v{};
+                        
+//                         v.Position =                                 glm::make_vec3(&pPosBuffer    [vIndex * posByteStride    ]                );
+//                         v.Normal   = glm::normalize(pNormalBuffer  ? glm::make_vec3(&pNormalBuffer [vIndex * normByteStride   ]) : Vec3{ 0.0f });
+//                         v.Tangent  = glm::normalize(pTangentBuffer ? glm::make_vec4(&pTangentBuffer[vIndex * tangentByteStride]) : Vec4{ 0.0f });
+//                         v.UV       = pUV0Buffer                    ? glm::make_vec2(&pUV0Buffer    [vIndex * uv0ByteStride    ]) : Vec2{ 0.0f };
+//                         v.Color    = pColor0Buffer                 ? glm::make_vec3(&pColor0Buffer [vIndex * color0ByteStride ]) : Vec3{ 1.0f };
+
+//                         m_Vertices.push_back( v );
+//                     }
+
+//                     // [ INDICES ]
+//                     {
+//                         if (bHasIndices) 
+//                         {
+//                             const auto& indexAccessor   = gltfModel.accessors  [gltfPrimitive.indices > -1 ? gltfPrimitive.indices : 0];
+//                             const auto& indexBufferView = gltfModel.bufferViews[static_cast<size_t>(indexAccessor.bufferView)         ];
+//                             const auto& indexBuffer     = gltfModel.buffers    [static_cast<size_t>(indexBufferView.buffer)           ];
+                            
+//                             // Set index count.
+//                             indexCount = static_cast<U32>( indexAccessor.count );
+
+//                             // Raw index data to cast.
+//                             const void* pIndexData = &(indexBuffer.data[indexAccessor.byteOffset + indexBufferView.byteOffset]);
+
+//                             // TODO: Raw indexing of the indices array would be considerably faster for index buffer here than push_back.
+//                             switch (indexAccessor.componentType) 
+//                             {
+//                                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: 
+//                                 {
+//                                     const U32* pCastData = static_cast<const U32*>(pIndexData);
+
+//                                     for (U32 i = 0; i < indexCount; i++) 
+//                                     {
+//                                         m_Indices.push_back( pCastData[ i ] );
+//                                     }
+
+//                                 } break;
+                                
+//                                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: 
+//                                 {
+//                                     const U16* pCastData = static_cast<const U16*>(pIndexData);
+
+//                                     for (U32 i = 0; i < indexCount; i++) 
+//                                     {
+//                                         m_Indices.push_back( static_cast<U32>(pCastData[ i ]) );
+//                                     }
+                                    
+//                                 } break;
+                                
+//                                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: 
+//                                 {
+//                                     const U8* pCastData = static_cast<const U8*>(pIndexData);
+
+//                                     for (U32 i = 0; i < indexCount; i++) 
+//                                     {
+//                                         m_Indices.push_back( static_cast<U32>(pCastData[ i ]) );
+//                                     }
+                                    
+//                                 } break;
+                                
+//                                 default:
+//                                 {
+//                                     VY_THROW_RUNTIME_ERROR("Attempted to load model Indices with an unsupported data type.");
+//                                 }
+//                             }
+//                         }
+//                     }
+
+//                     // [ MATERIALS ]
+//                     VyPBRMaterial material{};
+//                     {
+//                         if (gltfPrimitive.material != -1)
+//                         {
+//                             tinygltf::Material& gltfMaterial = gltfModel.materials[ gltfPrimitive.material ];
+
+//                             // [ PBR Metallic Roughness Factors ]
+//                             const auto& pbr = gltfMaterial.pbrMetallicRoughness;
+
+//                             // [ PBR - Albedo ]
+//                             if (pbr.baseColorTexture.index != -1)
+//                             {
+//                                 U32 textureIndex = pbr.baseColorTexture.index;
+//                                 U32 imageIndex   = gltfModel.textures[textureIndex].source;
+
+//                                 material.AlbedoMap = m_Textures[ imageIndex ];
+//                             }
+//                             else {
+//                                 material.AlbedoMap = m_DefaultWhite;
+//                             }
+
+//                             // [ PBR - MetallicRoughness ]
+//                             if (pbr.metallicRoughnessTexture.index != -1)
+//                             {
+//                                 U32 textureIndex = pbr.metallicRoughnessTexture.index;
+//                                 U32 imageIndex   = gltfModel.textures[textureIndex].source;
+                                
+//                                 material.MetallicRoughnessMap        = m_Textures[imageIndex];
+//                                 material.UseMetallicRoughnessTexture = true;
+
+//                                 // [ ARM ]
+//                                 if (gltfMaterial.occlusionTexture.index == pbr.metallicRoughnessTexture.index)
+//                                 {
+//                                     material.UseOcclusionRoughnessMetallicTexture = true;
+//                                 }
+//                             }
+//                             else {
+//                                 material.MetallicRoughnessMap = m_DefaultNormal;
+//                             }
+
+//                             // [ Ambient Occlusion ]
+//                             if (gltfMaterial.occlusionTexture.index != -1)
+//                             {
+//                                 U32 textureIndex = gltfMaterial.occlusionTexture.index;
+//                                 U32 imageIndex   = gltfModel.textures[textureIndex].source;
+
+//                                 material.AOMap = m_Textures[imageIndex];
+//                             }
+//                             else {
+//                                 material.AOMap = m_DefaultNormal;
+//                             }
+
+//                             // [ Emissive ]
+//                             if (gltfMaterial.emissiveTexture.index != -1)
+//                             {
+//                                 U32 textureIndex = gltfMaterial.emissiveTexture.index;
+//                                 U32 imageIndex   = gltfModel.textures[textureIndex].source;
+
+//                                 material.EmissiveMap = m_Textures[imageIndex];
+//                             }
+//                             else {
+//                                 material.EmissiveMap = m_DefaultWhite;
+//                             }
+
+//                             // [ Normal ]
+//                             if (gltfMaterial.normalTexture.index != -1)
+//                             {
+//                                 U32 textureIndex = gltfMaterial.normalTexture.index;
+//                                 U32 imageIndex   = gltfModel.textures[textureIndex].source;
+                                
+//                                 material.NormalMap = m_Textures[imageIndex];
+//                             }
+//                             else {
+//                                 material.NormalMap = m_DefaultNormal;
+//                             }
+//                         }
+
+//                         // [ Fallback ]
+//                         else {
+//                             material.AlbedoMap            = m_DefaultWhite;
+//                             material.MetallicRoughnessMap = m_DefaultNormal;
+//                             material.EmissiveMap          = m_DefaultWhite;
+//                             material.AOMap                = m_DefaultNormal;
+//                             material.NormalMap            = m_DefaultNormal;
+//                         }
+//                     }
+
+//                     createDescriptorSet(material, materialSetLayout, descriptorPool);
+
+//                     VyPrimitive primitive{};
+//                     {
+//                         primitive.FirstIndex  = indexOffset;
+//                         primitive.IndexCount  = indexCount;
+//                         primitive.FirstVertex = vertexOffset;
+//                         primitive.VertexCount = vertexCount;
+//                         primitive.Material    = material;
+//                     }
+                    
+//                     m_Primitives.push_back( primitive );
+
+//                     vertexOffset += vertexCount;
+//                     indexOffset  += indexCount;
+
+//                     {
+//                         info.VertexCount = vertexCount;
+//                         info.IndexCount  = indexCount;
+
+//                         info.MeshCount++;
+//                     }
+
+//                 } // [ End of mesh loop ]
+
+//                 info.NodeCount++;
+
+//             } // [ End of node loop ]
+
+//             createVertexBuffer( m_Vertices );
+//             createIndexBuffer ( m_Indices  );
+
+//             info.SceneCount++;
+
+//         } // [ End of scene loop ]
+
+// 		std::stringstream ss;
+//         ss  << "\n--------------------------------------------------------------------------" << '\n'
+// 			<< "[" << CYAN "VyModel Load Stats" RESET "] " << '\n'
+//             << " - Name       : " << info.Name             << '\n';
+//         if (info.SceneCount > 0)
+//         {
+//             ss  << " - Scenes     : " << info.SceneCount       << '\n';
+//         }
+//         if (info.NodeCount > 0)
+//         {
+//             ss  << " - Nodes      : " << info.NodeCount        << '\n';
+//         }
+//         ss  << " - Meshes     : " << info.MeshCount        << '\n'
+//             << " - Vertices   : " << info.VertexCount      << '\n'
+// 			<< " - Indices    : " << info.IndexCount       << '\n'
+//             << " - Textures   : " << info.TextureCount     << '\n'
+// 			<< "--------------------------------------------------------------------------"   << '\n'
+//         ;
+
+//         std::cout << ss.str() << std::endl;
+//     }
+
+
+//     void VyModel::createDescriptorSet(
+//         VyPBRMaterial&         material, 
+//         VyDescriptorSetLayout& materialSetLayout, 
+//         VyDescriptorPool&      descriptorPool)
+//     {
+//         VkDescriptorImageInfo albedoInfo   = material.AlbedoMap           ->descriptorImageInfo();
+//         VkDescriptorImageInfo normalInfo   = material.NormalMap           ->descriptorImageInfo();
+//         VkDescriptorImageInfo mrInfo       = material.MetallicRoughnessMap->descriptorImageInfo();
+//         VkDescriptorImageInfo aoInfo       = material.AOMap               ->descriptorImageInfo();
+//         VkDescriptorImageInfo emissiveInfo = material.EmissiveMap         ->descriptorImageInfo();
+
+//         VyDescriptorWriter( materialSetLayout, descriptorPool )
+//             .writeImage( 0, &albedoInfo   )
+//             .writeImage( 1, &normalInfo   )
+//             .writeImage( 2, &mrInfo       )
+//             .writeImage( 3, &aoInfo       )
+//             .writeImage( 4, &emissiveInfo )
+//             .build( material.DescriptorSet );
+//     }
+
+//     // =====================================================================================================================
+
+//     VyModel::~VyModel()
+//     {
+//     }
+
+//     // =====================================================================================================================
+
+//     void VyModel::bind(VkCommandBuffer cmdBuffer)
+//     {
+//         VkBuffer     buffers[] = { m_VertexBuffer->handle() };
+//         VkDeviceSize offsets[] = { 0 };
+
+//         vkCmdBindVertexBuffers(cmdBuffer, 0, 1, buffers, offsets);
         
-    //     TVector<Vec3> tangents  ( Vertices.size(), Vec3(0.0f) );
-    //     TVector<Vec3> bitangents( Vertices.size(), Vec3(0.0f) );
-    //     Vec3          tanBasis[ 2 ];
+//         if (m_HasIndexBuffer) 
+//         {
+//             vkCmdBindIndexBuffer(cmdBuffer, m_IndexBuffer->handle(), 0, VK_INDEX_TYPE_UINT32);
+//         }
+//     }
+
+//     // =====================================================================================================================
+
+//     void VyModel::draw(VkCommandBuffer cmdBuffer, VkPipelineLayout pipelineLayout, int setCount, bool bRenderMaterial)
+//     {
+//         for (auto& primitive : m_Primitives)
+//         {
+//             if (m_HasIndexBuffer)
+//             {
+//                 if (bRenderMaterial)
+//                 {
+//                     TVector<VkDescriptorSet> sets = { 
+//                         primitive.Material.DescriptorSet 
+//                     };
+
+//                     vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
+//                         pipelineLayout,
+//                         setCount, 
+//                         sets.size(), sets.data(), 
+//                         0, nullptr
+//                     );
+//                 }
+
+//                 vkCmdDrawIndexed(cmdBuffer, primitive.IndexCount, 1, primitive.FirstIndex, primitive.FirstVertex, 0);
+//             }
+//             else
+//             {
+//                 vkCmdDraw(cmdBuffer, primitive.VertexCount, 1, 0, 0);
+//             }
+//         }
+//     }
+
+//     // =====================================================================================================================
+
+//     void VyModel::createVertexBuffer(const TVector<VyVertex>& vertices) 
+//     {
+//         U32 vertexCount = static_cast<U32>( vertices.size() );
+
+//         VY_ASSERT(vertexCount >= 3, "Vertex count must be at least 3");
         
-    //     // Compute Tangent Basis for each triangle.
-    //     for (size_t i = 0; i < Indices.size(); i += 3) // <- 3
-    //     {
-    //         computeTangentBasis(
-    //             Vertices.at( Indices[ i     ] ), 
-    //             Vertices.at( Indices[ i + 1 ] ), 
-    //             Vertices.at( Indices[ i + 2 ] ), 
-    //             tanBasis
-    //         );
+//         U32 vertexSize = sizeof(vertices[0]);
 
-    //         tangents  .at( Indices[ i     ] ) += tanBasis[ 0 ];
-    //         tangents  .at( Indices[ i + 1 ] ) += tanBasis[ 0 ];
-    //         tangents  .at( Indices[ i + 2 ] ) += tanBasis[ 0 ];
-    //         bitangents.at( Indices[ i     ] ) += tanBasis[ 1 ];
-    //         bitangents.at( Indices[ i + 1 ] ) += tanBasis[ 1 ];
-    //         bitangents.at( Indices[ i + 2 ] ) += tanBasis[ 1 ];
-    //     }
+//         m_VertexBuffer = MakeUnique<VyBuffer>( VyBuffer::vertexBuffer( "model", vertexSize, vertexCount ) );
         
-    //     // Assign oriented Tangent Basis to each vertex.
-    //     for (size_t i = 0; i < Vertices.size(); i++) 
-    //     {
-    //         Vec3 N = Vertices.at( i ).Normal;
-    //         Vec3 T = tangents.at( i );
+//         m_VertexBuffer->upload( vertices );
+//     }
 
-    //         // Re-Orthogonalize, then Normalize.
-    //         T = glm::normalize( T - (glm::dot( T, N ) * N) );
-            
-    //         float w = glm::dot( glm::cross( N, T ), bitangents.at( i ) ) < 0.0f ? -1.0f : 1.0f;
-            
-    //         Vertices.at( i ).Tangent = { T, w };
-    //     }
+//     // =====================================================================================================================
 
-    //     return true;
-    // }
-
-
-    // VyModel::VyModel(const Data& data)
-    // {
-    //     createVertexBuffer(data.Vertices);
-    //     createIndexBuffer (data.Indices);
-    // }
-
-    
-    // VyModel::~VyModel() 
-    // {
-
-    // }
-
-
-    // Unique<VyModel> VyModel::loadFromFile(const TPath& path, bool bAllUniqueVertices) 
-    // {
-    //     Data data{};
-
-    //     if (!data.loadModel( path, bAllUniqueVertices ))
-    //     {
-    //         VY_ERROR_TAG("VyModel", "Failed to load Model file: {0}", path.string());
-            
-    //         return nullptr;
-    //     }
-
-    //     return MakeUnique<VyModel>( data );
-    // }
-
-
-    // void VyModel::bind(VkCommandBuffer cmdBuffer) const
-    // {
-    //     VkBuffer     buffers[] = { m_VertexBuffer->handle() };
-    //     VkDeviceSize offsets[] = { 0 };
-
-    //     vkCmdBindVertexBuffers(cmdBuffer, 0, 1, buffers, offsets);
+//     void VyModel::createIndexBuffer(const TVector<U32>& indices) 
+//     {
+//         U32 indexCount   = static_cast<U32>( indices.size() );
+//         m_HasIndexBuffer = indexCount > 0;
         
-    //     if (m_HasIndexBuffer) 
-    //     {
-    //         vkCmdBindIndexBuffer(cmdBuffer, m_IndexBuffer->handle(), 0, VK_INDEX_TYPE_UINT32);
-    //     }
-    // }
+//         if (!m_HasIndexBuffer) { return; }
 
+//         U32 indexSize = sizeof(indices[0]);
 
-    // void VyModel::draw(VkCommandBuffer cmdBuffer) const
-    // {
-    //     if (m_HasIndexBuffer) 
-    //     {
-    //         vkCmdDrawIndexed(cmdBuffer, m_IndexCount, 1, 0, 0, 0);
-    //     } 
-    //     else 
-    //     {
-    //         vkCmdDraw(cmdBuffer, m_VertexCount, 1, 0, 0);
-    //     }
-    // }
+//         m_IndexBuffer = MakeUnique<VyBuffer>( VyBuffer::indexBuffer( "model", indexSize, indexCount ) );
+        
+//         m_IndexBuffer->upload( indices );
+//     }
 
+//     // =====================================================================================================================
 
-    // void VyModel::createVertexBuffer(const TVector<VyVertex>& vertices) 
-    // {
-    //     m_VertexCount = static_cast<U32>(vertices.size());
-
-    //     VY_ASSERT(m_VertexCount >= 3, "Vertex count must be at least 3");
-        
-    //     VkDeviceSize bufferSize = sizeof(vertices[0]) * m_VertexCount;
-    //     U32          vertexSize = sizeof(vertices[0]);
-        
-    //     VyBuffer stagingBuffer{ VyBuffer::stagingBuffer( "model", vertexSize, m_VertexCount ) };
-        
-    //     stagingBuffer.write( vertices.data() );
-        
-    //     m_VertexBuffer = MakeUnique<VyBuffer>( VyBuffer::vertexBuffer( "model", vertexSize, m_VertexCount ) );
-        
-    //     VyContext::device().copyBuffer( stagingBuffer.handle(), m_VertexBuffer->handle(), bufferSize );
-    // }
-
-
-    // void VyModel::createIndexBuffer(const TVector<U32>& indices) 
-    // {
-    //     m_IndexCount     = static_cast<U32>(indices.size());
-    //     m_HasIndexBuffer = m_IndexCount > 0;
-        
-    //     if (!m_HasIndexBuffer) { return; }
-        
-    //     VkDeviceSize bufferSize = sizeof(indices[0]) * m_IndexCount;
-    //     U32          indexSize  = sizeof(indices[0]);
-        
-    //     VyBuffer stagingBuffer{ VyBuffer::stagingBuffer( "model", indexSize, m_IndexCount ) };
-        
-    //     stagingBuffer.write( indices.data() );
-        
-    //     m_IndexBuffer = MakeUnique<VyBuffer>( VyBuffer::indexBuffer( "model", indexSize, m_IndexCount ) );
-        
-    //     VyContext::device().copyBuffer( stagingBuffer.handle(), m_IndexBuffer->handle(), bufferSize );
-    // }
-}
+// }
